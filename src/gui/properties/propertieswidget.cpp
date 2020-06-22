@@ -286,7 +286,7 @@ QTreeView *PropertiesWidget::getFilesList() const
 void PropertiesWidget::updateSavePath(BitTorrent::TorrentHandle *const torrent)
 {
     if (torrent == m_torrent)
-        m_ui->labelSavePathVal->setText(Utils::Fs::toNativePath(m_torrent->savePath()));
+        m_ui->labelSavePathVal->setText(Utils::Fs::toNativePath(m_torrent->storageLocation()));
 }
 
 void PropertiesWidget::loadTrackers(BitTorrent::TorrentHandle *const torrent)
@@ -530,7 +530,7 @@ void PropertiesWidget::openDoubleClickedFile(const QModelIndex &index)
 void PropertiesWidget::openFile(const QModelIndex &index)
 {
     int i = m_propListModel->getFileIndex(index);
-    const QDir saveDir(m_torrent->savePath(true));
+    const QDir saveDir(m_torrent->storageLocation());
     const QString filename = m_torrent->filePath(i);
     const QString filePath = Utils::Fs::expandPath(saveDir.absoluteFilePath(filename));
     qDebug("Trying to open file at %s", qUtf8Printable(filePath));
@@ -554,13 +554,13 @@ void PropertiesWidget::openFolder(const QModelIndex &index, bool containingFolde
         }
         if (pathItems.isEmpty())
             return;
-        const QDir saveDir(m_torrent->savePath(true));
+        const QDir saveDir(m_torrent->storageLocation());
         const QString relativePath = pathItems.join('/');
         absolutePath = Utils::Fs::expandPath(saveDir.absoluteFilePath(relativePath));
     }
     else {
         int i = m_propListModel->getFileIndex(index);
-        const QDir saveDir(m_torrent->savePath(true));
+        const QDir saveDir(m_torrent->storageLocation());
         const QString relativePath = m_torrent->filePath(i);
         absolutePath = Utils::Fs::expandPath(saveDir.absoluteFilePath(relativePath));
     }

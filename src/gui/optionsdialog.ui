@@ -90,7 +90,7 @@
      </widget>
      <widget class="QStackedWidget" name="tabOption">
       <property name="currentIndex">
-       <number>0</number>
+       <number>1</number>
       </property>
       <widget class="QWidget" name="tabBehaviorPage">
        <layout class="QVBoxLayout" name="verticalLayout_10">
@@ -121,9 +121,9 @@
            <property name="geometry">
             <rect>
              <x>0</x>
-             <y>0</y>
-             <width>501</width>
-             <height>893</height>
+             <y>-367</y>
+             <width>470</width>
+             <height>909</height>
             </rect>
            </property>
            <layout class="QVBoxLayout" name="verticalLayout_9">
@@ -734,9 +734,9 @@
            <property name="geometry">
             <rect>
              <x>0</x>
-             <y>0</y>
-             <width>591</width>
-             <height>1138</height>
+             <y>-283</y>
+             <width>470</width>
+             <height>1066</height>
             </rect>
            </property>
            <layout class="QVBoxLayout" name="verticalLayout">
@@ -1055,7 +1055,7 @@ Manual: Various torrent properties (e.g. save path) must be assigned manually</s
                <item>
                 <layout class="QGridLayout" name="gridLayout_4">
                  <item row="1" column="1">
-                  <widget class="FileSystemPathLineEdit" name="textTempPath" native="true"/>
+                  <widget class="FileSystemPathLineEdit" name="textCompleteSavePath" native="true"/>
                  </item>
                  <item row="3" column="0">
                   <widget class="QCheckBox" name="checkExportDirFin">
@@ -1079,9 +1079,9 @@ Manual: Various torrent properties (e.g. save path) must be assigned manually</s
                   </widget>
                  </item>
                  <item row="1" column="0">
-                  <widget class="QCheckBox" name="checkTempFolder">
+                  <widget class="QCheckBox" name="checkCompleteFolder">
                    <property name="text">
-                    <string>Keep incomplete torrents in:</string>
+                    <string>Move complete torrents to:</string>
                    </property>
                   </widget>
                  </item>
@@ -1346,8 +1346,8 @@ Manual: Various torrent properties (e.g. save path) must be assigned manually</s
             <rect>
              <x>0</x>
              <y>0</y>
-             <width>501</width>
-             <height>745</height>
+             <width>470</width>
+             <height>624</height>
             </rect>
            </property>
            <layout class="QVBoxLayout" name="verticalLayout_20">
@@ -1846,8 +1846,8 @@ Manual: Various torrent properties (e.g. save path) must be assigned manually</s
             <rect>
              <x>0</x>
              <y>0</y>
-             <width>516</width>
-             <height>525</height>
+             <width>487</width>
+             <height>542</height>
             </rect>
            </property>
            <layout class="QVBoxLayout" name="verticalLayout_5">
@@ -2183,8 +2183,8 @@ Manual: Various torrent properties (e.g. save path) must be assigned manually</s
             <rect>
              <x>0</x>
              <y>0</y>
-             <width>513</width>
-             <height>679</height>
+             <width>470</width>
+             <height>619</height>
             </rect>
            </property>
            <layout class="QVBoxLayout" name="verticalLayout_7">
@@ -2629,7 +2629,7 @@ Disable encryption: Only connect to peers without protocol encryption</string>
                <item row="0" column="0">
                 <widget class="QPlainTextEdit" name="textTrackers">
                  <property name="enabled">
-                  <bool>true</bool>
+                  <bool>false</bool>
                  </property>
                  <property name="focusPolicy">
                   <enum>Qt::StrongFocus</enum>
@@ -2682,8 +2682,8 @@ Disable encryption: Only connect to peers without protocol encryption</string>
             <rect>
              <x>0</x>
              <y>0</y>
-             <width>516</width>
-             <height>525</height>
+             <width>487</width>
+             <height>542</height>
             </rect>
            </property>
            <layout class="QVBoxLayout" name="verticalLayout_27">
@@ -2852,8 +2852,8 @@ Disable encryption: Only connect to peers without protocol encryption</string>
             <rect>
              <x>0</x>
              <y>0</y>
-             <width>501</width>
-             <height>636</height>
+             <width>470</width>
+             <height>903</height>
             </rect>
            </property>
            <layout class="QVBoxLayout" name="verticalLayout_23">
@@ -3429,8 +3429,8 @@ Use ';' to split multiple entries. Can use wildcard '*'.</string>
   <tabstop>checkAdditionDialog</tabstop>
   <tabstop>checkAdditionDialogFront</tabstop>
   <tabstop>checkPreallocateAll</tabstop>
-  <tabstop>checkTempFolder</tabstop>
-  <tabstop>textTempPath</tabstop>
+  <tabstop>checkCompleteFolder</tabstop>
+  <tabstop>textCompleteSavePath</tabstop>
   <tabstop>checkAppendqB</tabstop>
   <tabstop>scanFoldersView</tabstop>
   <tabstop>addScanFolderButton</tabstop>

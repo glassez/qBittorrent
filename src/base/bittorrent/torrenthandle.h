@@ -158,9 +158,9 @@ namespace BitTorrent
         // | B | /home/user/torrents/torrentB | /home/user/torrents/torrentB/subdir1/file1 |
         // | C | /home/user/torrents/file1    | /home/user/torrents/file1                  |
 
-        virtual QString savePath(bool actual = false) const = 0;
-        virtual QString rootPath(bool actual = false) const = 0;
-        virtual QString contentPath(bool actual = false) const = 0;
+        virtual QString storageLocation() const = 0;
+        virtual QString rootPath() const = 0;
+        virtual QString contentPath() const = 0;
 
         virtual bool useTempPath() const = 0;
 
@@ -268,7 +268,7 @@ namespace BitTorrent
         virtual void setFirstLastPiecePriority(bool enabled) = 0;
         virtual void pause() = 0;
         virtual void resume(bool forced = false) = 0;
-        virtual void move(QString path) = 0;
+        virtual void setStorageLocation(QString path) = 0;
         virtual void forceReannounce(int index = -1) = 0;
         virtual void forceDHTAnnounce() = 0;
         virtual void forceRecheck() = 0;

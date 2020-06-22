@@ -368,7 +368,7 @@ void TorrentsController::propertiesAction()
         dataDict[KEY_PROP_COMPLETION_DATE] = -1;
         dataDict[KEY_PROP_CREATION_DATE] = -1;
     }
-    dataDict[KEY_PROP_SAVE_PATH] = Utils::Fs::toNativePath(torrent->savePath());
+    dataDict[KEY_PROP_SAVE_PATH] = Utils::Fs::toNativePath(torrent->storageLocation());
     dataDict[KEY_PROP_COMMENT] = torrent->comment();
 
     setResult(dataDict);
@@ -969,8 +969,8 @@ void TorrentsController::setLocationAction()
     applyToTorrents(hashes, [newLocation](BitTorrent::TorrentHandle *const torrent)
     {
         LogMsg(tr("WebUI Set location: moving \"%1\", from \"%2\" to \"%3\"")
-            .arg(torrent->name(), Utils::Fs::toNativePath(torrent->savePath()), Utils::Fs::toNativePath(newLocation)));
-        torrent->move(Utils::Fs::expandPathAbs(newLocation));
+            .arg(torrent->name(), Utils::Fs::toNativePath(torrent->storageLocation()), Utils::Fs::toNativePath(newLocation)));
+        torrent->setStorageLocation(Utils::Fs::expandPathAbs(newLocation));
     });
 }
 

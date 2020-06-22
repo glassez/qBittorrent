@@ -327,7 +327,7 @@ void Application::runExternalProgram(const BitTorrent::TorrentHandle *torrent) c
     };
     program.replace("%F", chopPathSep(Utils::Fs::toNativePath(torrent->contentPath())));
     program.replace("%R", chopPathSep(Utils::Fs::toNativePath(torrent->rootPath())));
-    program.replace("%D", chopPathSep(Utils::Fs::toNativePath(torrent->savePath())));
+    program.replace("%D", chopPathSep(Utils::Fs::toNativePath(torrent->storageLocation())));
 #else
     program.replace("%F", Utils::Fs::toNativePath(torrent->contentPath()));
     program.replace("%R", Utils::Fs::toNativePath(torrent->rootPath()));
@@ -405,7 +405,7 @@ void Application::sendNotificationEmail(const BitTorrent::TorrentHandle *torrent
     // Prepare mail content
     const QString content = tr("Torrent name: %1").arg(torrent->name()) + '\n'
         + tr("Torrent size: %1").arg(Utils::Misc::friendlyUnit(torrent->wantedSize())) + '\n'
-        + tr("Save path: %1").arg(torrent->savePath()) + "\n\n"
+        + tr("Save path: %1").arg(torrent->storageLocation()) + "\n\n"
         + tr("The torrent was downloaded in %1.", "The torrent was downloaded in 1 hour and 20 seconds")
             .arg(Utils::Misc::userFriendlyDuration(torrent->activeTime())) + "\n\n\n"
         + tr("Thank you for using qBittorrent.") + '\n';

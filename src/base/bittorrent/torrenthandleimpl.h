@@ -43,6 +43,7 @@
 #include <QString>
 #include <QVector>
 
+#include "base/tristatebool.h"
 #include "infohash.h"
 #include "speedmonitor.h"
 #include "torrenthandle.h"
@@ -56,7 +57,6 @@ namespace BitTorrent
     struct CreateTorrentParams
     {
         CreateTorrentParams() = default;
-        explicit CreateTorrentParams(const AddTorrentParams &params);
 
         // for both new and restored torrents
         QString name;
@@ -65,7 +65,7 @@ namespace BitTorrent
         QString savePath;
         int uploadLimit = -1;
         int downloadLimit = -1;
-        bool disableTempPath = false;
+        bool useAutoTMM = false;
         bool sequential = false;
         bool firstLastPiecePriority = false;
         bool hasSeedStatus = false;
@@ -116,9 +116,9 @@ namespace BitTorrent
         qlonglong wastedSize() const override;
         QString currentTracker() const override;
 
-        QString savePath(bool actual = false) const override;
-        QString rootPath(bool actual = false) const override;
-        QString contentPath(bool actual = false) const override;
+        QString storageLocation() const override;
+        QString rootPath() const override;
+        QString contentPath() const override;
 
         bool useTempPath() const override;
 
@@ -220,7 +220,7 @@ namespace BitTorrent
         void setFirstLastPiecePriority(bool enabled) override;
         void pause() override;
         void resume(bool forced = false) override;
-        void move(QString path) override;
+        void setStorageLocation(QString path) override;
         void forceReannounce(int index = -1) override;
         void forceDHTAnnounce() override;
         void forceRecheck() override;
@@ -248,13 +248,11 @@ namespace BitTorrent
 
         void handleAlert(const lt::alert *a);
         void handleStateUpdate(const lt::torrent_status &nativeStatus);
-        void handleTempPathChanged();
+        void handleDefaultCompleteSavePathChanged();
         void handleCategorySavePathChanged();
         void handleAppendExtensionToggled();
         void saveResumeData();
         void handleStorageMoved(const QString &newPath, const QString &errorMessage);
-
-        QString actualStorageLocation() const;
 
     private:
         typedef std::function<void ()> EventTrigger;
@@ -291,9 +289,7 @@ namespace BitTorrent
         bool isAutoManaged() const;
         void setAutoManaged(bool enable);
 
-        void adjustActualSavePath();
-        void adjustActualSavePath_impl();
-        void move_impl(QString path, MoveStorageMode mode);
+        void moveToCompleteFolder();
         void moveStorage(const QString &newPath, MoveStorageMode mode);
         void manageIncompleteFiles();
         void setFirstLastPiecePriorityImpl(bool enabled, const QVector<DownloadPriority> &updatedFilePrio = {});
@@ -321,18 +317,18 @@ namespace BitTorrent
 
         // Persistent data
         QString m_name;
-        QString m_savePath;
         QString m_category;
         QSet<QString> m_tags;
         qreal m_ratioLimit;
         int m_seedingTimeLimit;
         bool m_hasSeedStatus;
-        bool m_tempPathDisabled;
         bool m_fastresumeDataRejected = false;
         bool m_hasMissingFiles = false;
         bool m_hasRootFolder;
         bool m_needsToSetFirstLastPiecePriority = false;
         bool m_useAutoTMM;
+        QString m_completeFolder;
+        TriStateBool m_isMoveCompleteEnabled;
 
         bool m_unchecked = false;
     };

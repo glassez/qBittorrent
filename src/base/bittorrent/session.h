@@ -212,11 +212,10 @@ namespace BitTorrent
 
         QString defaultSavePath() const;
         void setDefaultSavePath(QString path);
-        QString tempPath() const;
-        void setTempPath(QString path);
-        bool isTempPathEnabled() const;
-        void setTempPathEnabled(bool enabled);
-        QString torrentTempPath(const TorrentInfo &torrentInfo) const;
+        QString defaultCompleteSavePath() const;
+        void setDefaultCompleteSavePath(QString path);
+        bool isMoveCompleteEnabled() const;
+        void setMoveCompleteEnabled(bool enabled);
 
         static bool isValidCategoryName(const QString &name);
         // returns category itself and all top level categories
@@ -573,10 +572,10 @@ namespace BitTorrent
         void applyOSMemoryPriority() const;
 #endif
 
-        bool addTorrent_impl(CreateTorrentParams params, const MagnetUri &magnetUri,
+        bool addTorrent_impl(const CreateTorrentParams &params, const MagnetUri &magnetUri,
                              TorrentInfo torrentInfo = TorrentInfo(),
                              const QByteArray &fastresumeData = {});
-        bool findIncompleteFiles(TorrentInfo &torrentInfo, QString &savePath) const;
+        bool findIncompleteFiles(TorrentInfo &torrentInfo, const QString &savePath) const;
 
         void updateSeedingLimitTimer();
         void exportTorrentFile(const TorrentHandle *torrent, TorrentExportFolder folder = TorrentExportFolder::Regular);
@@ -609,6 +608,7 @@ namespace BitTorrent
         void handleSocks5Alert(const lt::socks5_alert *p) const;
 #endif
 
+        CreateTorrentParams parseAddTorrentParams(const AddTorrentParams &params);
         void createTorrentHandle(const lt::torrent_handle &nativeHandle);
 
         void saveResumeData();
@@ -704,9 +704,9 @@ namespace BitTorrent
         CachedSettingValue<QStringList> m_storedTags;
         CachedSettingValue<int> m_maxRatioAction;
         CachedSettingValue<QString> m_defaultSavePath;
-        CachedSettingValue<QString> m_tempPath;
+        CachedSettingValue<QString> m_defaultCompleteSavePath;
         CachedSettingValue<bool> m_isSubcategoriesEnabled;
-        CachedSettingValue<bool> m_isTempPathEnabled;
+        CachedSettingValue<bool> m_isMoveCompleteEnabled;
         CachedSettingValue<bool> m_isAutoTMMDisabledByDefault;
         CachedSettingValue<bool> m_isDisableAutoTMMWhenCategoryChanged;
         CachedSettingValue<bool> m_isDisableAutoTMMWhenDefaultSavePathChanged;

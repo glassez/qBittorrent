@@ -104,9 +104,9 @@ namespace
         MacUtils::openFiles({torrent->contentPath(true)});
 #else
         if (torrent->filesCount() == 1)
-            Utils::Gui::openFolderSelect(torrent->contentPath(true));
+            Utils::Gui::openFolderSelect(torrent->contentPath());
         else
-            Utils::Gui::openPath(torrent->contentPath(true));
+            Utils::Gui::openPath(torrent->contentPath());
 #endif
     }
 
@@ -326,7 +326,7 @@ void TransferListWidget::setSelectedTorrentsLocation()
     const QVector<BitTorrent::TorrentHandle *> torrents = getSelectedTorrents();
     if (torrents.isEmpty()) return;
 
-    const QString oldLocation = torrents[0]->savePath();
+    const QString oldLocation = torrents[0]->storageLocation();
     const QString newLocation = QFileDialog::getExistingDirectory(this, tr("Choose save path"), oldLocation,
                                             QFileDialog::DontConfirmOverwrite | QFileDialog::ShowDirsOnly | QFileDialog::HideNameFilterDetails);
     if (newLocation.isEmpty() || !QDir(newLocation).exists()) return;
@@ -335,9 +335,9 @@ void TransferListWidget::setSelectedTorrentsLocation()
     for (BitTorrent::TorrentHandle *const torrent : torrents) {
         Logger::instance()->addMessage(tr("Set location: moving \"%1\", from \"%2\" to \"%3\""
             , "Set location: moving \"ubuntu_16_04.iso\", from \"/home/dir1\" to \"/home/dir2\"")
-            .arg(torrent->name(), Utils::Fs::toNativePath(torrent->savePath())
+            .arg(torrent->name(), Utils::Fs::toNativePath(torrent->storageLocation())
                 , Utils::Fs::toNativePath(newLocation)));
-        torrent->move(Utils::Fs::expandPathAbs(newLocation));
+        torrent->setStorageLocation(Utils::Fs::expandPathAbs(newLocation));
     }
 }
 
@@ -510,7 +510,7 @@ void TransferListWidget::openSelectedTorrentsFolder() const
     MacUtils::openFiles(pathsList);
 #else
     for (BitTorrent::TorrentHandle *const torrent : asConst(getSelectedTorrents())) {
-        QString path = torrent->contentPath(true);
+        QString path = torrent->contentPath();
         if (!pathsList.contains(path)) {
             if (torrent->filesCount() == 1)
                 Utils::Gui::openFolderSelect(path);

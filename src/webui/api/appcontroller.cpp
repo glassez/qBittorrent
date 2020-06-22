@@ -110,8 +110,8 @@ void AppController::preferencesAction()
     data["save_path_changed_tmm_enabled"] = !session->isDisableAutoTMMWhenDefaultSavePathChanged();
     data["category_changed_tmm_enabled"] = !session->isDisableAutoTMMWhenCategorySavePathChanged();
     data["save_path"] = Utils::Fs::toNativePath(session->defaultSavePath());
-    data["temp_path_enabled"] = session->isTempPathEnabled();
-    data["temp_path"] = Utils::Fs::toNativePath(session->tempPath());
+    data["move_complete_enabled"] = session->isMoveCompleteEnabled();
+    data["complete_path"] = Utils::Fs::toNativePath(session->defaultCompleteSavePath());
     data["export_dir"] = Utils::Fs::toNativePath(session->torrentExportDirectory());
     data["export_dir_fin"] = Utils::Fs::toNativePath(session->finishedTorrentExportDirectory());
     // Automatically add torrents from
@@ -366,10 +366,10 @@ void AppController::setPreferencesAction()
         session->setDisableAutoTMMWhenCategorySavePathChanged(!it.value().toBool());
     if (hasKey("save_path"))
         session->setDefaultSavePath(it.value().toString());
-    if (hasKey("temp_path_enabled"))
-        session->setTempPathEnabled(it.value().toBool());
-    if (hasKey("temp_path"))
-        session->setTempPath(it.value().toString());
+    if (hasKey("move_complete_enabled"))
+        session->setMoveCompleteEnabled(it.value().toBool());
+    if (hasKey("complete_path"))
+        session->setDefaultCompleteSavePath(it.value().toString());
     if (hasKey("export_dir"))
         session->setTorrentExportDirectory(it.value().toString());
     if (hasKey("export_dir_fin"))

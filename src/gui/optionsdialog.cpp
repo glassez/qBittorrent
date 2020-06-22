@@ -344,7 +344,7 @@ OptionsDialog::OptionsDialog(QWidget *parent)
     connect(m_ui->comboTorrentCategoryChanged, qComboBoxCurrentIndexChanged, this, &ThisType::enableApplyButton);
     connect(m_ui->comboCategoryDefaultPathChanged, qComboBoxCurrentIndexChanged, this, &ThisType::enableApplyButton);
     connect(m_ui->comboCategoryChanged, qComboBoxCurrentIndexChanged, this, &ThisType::enableApplyButton);
-    connect(m_ui->textTempPath, &FileSystemPathEdit::selectedPathChanged, this, &ThisType::enableApplyButton);
+    connect(m_ui->textCompleteSavePath, &FileSystemPathEdit::selectedPathChanged, this, &ThisType::enableApplyButton);
     connect(m_ui->checkAppendqB, &QAbstractButton::toggled, this, &ThisType::enableApplyButton);
     connect(m_ui->checkPreallocateAll, &QAbstractButton::toggled, this, &ThisType::enableApplyButton);
     connect(m_ui->checkRecursiveDownload, &QAbstractButton::toggled, this, &ThisType::enableApplyButton);
@@ -362,8 +362,8 @@ OptionsDialog::OptionsDialog(QWidget *parent)
     connect(m_ui->textExportDirFin, &FileSystemPathEdit::selectedPathChanged, this, &ThisType::enableApplyButton);
     connect(m_ui->actionTorrentDlOnDblClBox, qComboBoxCurrentIndexChanged, this, &ThisType::enableApplyButton);
     connect(m_ui->actionTorrentFnOnDblClBox, qComboBoxCurrentIndexChanged, this, &ThisType::enableApplyButton);
-    connect(m_ui->checkTempFolder, &QAbstractButton::toggled, this, &ThisType::enableApplyButton);
-    connect(m_ui->checkTempFolder, &QAbstractButton::toggled, m_ui->textTempPath, &QWidget::setEnabled);
+    connect(m_ui->checkCompleteFolder, &QAbstractButton::toggled, this, &ThisType::enableApplyButton);
+    connect(m_ui->checkCompleteFolder, &QAbstractButton::toggled, m_ui->textCompleteSavePath, &QWidget::setEnabled);
     connect(m_ui->addScanFolderButton, &QAbstractButton::clicked, this, &ThisType::enableApplyButton);
     connect(m_ui->removeScanFolderButton, &QAbstractButton::clicked, this, &ThisType::enableApplyButton);
     connect(m_ui->groupMailNotification, &QGroupBox::toggled, this, &ThisType::enableApplyButton);
@@ -546,8 +546,8 @@ OptionsDialog::OptionsDialog(QWidget *parent)
     m_ui->textSavePath->setDialogCaption(tr("Choose a save directory"));
     m_ui->textSavePath->setMode(FileSystemPathEdit::Mode::DirectorySave);
 
-    m_ui->textTempPath->setDialogCaption(tr("Choose a save directory"));
-    m_ui->textTempPath->setMode(FileSystemPathEdit::Mode::DirectorySave);
+    m_ui->textCompleteSavePath->setDialogCaption(tr("Choose a save directory"));
+    m_ui->textCompleteSavePath->setMode(FileSystemPathEdit::Mode::DirectorySave);
 
     // disable mouse wheel event on widgets to avoid mis-selection
     auto *wheelEventEater = new WheelEventEater(this);
@@ -725,8 +725,8 @@ void OptionsDialog::saveOptions()
     session->setDisableAutoTMMWhenCategoryChanged(m_ui->comboTorrentCategoryChanged->currentIndex() == 1);
     session->setDisableAutoTMMWhenCategorySavePathChanged(m_ui->comboCategoryChanged->currentIndex() == 1);
     session->setDisableAutoTMMWhenDefaultSavePathChanged(m_ui->comboCategoryDefaultPathChanged->currentIndex() == 1);
-    session->setTempPathEnabled(m_ui->checkTempFolder->isChecked());
-    session->setTempPath(Utils::Fs::expandPathAbs(m_ui->textTempPath->selectedPath()));
+    session->setMoveCompleteEnabled(m_ui->checkCompleteFolder->isChecked());
+    session->setDefaultCompleteSavePath(Utils::Fs::expandPathAbs(m_ui->textCompleteSavePath->selectedPath()));
     session->setAppendExtensionEnabled(m_ui->checkAppendqB->isChecked());
     session->setPreallocationEnabled(preAllocateAllFiles());
     pref->disableRecursiveDownload(!m_ui->checkRecursiveDownload->isChecked());
@@ -988,10 +988,10 @@ void OptionsDialog::loadOptions()
     m_ui->comboTorrentCategoryChanged->setCurrentIndex(session->isDisableAutoTMMWhenCategoryChanged());
     m_ui->comboCategoryChanged->setCurrentIndex(session->isDisableAutoTMMWhenCategorySavePathChanged());
     m_ui->comboCategoryDefaultPathChanged->setCurrentIndex(session->isDisableAutoTMMWhenDefaultSavePathChanged());
-    m_ui->checkTempFolder->setChecked(session->isTempPathEnabled());
-    m_ui->textTempPath->setEnabled(m_ui->checkTempFolder->isChecked());
-    m_ui->textTempPath->setEnabled(m_ui->checkTempFolder->isChecked());
-    m_ui->textTempPath->setSelectedPath(Utils::Fs::toNativePath(session->tempPath()));
+    m_ui->checkCompleteFolder->setChecked(session->isMoveCompleteEnabled());
+    m_ui->textCompleteSavePath->setEnabled(m_ui->checkCompleteFolder->isChecked());
+    m_ui->textCompleteSavePath->setEnabled(m_ui->checkCompleteFolder->isChecked());
+    m_ui->textCompleteSavePath->setSelectedPath(Utils::Fs::toNativePath(session->defaultCompleteSavePath()));
     m_ui->checkAppendqB->setChecked(session->isAppendExtensionEnabled());
     m_ui->checkPreallocateAll->setChecked(session->isPreallocationEnabled());
     m_ui->checkRecursiveDownload->setChecked(!pref->recursiveDownloadDisabled());
