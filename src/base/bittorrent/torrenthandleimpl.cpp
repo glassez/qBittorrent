@@ -1439,7 +1439,7 @@ void TorrentHandleImpl::handleTorrentResumedAlert(const lt::torrent_resumed_aler
 
 void TorrentHandleImpl::handleSaveResumeDataAlert(const lt::save_resume_data_alert *p)
 {
-    if (p && !m_hasMissingFiles) {
+    if (!m_hasMissingFiles) {
         // Update recent resume data
         m_ltAddTorrentParams = p->params;
     }
@@ -1464,20 +1464,6 @@ void TorrentHandleImpl::handleSaveResumeDataAlert(const lt::save_resume_data_ale
     auto resumeDataPtr = std::make_shared<lt::entry>(lt::write_resume_data(m_ltAddTorrentParams));
     lt::entry &resumeData = *resumeDataPtr;
 
-    // TODO: The following code is deprecated. Remove after several releases in 4.3.x.
-    // === BEGIN DEPRECATED CODE === //
-    const bool useDummyResumeData = !p;
-    if (useDummyResumeData) {
-        resumeData["qBt-magnetUri"] = createMagnetURI().toStdString();
-        // sequentialDownload needs to be stored in the
-        // resume data if there is no metadata, otherwise they won't be
-        // restored if qBittorrent quits before the metadata are retrieved:
-        resumeData["qBt-sequential"] = isSequentialDownload();
-
-        resumeData["qBt-addedTime"] = addedTime().toSecsSinceEpoch();
-    }
-    // === END DEPRECATED CODE === //
-
     resumeData["qBt-savePath"] = m_useAutoTMM ? "" : Profile::instance()->toPortablePath(m_savePath).toStdString();
     resumeData["qBt-ratioLimit"] = static_cast<int>(m_ratioLimit * 1000);
     resumeData["qBt-seedingTimeLimit"] = m_seedingTimeLimit;
@@ -1494,11 +1480,7 @@ void TorrentHandleImpl::handleSaveResumeDataAlert(const lt::save_resume_data_ale
 void TorrentHandleImpl::handleSaveResumeDataFailedAlert(const lt::save_resume_data_failed_alert *p)
 {
     Q_UNUSED(p);
-
-    // if torrent has no metadata libtorrent doesn't generate "fastresume" data
-    // so we should save dummy "fastresume" data containing the values used to
-    // load torrent and qBittorrent own resume data
-    handleSaveResumeDataAlert(nullptr);
+    Q_ASSERT_X(false, Q_FUNC_INFO, "This point shouldn't be reachable anymore.");
 }
 
 void TorrentHandleImpl::handleFastResumeRejectedAlert(const lt::fastresume_rejected_alert *p)
