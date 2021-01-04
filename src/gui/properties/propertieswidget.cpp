@@ -71,10 +71,8 @@
 #endif
 
 PropertiesWidget::PropertiesWidget(QWidget *parent)
-    : QWidget(parent)
-    , m_ui(new Ui::PropertiesWidget())
-    , m_torrent(nullptr)
-    , m_handleWidth(-1)
+    : QWidget {parent}
+    , m_ui {new Ui::PropertiesWidget()}
 {
     m_ui->setupUi(this);
     setAutoFillBackground(true);
@@ -82,9 +80,13 @@ PropertiesWidget::PropertiesWidget(QWidget *parent)
     m_state = VISIBLE;
 
     // Set Properties list model
-    m_propListModel = new TorrentContentFilterModel(this);
-    m_ui->filesList->setModel(m_propListModel);
-    m_propListDelegate = new PropListDelegate(this);
+    m_propListModel = new TorrentContentModel {this};
+
+    auto filterModel = new TorrentContentFilterModel {this};
+    filterModel->setSourceModel(m_propListModel);
+
+    m_propListDelegate = new PropListDelegate {this};
+    m_ui->filesList->setModel(filterModel);
     m_ui->filesList->setItemDelegate(m_propListDelegate);
     m_ui->filesList->setSortingEnabled(true);
 
@@ -92,18 +94,29 @@ PropertiesWidget::PropertiesWidget(QWidget *parent)
     m_contentFilterLine = new LineEdit(this);
     m_contentFilterLine->setPlaceholderText(tr("Filter files..."));
     m_contentFilterLine->setFixedWidth(Utils::Gui::scaledSize(this, 300));
-    connect(m_contentFilterLine, &LineEdit::textChanged, this, &PropertiesWidget::filterText);
+    connect(m_contentFilterLine, &LineEdit::textChanged, this
+            , [this, filterModel](const QString &filter)
+    {
+        filterModel->setFilterRegExp(QRegExp {filter, Qt::CaseInsensitive, QRegExp::WildcardUnix});
+        if (filter.isEmpty())
+        {
+            m_ui->filesList->collapseAll();
+            m_ui->filesList->expand(m_ui->filesList->model()->index(0, 0));
+        }
+        else
+        {
+            m_ui->filesList->expandAll();
+        }
+    });
     m_ui->contentFilterLayout->insertWidget(3, m_contentFilterLine);
 
     // SIGNAL/SLOTS
-    connect(m_ui->selectAllButton, &QPushButton::clicked, m_propListModel, &TorrentContentFilterModel::selectAll);
-    connect(m_ui->selectNoneButton, &QPushButton::clicked, m_propListModel, &TorrentContentFilterModel::selectNone);
-    connect(m_propListModel, &TorrentContentFilterModel::filteredFilesChanged, this, &PropertiesWidget::filteredFilesChanged);
+    connect(m_ui->selectAllButton, &QPushButton::clicked, filterModel, &TorrentContentFilterModel::selectAll);
+    connect(m_ui->selectNoneButton, &QPushButton::clicked, filterModel, &TorrentContentFilterModel::selectNone);
     connect(m_ui->listWebSeeds, &QWidget::customContextMenuRequested, this, &PropertiesWidget::displayWebSeedListMenu);
-    connect(m_propListDelegate, &PropListDelegate::filteredFilesChanged, this, &PropertiesWidget::filteredFilesChanged);
     connect(m_ui->stackedProperties, &QStackedWidget::currentChanged, this, &PropertiesWidget::loadDynamicData);
     connect(BitTorrent::Session::instance(), &BitTorrent::Session::torrentSavePathChanged, this, &PropertiesWidget::updateSavePath);
-    connect(BitTorrent::Session::instance(), &BitTorrent::Session::torrentMetadataReceived, this, &PropertiesWidget::updateTorrentInfos);
+    connect(BitTorrent::Session::instance(), &BitTorrent::Session::torrentMetadataReceived, this, &PropertiesWidget::onTorrentMetadataReceived);
     connect(m_ui->filesList, &QAbstractItemView::clicked
             , m_ui->filesList, qOverload<const QModelIndex &>(&QAbstractItemView::edit));
     connect(m_ui->filesList, &QWidget::customContextMenuRequested, this, &PropertiesWidget::displayFilesListMenu);
@@ -261,7 +274,7 @@ void PropertiesWidget::clear()
     m_piecesAvailability->clear();
     m_peerList->clear();
     m_contentFilterLine->clear();
-    m_propListModel->model()->clear();
+    m_propListModel->clear();
 }
 
 BitTorrent::Torrent *PropertiesWidget::getCurrentTorrent() const
@@ -296,13 +309,16 @@ void PropertiesWidget::loadTrackers(BitTorrent::Torrent *const torrent)
         m_trackerList->loadTrackers();
 }
 
-void PropertiesWidget::updateTorrentInfos(BitTorrent::Torrent *const torrent)
+void PropertiesWidget::onTorrentMetadataReceived(BitTorrent::Torrent *const torrent)
 {
     if (torrent == m_torrent)
-        loadTorrentInfos(m_torrent);
+    {
+        loadTorrentMetadata();
+        loadDynamicData();
+    }
 }
 
-void PropertiesWidget::loadTorrentInfos(BitTorrent::Torrent *const torrent)
+void PropertiesWidget::setTorrent(BitTorrent::Torrent *const torrent)
 {
     clear();
     m_torrent = torrent;
@@ -310,42 +326,37 @@ void PropertiesWidget::loadTorrentInfos(BitTorrent::Torrent *const torrent)
     m_piecesAvailability->setTorrent(m_torrent);
     if (!m_torrent) return;
 
-    // Save path
     updateSavePath(m_torrent);
-    // Hash
     m_ui->labelHashVal->setText(m_torrent->hash());
-    m_propListModel->model()->clear();
+    m_propListModel->setHandler(m_torrent);
     if (m_torrent->hasMetadata())
-    {
-        // Creation date
-        m_ui->labelCreatedOnVal->setText(QLocale().toString(m_torrent->creationDate(), QLocale::ShortFormat));
+        loadTorrentMetadata();
 
-        m_ui->labelTotalSizeVal->setText(Utils::Misc::friendlyUnit(m_torrent->totalSize()));
-
-        // Comment
-        m_ui->labelCommentVal->setText(Utils::Misc::parseHtmlLinks(m_torrent->comment().toHtmlEscaped()));
-
-        // URL seeds
-        loadUrlSeeds();
-
-        m_ui->labelCreatedByVal->setText(m_torrent->creator());
-
-        // List files in torrent
-        m_propListModel->model()->setupModelData(m_torrent->info());
-
-        // Expand single-item folders recursively
-        QModelIndex currentIndex;
-        while (m_propListModel->rowCount(currentIndex) == 1)
-        {
-            currentIndex = m_propListModel->index(0, 0, currentIndex);
-            m_ui->filesList->setExpanded(currentIndex, true);
-        }
-
-        // Load file priorities
-        m_propListModel->model()->updateFilesPriorities(m_torrent->filePriorities());
-    }
-    // Load dynamic data
     loadDynamicData();
+}
+
+void PropertiesWidget::loadTorrentMetadata()
+{
+    // Creation date
+    m_ui->labelCreatedOnVal->setText(QLocale().toString(m_torrent->creationDate(), QLocale::ShortFormat));
+
+    m_ui->labelTotalSizeVal->setText(Utils::Misc::friendlyUnit(m_torrent->totalSize()));
+
+    // Comment
+    m_ui->labelCommentVal->setText(Utils::Misc::parseHtmlLinks(m_torrent->comment().toHtmlEscaped()));
+
+    // URL seeds
+    loadUrlSeeds();
+
+    m_ui->labelCreatedByVal->setText(m_torrent->creator());
+
+    // Expand single-item folders recursively
+    QModelIndex currentIndex;
+    while (m_ui->filesList->model()->rowCount(currentIndex) == 1)
+    {
+        currentIndex = m_ui->filesList->model()->index(0, 0, currentIndex);
+        m_ui->filesList->setExpanded(currentIndex, true);
+    }
 }
 
 void PropertiesWidget::readSettings()
@@ -497,21 +508,6 @@ void PropertiesWidget::loadDynamicData()
         // Load peers
         m_peerList->loadPeers(m_torrent);
         break;
-    case PropTabBar::FilesTab:
-        // Files progress
-        if (m_torrent->hasMetadata())
-        {
-            qDebug("Updating priorities in files tab");
-            m_ui->filesList->setUpdatesEnabled(false);
-            m_propListModel->model()->updateFilesProgress(m_torrent->filesProgress());
-            m_propListModel->model()->updateFilesAvailability(m_torrent->availableFileFractions());
-            // XXX: We don't update file priorities regularly for performance
-            // reasons. This means that priorities will not be updated if
-            // set from the Web UI.
-            // PropListModel->model()->updateFilesPriorities(h.file_priorities());
-            m_ui->filesList->setUpdatesEnabled(true);
-        }
-        break;
     default:;
     }
 }
@@ -531,9 +527,10 @@ void PropertiesWidget::loadUrlSeeds()
 
 QString PropertiesWidget::getFullPath(const QModelIndex &index) const
 {
-    if (m_propListModel->itemType(index) == TorrentContentModelItem::FileType)
+    auto filterModel = static_cast<TorrentContentFilterModel *>(m_ui->filesList->model());
+    if (filterModel->getItemType(index) == TorrentContentModelItem::FileType)
     {
-        const int fileIdx = m_propListModel->getFileIndex(index);
+        const int fileIdx = filterModel->getFileIndex(index);
         const QString filename {m_torrent->filePath(fileIdx)};
         const QDir saveDir {m_torrent->savePath(true)};
         const QString fullPath {Utils::Fs::expandPath(saveDir.absoluteFilePath(filename))};
@@ -543,7 +540,7 @@ QString PropertiesWidget::getFullPath(const QModelIndex &index) const
     // folder type
     const QModelIndex nameIndex {index.sibling(index.row(), TorrentContentModelItem::COL_NAME)};
     QString folderPath {nameIndex.data().toString()};
-    for (QModelIndex modelIdx = m_propListModel->parent(nameIndex); modelIdx.isValid(); modelIdx = modelIdx.parent())
+    for (QModelIndex modelIdx = filterModel->parent(nameIndex); modelIdx.isValid(); modelIdx = modelIdx.parent())
         folderPath.prepend(modelIdx.data().toString() + '/');
 
     const QDir saveDir {m_torrent->savePath(true)};
@@ -601,12 +598,9 @@ void PropertiesWidget::displayFilesListMenu(const QPoint &)
             const QModelIndexList selectedRows = m_ui->filesList->selectionModel()->selectedRows(0);
             for (const QModelIndex &index : selectedRows)
             {
-                m_propListModel->setData(index.sibling(index.row(), PRIORITY)
+                m_ui->filesList->model()->setData(index.sibling(index.row(), PRIORITY)
                     , static_cast<int>(prio));
             }
-
-            // Save changes
-            filteredFilesChanged();
         };
 
         QMenu *subMenu = menu->addMenu(tr("Priority"));
@@ -657,7 +651,7 @@ void PropertiesWidget::displayFilesListMenu(const QPoint &)
                 }
 
                 const QModelIndex &index = selectedRows[i];
-                m_propListModel->setData(index.sibling(index.row(), PRIORITY)
+                m_ui->filesList->model()->setData(index.sibling(index.row(), PRIORITY)
                     , static_cast<int>(priority));
             }
         });
@@ -809,29 +803,4 @@ void PropertiesWidget::editWebSeed()
     m_torrent->removeUrlSeeds({oldSeed});
     m_torrent->addUrlSeeds({newSeed});
     loadUrlSeeds();
-}
-
-void PropertiesWidget::applyPriorities()
-{
-    m_torrent->prioritizeFiles(m_propListModel->model()->getFilePriorities());
-}
-
-void PropertiesWidget::filteredFilesChanged()
-{
-    if (m_torrent)
-        applyPriorities();
-}
-
-void PropertiesWidget::filterText(const QString &filter)
-{
-    m_propListModel->setFilterRegExp(QRegExp(filter, Qt::CaseInsensitive, QRegExp::WildcardUnix));
-    if (filter.isEmpty())
-    {
-        m_ui->filesList->collapseAll();
-        m_ui->filesList->expand(m_propListModel->index(0, 0));
-    }
-    else
-    {
-        m_ui->filesList->expandAll();
-    }
 }

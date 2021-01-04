@@ -1,6 +1,6 @@
 /*
  * Bittorrent Client using Qt and libtorrent.
- * Copyright (C) 2006-2012  Christophe Dumez <chris@qbittorrent.org>
+ * Copyright (C) 2021  Vladimir Golovnev <glassez@yandex.ru>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -28,26 +28,44 @@
 
 #pragma once
 
-#include "torrentcontentmodelitem.h"
+#include <QObject>
+
+#include "abstractfilestorage.h"
+#include "downloadpriority.h"
 
 namespace BitTorrent
 {
-    enum class DownloadPriority;
+    class TorrentContentHandler
+            : public QObject
+            , public AbstractFileStorage
+    {
+        Q_OBJECT
+        Q_DISABLE_COPY(TorrentContentHandler)
+
+    public:
+        virtual bool hasMetadata() const = 0;
+
+        virtual QVector<BitTorrent::DownloadPriority> filePriorities() const = 0;
+        virtual DownloadPriority filePriority(int index) const = 0;
+        virtual void setFilePriority(int index, DownloadPriority priority) = 0;
+
+        virtual QVector<qreal> filesProgress() const = 0;
+
+        /**
+         * @brief fraction of file pieces that are available at least from one peer
+         *
+         * This is not the same as torrent availability, it is just a fraction of pieces
+         * that can be downloaded right now. It varies between 0 to 1.
+         */
+        virtual QVector<qreal> availableFileFractions() const = 0;
+
+    signals:
+        void metadataReceived();
+        void filePriorityChanged(int index, DownloadPriority priority);
+        void fileRenamed(int index, const QString &path);
+        void stateUpdated();
+
+    protected:
+        using QObject::QObject;
+    };
 }
-
-class TorrentContentModelFile final : public TorrentContentModelItem
-{
-public:
-    static const ItemType ITEM_TYPE = FileType;
-
-    TorrentContentModelFile(const QString &fileName, qlonglong fileSize, int fileIndex);
-
-    int fileIndex() const;
-    void setPriority(BitTorrent::DownloadPriority newPriority) override;
-    void setProgress(qreal progress);
-    void setAvailability(qreal availability);
-    ItemType itemType() const override;
-
-private:
-    int m_fileIndex;
-};

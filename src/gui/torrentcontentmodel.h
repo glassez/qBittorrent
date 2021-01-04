@@ -1,5 +1,6 @@
 /*
  * Bittorrent Client using Qt and libtorrent.
+ * Copyright (C) 2021  Vladimir Golovnev <glassez@yandex.ru>
  * Copyright (C) 2006-2012  Christophe Dumez <chris@qbittorrent.org>
  *
  * This program is free software; you can redistribute it and/or
@@ -41,7 +42,7 @@ class TorrentContentModelFile;
 
 namespace BitTorrent
 {
-    class TorrentInfo;
+    class TorrentContentHandler;
 }
 
 class TorrentContentModel final : public QAbstractItemModel
@@ -55,36 +56,50 @@ public:
         UnderlyingDataRole = Qt::UserRole
     };
 
-    TorrentContentModel(QObject *parent = nullptr);
+    explicit TorrentContentModel(QObject *parent = nullptr);
     ~TorrentContentModel() override;
 
-    void updateFilesProgress(const QVector<qreal> &fp);
-    void updateFilesPriorities(const QVector<BitTorrent::DownloadPriority> &fprio);
-    void updateFilesAvailability(const QVector<qreal> &fa);
+    void clear();
+    void setHandler(BitTorrent::TorrentContentHandler *torrentContentHandler);
+
     QVector<BitTorrent::DownloadPriority> getFilePriorities() const;
-    bool allFiltered() const;
+
+    TorrentContentModelItem::ItemType getItemType(const QModelIndex &index) const;
+    int getFileIndex(const QModelIndex &index) const;
+
     int columnCount(const QModelIndex &parent = {}) const override;
+    int rowCount(const QModelIndex &parent = {}) const override;
     bool setData(const QModelIndex &index, const QVariant &value, int role = Qt::EditRole) override;
-    TorrentContentModelItem::ItemType itemType(const QModelIndex &index) const;
-    int getFileIndex(const QModelIndex &index);
     QVariant data(const QModelIndex &index, int role = Qt::DisplayRole) const override;
     Qt::ItemFlags flags(const QModelIndex &index) const override;
     QVariant headerData(int section, Qt::Orientation orientation, int role) const override;
     QModelIndex index(int row, int column, const QModelIndex &parent = {}) const override;
     QModelIndex parent(const QModelIndex &index) const override;
-    int rowCount(const QModelIndex &parent = {}) const override;
-    void clear();
-    void setupModelData(const BitTorrent::TorrentInfo &info);
 
 signals:
-    void filteredFilesChanged();
-
-public slots:
-    void selectAll();
-    void selectNone();
+    void filePrioritiesChanged();
 
 private:
-    TorrentContentModelFolder *m_rootItem;
+    void onMetadataReceived();
+    void onFilePriorityChanged(int fileIndex, BitTorrent::DownloadPriority priority);
+    void onFileRenamed(int fileIndex, const QString &filePath);
+    void onStateUpdated();
+
+    void populate();
+    QModelIndex getIndex(const TorrentContentModelItem *item) const;
+    TorrentContentModelFolder *createFolderItem(const QString &path);
+    TorrentContentModelItem *getItem(const QString &path) const;
+    TorrentContentModelItem *getItem(const QModelIndex &index) const;
+
+    Q_INVOKABLE void handleFilePrioritiesChanged();
+    Q_INVOKABLE void handleFilesRenamed();
+
+    BitTorrent::TorrentContentHandler *m_torrentContentHandler = nullptr;
+    TorrentContentModelFolder *m_rootItem = nullptr;
     QVector<TorrentContentModelFile *> m_filesIndex;
-    QFileIconProvider *m_fileIconProvider;
+    QFileIconProvider *m_fileIconProvider = nullptr;
+    bool m_deferredHandleFilePrioritiesChangedScheduled = false;
+    bool m_deferredHandleFilesRenamedScheduled = false;
+    QHash<int, BitTorrent::DownloadPriority> m_changedFilePriorities;
+    QHash<int, QString> m_renamedFiles;
 };

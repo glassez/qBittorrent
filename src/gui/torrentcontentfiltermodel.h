@@ -37,21 +37,21 @@ class TorrentContentModel;
 class TorrentContentFilterModel final : public QSortFilterProxyModel
 {
     Q_OBJECT
+    Q_DISABLE_COPY(TorrentContentFilterModel)
 
 public:
-    TorrentContentFilterModel(QObject *parent = nullptr);
+    explicit TorrentContentFilterModel(QObject *parent = nullptr);
 
-    TorrentContentModel *model() const;
-    TorrentContentModelItem::ItemType itemType(const QModelIndex &index) const;
+    TorrentContentModel *sourceModel() const;
+    TorrentContentModelItem::ItemType getItemType(const QModelIndex &index) const;
     int getFileIndex(const QModelIndex &index) const;
+
+    void setSourceModel(QAbstractItemModel *sourceModel) override;
     QModelIndex parent(const QModelIndex &child) const override;
 
 public slots:
     void selectAll();
     void selectNone();
-
-signals:
-    void filteredFilesChanged();
 
 protected:
     bool filterAcceptsRow(int sourceRow, const QModelIndex &sourceParent) const override;
@@ -59,6 +59,4 @@ protected:
 
 private:
     bool hasFiltered(const QModelIndex &folder) const;
-
-    TorrentContentModel *m_model;
 };

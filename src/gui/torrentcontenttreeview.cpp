@@ -117,7 +117,7 @@ void TorrentContentTreeView::renameSelectedFile(BitTorrent::AbstractFileStorage 
     auto model = dynamic_cast<TorrentContentFilterModel *>(TorrentContentTreeView::model());
     if (!model) return;
 
-    const bool isFile = (model->itemType(modelIndex) == TorrentContentModelItem::FileType);
+    const bool isFile = (model->getItemType(modelIndex) == TorrentContentModelItem::FileType);
 
     // Ask for new name
     bool ok = false;

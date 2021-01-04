@@ -102,7 +102,7 @@ namespace
 
 TorrentImpl::TorrentImpl(Session *session, lt::session *nativeSession
                                      , const lt::torrent_handle &nativeHandle, const LoadTorrentParams &params)
-    : QObject(session)
+    : Torrent(session)
     , m_session(session)
     , m_nativeSession(nativeSession)
     , m_nativeHandle(nativeHandle)
@@ -614,6 +614,12 @@ QStringList TorrentImpl::absoluteFilePaths() const
     return res;
 }
 
+DownloadPriority TorrentImpl::filePriority(int index) const
+{
+    const lt::download_priority_t priority = m_nativeHandle.file_priority(lt::file_index_t {index});
+    return static_cast<DownloadPriority>(static_cast<LTUnderlyingType<lt::download_priority_t>>(priority));
+}
+
 QVector<DownloadPriority> TorrentImpl::filePriorities() const
 {
     const std::vector<lt::download_priority_t> fp = m_nativeHandle.get_file_priorities();
@@ -1067,10 +1073,7 @@ QBitArray TorrentImpl::downloadingPieces() const
 
 QVector<int> TorrentImpl::pieceAvailability() const
 {
-    std::vector<int> avail;
-    m_nativeHandle.piece_availability(avail);
-
-    return Vector::fromStdVector(avail);
+    return m_pieceAvailability;
 }
 
 qreal TorrentImpl::distributedCopies() const
@@ -1325,6 +1328,8 @@ void TorrentImpl::endReceivedMetadataHandling(const QString &savePath, const QSt
     m_maintenanceJob = MaintenanceJob::None;
     updateStatus();
 
+    emit metadataReceived();
+
     m_session->handleTorrentMetadataReceived(this);
 }
 
@@ -1425,6 +1430,17 @@ void TorrentImpl::renameFile(const int index, const QString &path)
     m_oldPath[lt::file_index_t {index}].push_back(oldPath);
     ++m_renameCount;
     m_nativeHandle.rename_file(lt::file_index_t {index}, Utils::Fs::toNativePath(path).toStdString());
+}
+
+void TorrentImpl::setFilePriority(int index, DownloadPriority priority)
+{
+    if (priority == filePriority(index))
+        return;
+
+    m_nativeHandle.file_priority(lt::file_index_t {index}, static_cast<lt::download_priority_t>(
+                                     static_cast<LTUnderlyingType<lt::download_priority_t>>(priority)));
+
+    emit filePriorityChanged(index, priority);
 }
 
 void TorrentImpl::handleStateUpdate(const lt::torrent_status &nativeStatus)
@@ -1699,6 +1715,9 @@ void TorrentImpl::handleFileRenamedAlert(const lt::file_renamed_alert *p)
     }
 
     --m_renameCount;
+
+    emit fileRenamed(static_cast<int>(p->index), newFilePath);
+
     while (!isMoveInProgress() && (m_renameCount == 0) && !m_moveFinishedTriggers.isEmpty())
         m_moveFinishedTriggers.takeFirst()();
 
@@ -1919,6 +1938,8 @@ void TorrentImpl::updateStatus()
 void TorrentImpl::updateStatus(const lt::torrent_status &nativeStatus)
 {
     m_nativeStatus = nativeStatus;
+    m_hasSeedStatus = ((m_nativeStatus.state == lt::torrent_status::finished)
+                       || (m_nativeStatus.state != lt::torrent_status::seeding));
     updateState();
 
     m_speedMonitor.addSample({nativeStatus.download_payload_rate
@@ -1926,6 +1947,10 @@ void TorrentImpl::updateStatus(const lt::torrent_status &nativeStatus)
 
     if (hasMetadata())
     {
+        std::vector<int> avail;
+        m_nativeHandle.piece_availability(avail);
+        m_pieceAvailability = Vector::fromStdVector(avail);
+
         // NOTE: Don't change the order of these conditionals!
         // Otherwise it will not work properly since torrent can be CheckingDownloading.
         if (isChecking())
@@ -1933,6 +1958,8 @@ void TorrentImpl::updateStatus(const lt::torrent_status &nativeStatus)
         else if (isDownloading())
             m_unchecked = true;
     }
+
+    emit stateUpdated();
 }
 
 void TorrentImpl::setRatioLimit(qreal limit)

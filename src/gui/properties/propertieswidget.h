@@ -40,7 +40,7 @@ class PeerListWidget;
 class PieceAvailabilityBar;
 class PropListDelegate;
 class PropTabBar;
-class TorrentContentFilterModel;
+class TorrentContentModel;
 class TrackerListWidget;
 
 namespace BitTorrent
@@ -75,7 +75,7 @@ public:
 
 public slots:
     void setVisibility(bool visible);
-    void loadTorrentInfos(BitTorrent::Torrent *const torrent);
+    void setTorrent(BitTorrent::Torrent *const torrent);
     void loadDynamicData();
     void clear();
     void readSettings();
@@ -85,7 +85,7 @@ public slots:
     void loadTrackers(BitTorrent::Torrent *const torrent);
 
 protected slots:
-    void updateTorrentInfos(BitTorrent::Torrent *const torrent);
+    void onTorrentMetadataReceived(BitTorrent::Torrent *const torrent);
     void loadUrlSeeds();
     void askWebSeed();
     void deleteSelectedUrlSeeds();
@@ -93,26 +93,24 @@ protected slots:
     void editWebSeed();
     void displayFilesListMenu(const QPoint &);
     void displayWebSeedListMenu(const QPoint &);
-    void filteredFilesChanged();
     void showPiecesDownloaded(bool show);
     void showPiecesAvailability(bool show);
     void openSelectedFile();
 
 private slots:
     void configure();
-    void filterText(const QString &filter);
     void updateSavePath(BitTorrent::Torrent *const torrent);
 
 private:
+    void loadTorrentMetadata();
     QPushButton *getButtonFromIndex(int index);
-    void applyPriorities();
     void openParentFolder(const QModelIndex &index) const;
     QString getFullPath(const QModelIndex &index) const;
 
     Ui::PropertiesWidget *m_ui;
-    BitTorrent::Torrent *m_torrent;
+    BitTorrent::Torrent *m_torrent = nullptr;
     SlideState m_state;
-    TorrentContentFilterModel *m_propListModel;
+    TorrentContentModel *m_propListModel;
     PropListDelegate *m_propListDelegate;
     PeerListWidget *m_peerList;
     TrackerListWidget *m_trackerList;
@@ -122,5 +120,5 @@ private:
     PieceAvailabilityBar *m_piecesAvailability;
     PropTabBar *m_tabBar;
     LineEdit *m_contentFilterLine;
-    int m_handleWidth;
+    int m_handleWidth = -1;
 };

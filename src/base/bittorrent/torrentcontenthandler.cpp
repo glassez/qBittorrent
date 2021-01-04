@@ -1,6 +1,6 @@
 /*
  * Bittorrent Client using Qt and libtorrent.
- * Copyright (C) 2006-2012  Christophe Dumez <chris@qbittorrent.org>
+ * Copyright (C) 2021  Vladimir Golovnev <glassez@yandex.ru>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -26,28 +26,4 @@
  * exception statement from your version.
  */
 
-#pragma once
-
-#include "torrentcontentmodelitem.h"
-
-namespace BitTorrent
-{
-    enum class DownloadPriority;
-}
-
-class TorrentContentModelFile final : public TorrentContentModelItem
-{
-public:
-    static const ItemType ITEM_TYPE = FileType;
-
-    TorrentContentModelFile(const QString &fileName, qlonglong fileSize, int fileIndex);
-
-    int fileIndex() const;
-    void setPriority(BitTorrent::DownloadPriority newPriority) override;
-    void setProgress(qreal progress);
-    void setAvailability(qreal availability);
-    ItemType itemType() const override;
-
-private:
-    int m_fileIndex;
-};
+#include "torrentcontenthandler.h"

@@ -33,7 +33,7 @@
 #include <QString>
 #include <QtContainerFwd>
 
-#include "abstractfilestorage.h"
+#include "torrentcontenthandler.h"
 
 class QBitArray;
 class QDateTime;
@@ -91,7 +91,7 @@ namespace BitTorrent
 
     uint qHash(TorrentState key, uint seed);
 
-    class Torrent : public AbstractFileStorage
+    class Torrent : public TorrentContentHandler
     {
     public:
         static const qreal USE_GLOBAL_RATIO;
@@ -219,7 +219,6 @@ namespace BitTorrent
         virtual qlonglong finishedTime() const = 0;
         virtual qlonglong seedingTime() const = 0;
         virtual qlonglong eta() const = 0;
-        virtual QVector<qreal> filesProgress() const = 0;
         virtual int seedsCount() const = 0;
         virtual int peersCount() const = 0;
         virtual int leechsCount() const = 0;
@@ -254,13 +253,6 @@ namespace BitTorrent
         virtual int connectionsCount() const = 0;
         virtual int connectionsLimit() const = 0;
         virtual qlonglong nextAnnounce() const = 0;
-        /**
-         * @brief fraction of file pieces that are available at least from one peer
-         *
-         * This is not the same as torrrent availability, it is just a fraction of pieces
-         * that can be downloaded right now. It varies between 0 to 1.
-         */
-        virtual QVector<qreal> availableFileFractions() const = 0;
 
         virtual void setName(const QString &name) = 0;
         virtual void setSequentialDownload(bool enable) = 0;
@@ -295,6 +287,9 @@ namespace BitTorrent
 
         void toggleSequentialDownload();
         void toggleFirstLastPiecePriority();
+
+    protected:
+        using TorrentContentHandler::TorrentContentHandler;
     };
 }
 

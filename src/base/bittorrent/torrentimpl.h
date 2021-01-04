@@ -87,7 +87,7 @@ namespace BitTorrent
         HandleMetadata
     };
 
-    class TorrentImpl final : public QObject, public Torrent
+    class TorrentImpl final : public Torrent
     {
         Q_DISABLE_COPY(TorrentImpl)
         Q_DECLARE_TR_FUNCTIONS(BitTorrent::TorrentImpl)
@@ -142,6 +142,7 @@ namespace BitTorrent
         QString fileName(int index) const override;
         qlonglong fileSize(int index) const override;
         QStringList absoluteFilePaths() const override;
+        DownloadPriority filePriority(int index) const override;
         QVector<DownloadPriority> filePriorities() const override;
 
         TorrentInfo info() const override;
@@ -221,6 +222,7 @@ namespace BitTorrent
         void forceDHTAnnounce() override;
         void forceRecheck() override;
         void renameFile(int index, const QString &path) override;
+        void setFilePriority(int index, DownloadPriority priority) override;
         void prioritizeFiles(const QVector<DownloadPriority> &priorities) override;
         void setRatioLimit(qreal limit) override;
         void setSeedingTimeLimit(int limit) override;
@@ -299,6 +301,7 @@ namespace BitTorrent
         lt::torrent_status m_nativeStatus;
         TorrentState m_state = TorrentState::Unknown;
         TorrentInfo m_torrentInfo;
+        QVector<int> m_pieceAvailability;
         SpeedMonitor m_speedMonitor;
 
         InfoHash m_hash;

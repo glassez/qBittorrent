@@ -149,7 +149,6 @@ void PropListDelegate::setModelData(QWidget *editor, QAbstractItemModel *model, 
     }
 
     model->setData(index, static_cast<int>(prio));
-    emit filteredFilesChanged();
 }
 
 void PropListDelegate::updateEditorGeometry(QWidget *editor, const QStyleOptionViewItem &option, const QModelIndex &) const

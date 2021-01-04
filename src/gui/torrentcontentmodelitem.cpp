@@ -35,18 +35,6 @@
 #include "base/utils/string.h"
 #include "torrentcontentmodelfolder.h"
 
-TorrentContentModelItem::TorrentContentModelItem(TorrentContentModelFolder *parent)
-    : m_parentItem(parent)
-    , m_size(0)
-    , m_remaining(0)
-    , m_priority(BitTorrent::DownloadPriority::Normal)
-    , m_progress(0)
-    , m_availability(-1.)
-{
-}
-
-TorrentContentModelItem::~TorrentContentModelItem() = default;
-
 bool TorrentContentModelItem::isRootItem() const
 {
     return !m_parentItem;
@@ -54,8 +42,15 @@ bool TorrentContentModelItem::isRootItem() const
 
 QString TorrentContentModelItem::name() const
 {
-    Q_ASSERT(!isRootItem());
-    return m_name;
+    return !isRootItem() ? m_name : QString {};
+}
+
+QString TorrentContentModelItem::path() const
+{
+    if (m_parentItem && !m_parentItem->isRootItem())
+        return m_parentItem->name() + QLatin1Char {'/'} + m_name;
+
+    return name();
 }
 
 void TorrentContentModelItem::setName(const QString &name)
@@ -179,7 +174,7 @@ int TorrentContentModelItem::row() const
 {
     if (m_parentItem)
         return m_parentItem->children().indexOf(const_cast<TorrentContentModelItem *>(this));
-    return 0;
+    return -1;
 }
 
 TorrentContentModelFolder *TorrentContentModelItem::parent() const
