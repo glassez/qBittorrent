@@ -283,7 +283,7 @@ void TransferListWidget::torrentDoubleClicked()
     switch (action)
     {
     case TOGGLE_PAUSE:
-        if (torrent->isPaused())
+        if (torrent->isStopped())
             torrent->resume();
         else
             torrent->pause();
@@ -923,7 +923,7 @@ void TransferListWidget::displayListMenu(const QPoint &)
         else
             needsStart = true;
 
-        if (torrent->isPaused())
+        if (torrent->isStopped())
             needsStart = true;
         else
             needsPause = true;

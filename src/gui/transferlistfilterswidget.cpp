@@ -251,7 +251,7 @@ void StatusFilterWidget::updateTorrentNumbers()
             ++nbCompleted;
         if (torrent->isResumed())
             ++nbResumed;
-        if (torrent->isPaused())
+        if (torrent->isStopped())
             ++nbPaused;
         if (torrent->isActive())
             ++nbActive;

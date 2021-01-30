@@ -102,6 +102,7 @@ namespace Net
 
 namespace BitTorrent
 {
+    class BencodeDataStorage;
     class InfoHash;
     class MagnetUri;
     class Torrent;
@@ -471,7 +472,6 @@ namespace BitTorrent
         void bottomTorrentsQueuePos(const QVector<InfoHash> &hashes);
 
         // Torrent interface
-        void handleTorrentSaveResumeDataRequested(const TorrentImpl *torrent);
         void handleTorrentShareLimitChanged(TorrentImpl *const torrent);
         void handleTorrentNameChanged(TorrentImpl *const torrent);
         void handleTorrentSavePathChanged(TorrentImpl *const torrent);
@@ -489,7 +489,6 @@ namespace BitTorrent
         void handleTorrentTrackersChanged(TorrentImpl *const torrent);
         void handleTorrentUrlSeedsAdded(TorrentImpl *const torrent, const QVector<QUrl> &newUrlSeeds);
         void handleTorrentUrlSeedsRemoved(TorrentImpl *const torrent, const QVector<QUrl> &urlSeeds);
-        void handleTorrentResumeDataReady(TorrentImpl *const torrent, const std::shared_ptr<lt::entry> &data);
         void handleTorrentTrackerReply(TorrentImpl *const torrent, const QString &trackerUrl);
         void handleTorrentTrackerWarning(TorrentImpl *const torrent, const QString &trackerUrl);
         void handleTorrentTrackerError(TorrentImpl *const torrent, const QString &trackerUrl);
@@ -550,6 +549,8 @@ namespace BitTorrent
         // Session reconfiguration triggers
         void networkOnlineStateChanged(bool online);
         void networkConfigurationChange(const QNetworkConfiguration &);
+
+        void handleTorrentPersistentDataChanged(std::shared_ptr<BencodeDataStorage> storage);
 
     private:
         struct MoveStorageJob
@@ -628,6 +629,7 @@ namespace BitTorrent
         void handleStorageMovedAlert(const lt::storage_moved_alert *p);
         void handleStorageMovedFailedAlert(const lt::storage_moved_failed_alert *p);
         void handleSocks5Alert(const lt::socks5_alert *p) const;
+        void handleSaveResumeDataAlert(const lt::save_resume_data_alert *p);
 
         void createTorrent(const lt::torrent_handle &nativeHandle);
 

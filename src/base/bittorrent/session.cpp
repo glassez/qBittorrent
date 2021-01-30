@@ -1647,12 +1647,12 @@ void Session::processShareLimits()
                             LogMsg(tr("'%1' reached the maximum ratio you set. Removed torrent and its files.").arg(torrent->name()));
                             deleteTorrent(torrent->hash(), DeleteTorrentAndFiles);
                         }
-                        else if ((m_maxRatioAction == Pause) && !torrent->isPaused())
+                        else if ((m_maxRatioAction == Pause) && !torrent->isStopped())
                         {
                             torrent->pause();
                             LogMsg(tr("'%1' reached the maximum ratio you set. Paused.").arg(torrent->name()));
                         }
-                        else if ((m_maxRatioAction == EnableSuperSeeding) && !torrent->isPaused() && !torrent->superSeeding())
+                        else if ((m_maxRatioAction == EnableSuperSeeding) && !torrent->isStopped() && !torrent->superSeeding())
                         {
                             torrent->setSuperSeeding(true);
                             LogMsg(tr("'%1' reached the maximum ratio you set. Enabled super seeding for it.").arg(torrent->name()));
@@ -1686,12 +1686,12 @@ void Session::processShareLimits()
                             LogMsg(tr("'%1' reached the maximum seeding time you set. Removed torrent and its files.").arg(torrent->name()));
                             deleteTorrent(torrent->hash(), DeleteTorrentAndFiles);
                         }
-                        else if ((m_maxRatioAction == Pause) && !torrent->isPaused())
+                        else if ((m_maxRatioAction == Pause) && !torrent->isStopped())
                         {
                             torrent->pause();
                             LogMsg(tr("'%1' reached the maximum seeding time you set. Paused.").arg(torrent->name()));
                         }
-                        else if ((m_maxRatioAction == EnableSuperSeeding) && !torrent->isPaused() && !torrent->superSeeding())
+                        else if ((m_maxRatioAction == EnableSuperSeeding) && !torrent->isStopped() && !torrent->superSeeding())
                         {
                             torrent->setSuperSeeding(true);
                             LogMsg(tr("'%1' reached the maximum seeding time you set. Enabled super seeding for it.").arg(torrent->name()));
@@ -1764,7 +1764,7 @@ bool Session::hasUnfinishedTorrents() const
 {
     return std::any_of(m_torrents.begin(), m_torrents.end(), [](const TorrentImpl *torrent)
     {
-        return (!torrent->isSeed() && !torrent->isPaused() && !torrent->isErrored());
+        return (!torrent->isSeed() && !torrent->isStopped() && !torrent->isErrored());
     });
 }
 
@@ -1772,7 +1772,7 @@ bool Session::hasRunningSeed() const
 {
     return std::any_of(m_torrents.begin(), m_torrents.end(), [](const TorrentImpl *torrent)
     {
-        return (torrent->isSeed() && !torrent->isPaused());
+        return (torrent->isSeed() && !torrent->isStopped());
     });
 }
 
@@ -1993,12 +1993,6 @@ void Session::bottomTorrentsQueuePos(const QVector<InfoHash> &hashes)
         torrentQueuePositionBottom(m_nativeSession->find_torrent(*i));
 
     saveTorrentsQueue();
-}
-
-void Session::handleTorrentSaveResumeDataRequested(const TorrentImpl *torrent)
-{
-    qDebug("Saving resume data is requested for torrent '%s'...", qUtf8Printable(torrent->name()));
-    ++m_numResumeData;
 }
 
 QVector<Torrent *> Session::torrents() const
@@ -2330,7 +2324,11 @@ void Session::generateResumeData()
         if (!torrent->isValid()) continue;
 
         if (torrent->needSaveResumeData())
-            torrent->saveResumeData();
+        {
+            qDebug("Saving resume data is requested for torrent '%s'...", qUtf8Printable(torrent->name()));
+            torrent->nativeHandle().save_resume_data();
+            ++m_numResumeData;
+        }
     }
 }
 
@@ -2356,12 +2354,17 @@ void Session::saveResumeData()
 
         for (const lt::alert *a : alerts)
         {
-            switch (a->type())
+            Q_ASSERT_X((a->type() != lt::save_resume_data_failed_alert::alert_type), Q_FUNC_INFO, "This point should be unreachable since libtorrent 1.2.11");
+            if (a->type() == lt::save_resume_data_alert::alert_type)
             {
-            case lt::save_resume_data_failed_alert::alert_type:
-            case lt::save_resume_data_alert::alert_type:
-                dispatchTorrentAlert(a);
-                break;
+                TorrentImpl *torrent = m_torrents.value(static_cast<const lt::torrent_alert *>(a)->handle.info_hash());
+                if (torrent)
+                {
+                    handleSaveResumeDataAlert(static_cast<const lt::save_resume_data_alert *>(a));
+                    std::shared_ptr<PersistentDataStorage> persistentDataStorage = torrent->persistentDataStorage();
+                    if (persistentDataStorage->hasChangedData())
+                        handleTorrentPersistentDataChanged(std::static_pointer_cast<BencodeDataStorage>(persistentDataStorage));
+                }
             }
         }
     }
@@ -3769,48 +3772,42 @@ void Session::updateSeedingLimitTimer()
 
 void Session::handleTorrentShareLimitChanged(TorrentImpl *const torrent)
 {
-    torrent->saveResumeData();
     updateSeedingLimitTimer();
 }
 
 void Session::handleTorrentNameChanged(TorrentImpl *const torrent)
 {
-    torrent->saveResumeData();
+    Q_UNUSED(torrent);
 }
 
 void Session::handleTorrentSavePathChanged(TorrentImpl *const torrent)
 {
-    torrent->saveResumeData();
     emit torrentSavePathChanged(torrent);
 }
 
 void Session::handleTorrentCategoryChanged(TorrentImpl *const torrent, const QString &oldCategory)
 {
-    torrent->saveResumeData();
     emit torrentCategoryChanged(torrent, oldCategory);
 }
 
 void Session::handleTorrentTagAdded(TorrentImpl *const torrent, const QString &tag)
 {
-    torrent->saveResumeData();
     emit torrentTagAdded(torrent, tag);
 }
 
 void Session::handleTorrentTagRemoved(TorrentImpl *const torrent, const QString &tag)
 {
-    torrent->saveResumeData();
     emit torrentTagRemoved(torrent, tag);
 }
 
 void Session::handleTorrentSavingModeChanged(TorrentImpl *const torrent)
 {
-    torrent->saveResumeData();
     emit torrentSavingModeChanged(torrent);
 }
 
 void Session::handleTorrentTrackersAdded(TorrentImpl *const torrent, const QVector<TrackerEntry> &newTrackers)
 {
-    torrent->saveResumeData();
+    // TODO: Check whether it is stored in resume data for stopped torrents
 
     for (const TrackerEntry &newTracker : newTrackers)
         LogMsg(tr("Tracker '%1' was added to torrent '%2'").arg(newTracker.url(), torrent->name()));
@@ -3822,7 +3819,7 @@ void Session::handleTorrentTrackersAdded(TorrentImpl *const torrent, const QVect
 
 void Session::handleTorrentTrackersRemoved(TorrentImpl *const torrent, const QVector<TrackerEntry> &deletedTrackers)
 {
-    torrent->saveResumeData();
+    // TODO: Check whether it is stored in resume data for stopped torrents
 
     for (const TrackerEntry &deletedTracker : deletedTrackers)
         LogMsg(tr("Tracker '%1' was deleted from torrent '%2'").arg(deletedTracker.url(), torrent->name()));
@@ -3834,20 +3831,20 @@ void Session::handleTorrentTrackersRemoved(TorrentImpl *const torrent, const QVe
 
 void Session::handleTorrentTrackersChanged(TorrentImpl *const torrent)
 {
-    torrent->saveResumeData();
+    // TODO: Check whether it is stored in resume data for stopped torrents
     emit trackersChanged(torrent);
 }
 
 void Session::handleTorrentUrlSeedsAdded(TorrentImpl *const torrent, const QVector<QUrl> &newUrlSeeds)
 {
-    torrent->saveResumeData();
+    // TODO: Check whether it is stored in resume data for stopped torrents
     for (const QUrl &newUrlSeed : newUrlSeeds)
         LogMsg(tr("URL seed '%1' was added to torrent '%2'").arg(newUrlSeed.toString(), torrent->name()));
 }
 
 void Session::handleTorrentUrlSeedsRemoved(TorrentImpl *const torrent, const QVector<QUrl> &urlSeeds)
 {
-    torrent->saveResumeData();
+    // TODO: Check whether it is stored in resume data for stopped torrents
     for (const QUrl &urlSeed : urlSeeds)
         LogMsg(tr("URL seed '%1' was removed from torrent '%2'").arg(urlSeed.toString(), torrent->name()));
 }
@@ -3875,13 +3872,11 @@ void Session::handleTorrentMetadataReceived(TorrentImpl *const torrent)
 
 void Session::handleTorrentPaused(TorrentImpl *const torrent)
 {
-    torrent->saveResumeData();
     emit torrentPaused(torrent);
 }
 
 void Session::handleTorrentResumed(TorrentImpl *const torrent)
 {
-    torrent->saveResumeData();
     emit torrentResumed(torrent);
 }
 
@@ -3892,8 +3887,6 @@ void Session::handleTorrentChecked(TorrentImpl *const torrent)
 
 void Session::handleTorrentFinished(TorrentImpl *const torrent)
 {
-    if (!torrent->hasError() && !torrent->hasMissingFiles())
-        torrent->saveResumeData();
     emit torrentFinished(torrent);
 
     qDebug("Checking if the torrent contains torrent files to download");
@@ -3929,14 +3922,15 @@ void Session::handleTorrentFinished(TorrentImpl *const torrent)
         emit allTorrentsFinished();
 }
 
-void Session::handleTorrentResumeDataReady(TorrentImpl *const torrent, const std::shared_ptr<lt::entry> &data)
+void Session::handleTorrentPersistentDataChanged(std::shared_ptr<BencodeDataStorage> storage)
 {
-    --m_numResumeData;
+    qDebug() << Q_FUNC_INFO;
 
     // Separated thread is used for the blocking IO which results in slow processing of many torrents.
     // Copying lt::entry objects around isn't cheap.
 
-    const QString filename = QString::fromLatin1("%1.fastresume").arg(torrent->hash());
+    const QString filename = QString::fromLatin1("%1.fastresume").arg(storage->torrentID());
+    const std::shared_ptr<lt::entry> data = storage->takeChangedData();
 #if (QT_VERSION >= QT_VERSION_CHECK(5, 10, 0))
     QMetaObject::invokeMethod(m_resumeDataSavingManager
         , [this, filename, data]() { m_resumeDataSavingManager->save(filename, data); });
@@ -4263,51 +4257,7 @@ bool Session::loadTorrentResumeData(const QByteArray &data, const TorrentInfo &m
 
     const bool hasMetadata = (p.ti && p.ti->is_valid());
     if (!hasMetadata && !root.dict_find("info-hash"))
-    {
-        // TODO: The following code is deprecated. Remove after several releases in 4.3.x.
-        // === BEGIN DEPRECATED CODE === //
-        // Try to load from legacy data used in older versions for torrents w/o metadata
-        const lt::bdecode_node magnetURINode = root.dict_find("qBt-magnetUri");
-        if (magnetURINode.type() == lt::bdecode_node::string_t)
-        {
-            lt::parse_magnet_uri(magnetURINode.string_value(), p, ec);
-
-            if (isTempPathEnabled())
-            {
-                p.save_path = Utils::Fs::toNativePath(tempPath()).toStdString();
-            }
-            else
-            {
-                // If empty then Automatic mode, otherwise Manual mode
-                const QString savePath = torrentParams.savePath.isEmpty() ? categorySavePath(torrentParams.category) : torrentParams.savePath;
-                p.save_path = Utils::Fs::toNativePath(savePath).toStdString();
-            }
-
-            // Preallocation mode
-            p.storage_mode = (isPreallocationEnabled() ? lt::storage_mode_allocate : lt::storage_mode_sparse);
-
-            const lt::bdecode_node addedTimeNode = root.dict_find("qBt-addedTime");
-            if (addedTimeNode.type() == lt::bdecode_node::int_t)
-                p.added_time = addedTimeNode.int_value();
-
-            const lt::bdecode_node sequentialNode = root.dict_find("qBt-sequential");
-            if (sequentialNode.type() == lt::bdecode_node::int_t)
-            {
-                if (static_cast<bool>(sequentialNode.int_value()))
-                    p.flags |= lt::torrent_flags::sequential_download;
-                else
-                    p.flags &= ~lt::torrent_flags::sequential_download;
-            }
-
-            if (torrentParams.name.isEmpty() && !p.name.empty())
-                torrentParams.name = QString::fromStdString(p.name);
-        }
-        // === END DEPRECATED CODE === //
-        else
-        {
-            return false;
-        }
-    }
+        return false;
 
     return true;
 }
@@ -4471,8 +4421,6 @@ void Session::handleAlert(const lt::alert *a)
         case lt::file_renamed_alert::alert_type:
         case lt::file_completed_alert::alert_type:
         case lt::torrent_finished_alert::alert_type:
-        case lt::save_resume_data_alert::alert_type:
-        case lt::save_resume_data_failed_alert::alert_type:
         case lt::torrent_paused_alert::alert_type:
         case lt::torrent_resumed_alert::alert_type:
         case lt::tracker_error_alert::alert_type:
@@ -4540,6 +4488,12 @@ void Session::handleAlert(const lt::alert *a)
         case lt::socks5_alert::alert_type:
             handleSocks5Alert(static_cast<const lt::socks5_alert *>(a));
             break;
+        case lt::save_resume_data_alert::alert_type:
+            handleSaveResumeDataAlert(static_cast<const lt::save_resume_data_alert *>(a));
+            break;
+        case lt::save_resume_data_failed_alert::alert_type:
+            Q_ASSERT_X(false, Q_FUNC_INFO, "This point should be unreachable since libtorrent 1.2.11");
+            break;
         }
     }
     catch (const std::exception &exc)
@@ -4571,7 +4525,13 @@ void Session::createTorrent(const lt::torrent_handle &nativeHandle)
 
     const LoadTorrentParams params = m_loadingTorrents.take(nativeHandle.info_hash());
 
-    auto *const torrent = new TorrentImpl {this, m_nativeSession, nativeHandle, params};
+    const InfoHash hash {nativeHandle.info_hash()};
+    auto persistentDataStorage = std::make_shared<BencodeDataStorage>(hash, params);
+    connect(persistentDataStorage.get(), &PersistentDataStorage::dataChanged, this
+            , [this, persistentDataStorage]() { handleTorrentPersistentDataChanged(persistentDataStorage); }
+            , Qt::QueuedConnection);
+
+    auto *const torrent = new TorrentImpl {this, m_nativeSession, nativeHandle, persistentDataStorage};
     m_torrents.insert(torrent->hash(), torrent);
 
     const bool hasMetadata = torrent->hasMetadata();
@@ -4607,10 +4567,6 @@ void Session::createTorrent(const lt::torrent_handle &nativeHandle)
 
         LogMsg(tr("'%1' added to download list.", "'torrent name' was added to download list.")
             .arg(torrent->name()));
-
-        // In case of crash before the scheduled generation
-        // of the fastresumes.
-        torrent->saveResumeData();
     }
 
     if (((torrent->ratioLimit() >= 0) || (torrent->seedingTimeLimit() >= 0))
@@ -4961,7 +4917,7 @@ void Session::handleStateUpdateAlert(const lt::state_update_alert *p)
         if (!torrent)
             continue;
 
-        torrent->handleStateUpdate(status);
+        torrent->updateStatus(status);
         updatedTorrents.push_back(torrent);
     }
 
@@ -4981,4 +4937,15 @@ void Session::handleSocks5Alert(const lt::socks5_alert *p) const
         LogMsg(tr("SOCKS5 proxy error. Message: %1").arg(QString::fromStdString(p->message()))
             , Log::WARNING);
     }
+}
+
+void Session::handleSaveResumeDataAlert(const lt::save_resume_data_alert *p)
+{
+    --m_numResumeData;
+
+    TorrentImpl *torrent = m_torrents.value(static_cast<const lt::torrent_alert *>(p)->handle.info_hash());
+    if (!torrent)
+        return;
+
+    torrent->updateResumeData(p->params);
 }

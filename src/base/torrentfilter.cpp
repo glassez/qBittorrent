@@ -166,7 +166,7 @@ bool TorrentFilter::matchState(const BitTorrent::Torrent *const torrent) const
     case Completed:
         return torrent->isCompleted();
     case Paused:
-        return torrent->isPaused();
+        return torrent->isStopped();
     case Resumed:
         return torrent->isResumed();
     case Active:

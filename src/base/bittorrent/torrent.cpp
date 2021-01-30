@@ -51,7 +51,7 @@ namespace BitTorrent
 
     bool Torrent::isResumed() const
     {
-        return !isPaused();
+        return !isStopped();
     }
 
     qlonglong Torrent::remainingSize() const

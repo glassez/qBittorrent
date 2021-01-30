@@ -18,6 +18,7 @@ HEADERS += \
     $$PWD/bittorrent/nativetorrentextension.h \
     $$PWD/bittorrent/peeraddress.h \
     $$PWD/bittorrent/peerinfo.h \
+    $$PWD/bittorrent/persistentdatastorage.h \
     $$PWD/bittorrent/portforwarderimpl.h \
     $$PWD/bittorrent/resumedatasavingmanager.h \
     $$PWD/bittorrent/session.h \
@@ -102,6 +103,7 @@ SOURCES += \
     $$PWD/bittorrent/nativetorrentextension.cpp \
     $$PWD/bittorrent/peeraddress.cpp \
     $$PWD/bittorrent/peerinfo.cpp \
+    $$PWD/bittorrent/persistentdatastorage.cpp \
     $$PWD/bittorrent/portforwarderimpl.cpp \
     $$PWD/bittorrent/resumedatasavingmanager.cpp \
     $$PWD/bittorrent/session.cpp \

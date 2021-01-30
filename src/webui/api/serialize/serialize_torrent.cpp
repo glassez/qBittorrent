@@ -97,7 +97,7 @@ QVariantMap serialize(const BitTorrent::Torrent &torrent)
 
     const auto adjustLastActivity = [&torrent](const qlonglong value) -> qlonglong
     {
-        return (torrent.isPaused() || torrent.isChecking())
+        return (torrent.isStopped() || torrent.isChecking())
             ? 0
             : (QDateTime::currentDateTime().toSecsSinceEpoch() - value);
     };

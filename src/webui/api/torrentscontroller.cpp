@@ -737,7 +737,7 @@ void TorrentsController::editTrackerAction()
 
     torrent->replaceTrackers(trackers);
 
-    if (!torrent->isPaused())
+    if (!torrent->isStopped())
         torrent->forceReannounce();
 }
 
@@ -766,7 +766,7 @@ void TorrentsController::removeTrackersAction()
 
     torrent->replaceTrackers(remainingTrackers);
 
-    if (!torrent->isPaused())
+    if (!torrent->isStopped())
         torrent->forceReannounce();
 }
 

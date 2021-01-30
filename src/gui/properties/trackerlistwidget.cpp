@@ -212,7 +212,7 @@ void TrackerListWidget::moveSelectionUp()
 
     torrent->replaceTrackers(trackers);
     // Reannounce
-    if (!torrent->isPaused())
+    if (!torrent->isStopped())
         torrent->forceReannounce();
 }
 
@@ -258,7 +258,7 @@ void TrackerListWidget::moveSelectionDown()
 
     torrent->replaceTrackers(trackers);
     // Reannounce
-    if (!torrent->isPaused())
+    if (!torrent->isStopped())
         torrent->forceReannounce();
 }
 
@@ -498,7 +498,7 @@ void TrackerListWidget::deleteSelectedTrackers()
 
     torrent->replaceTrackers(remainingTrackers);
 
-    if (!torrent->isPaused())
+    if (!torrent->isStopped())
         torrent->forceReannounce();
 }
 
@@ -546,7 +546,7 @@ void TrackerListWidget::editSelectedTracker()
 
     torrent->replaceTrackers(trackers);
 
-    if (!torrent->isPaused())
+    if (!torrent->isStopped())
         torrent->forceReannounce();
 }
 
@@ -605,7 +605,7 @@ void TrackerListWidget::showTrackerListMenu(const QPoint &)
             , this, &TrackerListWidget::copyTrackerUrl);
     }
 
-    if (!torrent->isPaused())
+    if (!torrent->isStopped())
     {
         menu->addAction(UIThemeManager::instance()->getIcon("view-refresh"), tr("Force reannounce to selected trackers")
             , this, &TrackerListWidget::reannounceSelected);
