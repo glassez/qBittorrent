@@ -61,7 +61,6 @@
 #include <QFile>
 #include <QHostAddress>
 #include <QNetworkAddressEntry>
-#include <QNetworkConfigurationManager>
 #include <QNetworkInterface>
 #include <QRegularExpression>
 #include <QString>
@@ -453,7 +452,6 @@ Session::Session(QObject *parent)
     , m_statistics {new Statistics {this}}
     , m_ioThread {new QThread {this}}
     , m_recentErroredTorrentsTimer {new QTimer {this}}
-    , m_networkManager {new QNetworkConfigurationManager {this}}
 {
     if (port() < 0)
         m_port = Utils::Random::rand(1024, 65535);
@@ -493,12 +491,6 @@ Session::Session(QObject *parent)
     connect(Net::ProxyConfigurationManager::instance()
         , &Net::ProxyConfigurationManager::proxyConfigurationChanged
         , this, &Session::configureDeferred);
-
-    // Network configuration monitor
-    connect(m_networkManager, &QNetworkConfigurationManager::onlineStateChanged, this, &Session::networkOnlineStateChanged);
-    connect(m_networkManager, &QNetworkConfigurationManager::configurationAdded, this, &Session::networkConfigurationChange);
-    connect(m_networkManager, &QNetworkConfigurationManager::configurationRemoved, this, &Session::networkConfigurationChange);
-    connect(m_networkManager, &QNetworkConfigurationManager::configurationChanged, this, &Session::networkConfigurationChange);
 
     m_resumeDataSavingManager = new ResumeDataSavingManager {m_resumeFolderPath};
     m_resumeDataSavingManager->moveToThread(m_ioThread);
@@ -2407,27 +2399,6 @@ void Session::setTempPath(QString path)
 
     for (TorrentImpl *const torrent : asConst(m_torrents))
         torrent->handleTempPathChanged();
-}
-
-void Session::networkOnlineStateChanged(const bool online)
-{
-    LogMsg(tr("System network status changed to %1", "e.g: System network status changed to ONLINE").arg(online ? tr("ONLINE") : tr("OFFLINE")), Log::INFO);
-}
-
-void Session::networkConfigurationChange(const QNetworkConfiguration &cfg)
-{
-    const QString configuredInterfaceName = networkInterface();
-    // Empty means "Any Interface". In this case libtorrent has binded to 0.0.0.0 so any change to any interface will
-    // be automatically picked up. Otherwise we would rebinding here to 0.0.0.0 again.
-    if (configuredInterfaceName.isEmpty()) return;
-
-    const QString changedInterface = cfg.name();
-
-    if (configuredInterfaceName == changedInterface)
-    {
-        LogMsg(tr("Network configuration of %1 has changed, refreshing session binding", "e.g: Network configuration of tun0 has changed, refreshing session binding").arg(changedInterface), Log::INFO);
-        configureListeningInterface();
-    }
 }
 
 QStringList Session::getListeningIPs() const

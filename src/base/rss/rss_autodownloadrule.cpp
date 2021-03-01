@@ -240,7 +240,7 @@ bool AutoDownloadRule::matchesExpression(const QString &articleTitle, const QStr
 
     // Only match if every wildcard token (separated by spaces) is present in the article name.
     // Order of wildcard tokens is unimportant (if order is important, they should have used *).
-    const QStringList wildcards {expression.split(whitespace, Qt::SplitBehavior::SkipEmptyParts)};
+    const QStringList wildcards {expression.split(whitespace, Qt::SkipEmptyParts)};
     for (const QString &wildcard : wildcards)
     {
         const QRegularExpression reg {cachedRegex(wildcard, false)};
@@ -327,7 +327,7 @@ bool AutoDownloadRule::matchesEpisodeFilterExpression(const QString &articleTitl
 
                 if (episode.endsWith('-'))
                 { // Infinite range
-                    const int episodeOurs {episode.leftRef(episode.size() - 1).toInt()};
+                    const int episodeOurs {QStringView(episode).left(episode.size() - 1).toInt()};
                     if (((seasonTheirs == seasonOurs) && (episodeTheirs >= episodeOurs)) || (seasonTheirs > seasonOurs))
                         return true;
                 }

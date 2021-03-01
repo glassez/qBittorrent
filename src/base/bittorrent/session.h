@@ -52,8 +52,6 @@
 #include "torrentinfo.h"
 
 class QFile;
-class QNetworkConfiguration;
-class QNetworkConfigurationManager;
 class QString;
 class QThread;
 class QTimer;
@@ -541,10 +539,6 @@ namespace BitTorrent
         void handleDownloadFinished(const Net::DownloadResult &result);
         void fileSearchFinished(const TorrentID &id, const QString &savePath, const QStringList &fileNames);
 
-        // Session reconfiguration triggers
-        void networkOnlineStateChanged(bool online);
-        void networkConfigurationChange(const QNetworkConfiguration &);
-
     private:
         struct MoveStorageJob
         {
@@ -782,8 +776,6 @@ namespace BitTorrent
 
         SessionStatus m_status;
         CacheStatus m_cacheStatus;
-
-        QNetworkConfigurationManager *m_networkManager = nullptr;
 
         QList<MoveStorageJob> m_moveStorageQueue;
 
