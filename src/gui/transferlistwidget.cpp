@@ -726,7 +726,7 @@ QStringList TransferListWidget::askTagsForSelection(const QString &dialogTitle)
             this, dialogTitle, tr("Comma-separated tags:"), QLineEdit::Normal, "", &ok).trimmed();
         if (!ok || tagsInput.isEmpty())
             return {};
-        tags = tagsInput.split(',', QString::SkipEmptyParts);
+        tags = tagsInput.split(',', Qt::SkipEmptyParts);
         for (QString &tag : tags)
         {
             tag = tag.trimmed();

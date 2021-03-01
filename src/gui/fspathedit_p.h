@@ -39,7 +39,6 @@ class QCompleter;
 class QContextMenuEvent;
 class QFileSystemModel;
 class QKeyEvent;
-class QStringRef;
 
 namespace Private
 {
@@ -65,7 +64,7 @@ namespace Private
         bool checkWritePermission() const;
         void setCheckWritePermission(bool v);
 
-        QValidator::State validate(QString &input, int &pos) const override;
+        QValidator::State validate(QStringView input, int pos) const override;
 
         enum class TestResult
         {
@@ -82,10 +81,10 @@ namespace Private
         QString lastTestedPath() const;
 
     private:
-        QValidator::State validate(const QString &path, const QVector<QStringRef> &pathComponents, bool strict,
+        QValidator::State validate(QStringView path, const QVector<QStringView> &pathComponents, bool strict,
                                    int firstComponentToTest, int lastComponentToTest) const;
 
-        TestResult testPath(const QStringRef &path, bool pathIsComplete) const;
+        TestResult testPath(QStringView path, bool pathIsComplete) const;
 
         bool m_strictMode;
         bool m_existingOnly;

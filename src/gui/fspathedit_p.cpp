@@ -100,14 +100,14 @@ void Private::FileSystemPathValidator::setCheckWritePermission(bool v)
     m_checkWritePermission = v;
 }
 
-QValidator::State Private::FileSystemPathValidator::validate(QString &input, int &pos) const
+QValidator::State Private::FileSystemPathValidator::validate(const QStringView input, const int pos) const
 {
     if (input.isEmpty())
         return m_strictMode ? QValidator::Invalid : QValidator::Intermediate;
 
     // we test path components from beginning to the one with cursor location in strict mode
     // and the one with cursor and beyond in non-strict mode
-    QVector<QStringRef> components = input.splitRef(QDir::separator(), QString::KeepEmptyParts);
+    QVector<QStringView> components = input.split(QDir::separator(), Qt::KeepEmptyParts);
     // find index of the component that contains pos
     int componentWithCursorIndex = 0;
     int pathLength = 0;
@@ -130,7 +130,7 @@ QValidator::State Private::FileSystemPathValidator::validate(QString &input, int
     return m_lastValidationState;
 }
 
-QValidator::State Private::FileSystemPathValidator::validate(const QString &path, const QVector<QStringRef> &pathComponents, bool strict,
+QValidator::State Private::FileSystemPathValidator::validate(QStringView path, const QVector<QStringView> &pathComponents, bool strict,
                                                              int firstComponentToTest, int lastComponentToTest) const
 {
     Q_ASSERT(firstComponentToTest >= 0);
@@ -145,7 +145,7 @@ QValidator::State Private::FileSystemPathValidator::validate(const QString &path
     {
         if (pathComponents[i].isEmpty()) continue;
 
-        QStringRef componentPath(&path, 0, pathComponents[i].position() + pathComponents[i].size());
+        const QStringView componentPath(&path, 0, pathComponents[i].position() + pathComponents[i].size());
         m_lastTestResult = testPath(componentPath, false);
         if (m_lastTestResult != TestResult::OK)
         {
@@ -155,7 +155,7 @@ QValidator::State Private::FileSystemPathValidator::validate(const QString &path
     }
 
     const bool finalPath = (lastComponentToTest == (pathComponents.size() - 1));
-    QStringRef componentPath(&path, 0, pathComponents[lastComponentToTest].position()
+    const QStringView componentPath(&path, 0, pathComponents[lastComponentToTest].position()
                                 + pathComponents[lastComponentToTest].size());
     m_lastTestResult = testPath(componentPath, finalPath);
     if (m_lastTestResult != TestResult::OK)
@@ -167,7 +167,7 @@ QValidator::State Private::FileSystemPathValidator::validate(const QString &path
 }
 
 Private::FileSystemPathValidator::TestResult
-Private::FileSystemPathValidator::testPath(const QStringRef &path, bool pathIsComplete) const
+Private::FileSystemPathValidator::testPath(const QStringView path, bool pathIsComplete) const
 {
     QFileInfo fi(path.toString());
     if (m_existingOnly && !fi.exists())

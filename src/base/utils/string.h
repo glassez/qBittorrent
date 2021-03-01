@@ -37,8 +37,6 @@
 #include <Qt>
 #include <QtContainerFwd>
 
-class QStringRef;
-
 namespace Utils::String
 {
     QString fromDouble(double n, int precision);
@@ -70,7 +68,7 @@ namespace Utils::String
     std::optional<int> parseInt(const QString &string);
     std::optional<double> parseDouble(const QString &string);
 
-    QString join(const QVector<QStringRef> &strings, const QString &separator);
+    QString join(const QVector<QStringView> &strings, QStringView separator);
 
     template <typename T, typename std::enable_if_t<std::is_enum_v<T>, int> = 0>
     QString fromEnum(const T &value)

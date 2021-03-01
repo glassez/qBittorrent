@@ -71,11 +71,11 @@ const QString PRIVATE_FOLDER {QStringLiteral("/private")};
 
 namespace
 {
-    QStringMap parseCookie(const QString &cookieStr)
+    QStringMap parseCookie(const QStringView cookieStr)
     {
         // [rfc6265] 4.2.1. Syntax
         QStringMap ret;
-        const QVector<QStringRef> cookies = cookieStr.splitRef(';', QString::SkipEmptyParts);
+        const QVector<QStringView> cookies = cookieStr.split(u';', Qt::SkipEmptyParts);
 
         for (const auto &cookie : cookies)
         {
@@ -142,7 +142,7 @@ WebApplication::~WebApplication()
 
 void WebApplication::sendWebUIFile()
 {
-    const QStringList pathItems {request().path.split('/', QString::SkipEmptyParts)};
+    const QStringList pathItems {request().path.split('/', Qt::SkipEmptyParts)};
     if (pathItems.contains(".") || pathItems.contains(".."))
         throw InternalServerErrorHTTPError();
 
@@ -355,7 +355,7 @@ void WebApplication::configure()
     m_authSubnetWhitelist = pref->getWebUiAuthSubnetWhitelist();
     m_sessionTimeout = pref->getWebUISessionTimeout();
 
-    m_domainList = pref->getServerDomains().split(';', QString::SkipEmptyParts);
+    m_domainList = pref->getServerDomains().split(';', Qt::SkipEmptyParts);
     std::for_each(m_domainList.begin(), m_domainList.end(), [](QString &entry) { entry = entry.trimmed(); });
 
     m_isCSRFProtectionEnabled = pref->isWebUiCSRFProtectionEnabled();
@@ -385,10 +385,10 @@ void WebApplication::configure()
 
     if (pref->isWebUICustomHTTPHeadersEnabled())
     {
-        const QString customHeaders = pref->getWebUICustomHTTPHeaders().trimmed();
-        const QVector<QStringRef> customHeaderLines = customHeaders.splitRef('\n', QString::SkipEmptyParts);
+        const QString customHeaders = pref->getWebUICustomHTTPHeaders();
+        const QVector<QStringView> customHeaderLines = QStringView(customHeaders).trimmed().split(u'\n', Qt::SkipEmptyParts);
 
-        for (const QStringRef &line : customHeaderLines)
+        for (const QStringView line : customHeaderLines)
         {
             const int idx = line.indexOf(':');
             if (idx < 0)

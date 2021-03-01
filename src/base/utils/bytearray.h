@@ -28,15 +28,15 @@
 
 #pragma once
 
-#include <QString>
+#include <Qt>
 #include <QtContainerFwd>
 
 class QByteArray;
 
 namespace Utils::ByteArray
 {
-    // Mimic QString::splitRef(sep, behavior)
-    QVector<QByteArray> splitToViews(const QByteArray &in, const QByteArray &sep, const QString::SplitBehavior behavior = QString::KeepEmptyParts);
+    // Mimic QStringView(in).split(sep, behavior)
+    QVector<QByteArray> splitToViews(const QByteArray &in, const QByteArray &sep, const Qt::SplitBehavior behavior = Qt::KeepEmptyParts);
 
     // Mimic QByteArray::mid(pos, len) but instead of returning a full-copy,
     // we only return a partial view
