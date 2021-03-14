@@ -722,7 +722,7 @@ void AutomatedRssDownloader::updateMustLineValidity()
             tokens << text;
         else
             for (const QString &token : asConst(text.split('|')))
-                tokens << Utils::String::wildcardToRegex(token);
+                tokens << QRegularExpression::wildcardToRegularExpression(token);
 
         for (const QString &token : asConst(tokens))
         {
@@ -765,7 +765,7 @@ void AutomatedRssDownloader::updateMustNotLineValidity()
             tokens << text;
         else
             for (const QString &token : asConst(text.split('|')))
-                tokens << Utils::String::wildcardToRegex(token);
+                tokens << QRegularExpression::wildcardToRegularExpression(token);
 
         for (const QString &token : asConst(tokens))
         {

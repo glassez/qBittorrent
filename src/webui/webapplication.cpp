@@ -38,7 +38,7 @@
 #include <QMimeDatabase>
 #include <QMimeType>
 #include <QNetworkCookie>
-#include <QRegExp>
+#include <QRegularExpression>
 #include <QUrl>
 
 #include "base/algorithm.h"
@@ -693,7 +693,7 @@ bool WebApplication::validateHostHeader(const QStringList &domains) const
     // try matching host header with domain list
     for (const auto &domain : domains)
     {
-        QRegExp domainRegex(domain, Qt::CaseInsensitive, QRegExp::Wildcard);
+        QRegularExpression domainRegex {QRegularExpression::wildcardToRegularExpression(domain), QRegularExpression::CaseInsensitiveOption};
         if (requestHost.contains(domainRegex))
             return true;
     }

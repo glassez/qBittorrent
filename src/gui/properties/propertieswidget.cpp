@@ -825,7 +825,8 @@ void PropertiesWidget::filteredFilesChanged()
 
 void PropertiesWidget::filterText(const QString &filter)
 {
-    m_propListModel->setFilterRegExp(QRegExp(filter, Qt::CaseInsensitive, QRegExp::WildcardUnix));
+    const QString regexp = (filter.isEmpty() ? filter : QRegularExpression::wildcardToRegularExpression(filter));
+    m_propListModel->setFilterRegularExpression(QRegularExpression(regexp, QRegularExpression::CaseInsensitiveOption));
     if (filter.isEmpty())
     {
         m_ui->filesList->collapseAll();

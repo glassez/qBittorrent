@@ -215,7 +215,7 @@ QRegularExpression AutoDownloadRule::cachedRegex(const QString &expression, cons
     {
         regex = QRegularExpression
         {
-                (isRegex ? expression : Utils::String::wildcardToRegex(expression))
+                (isRegex ? expression : QRegularExpression::wildcardToRegularExpression(expression))
                 , QRegularExpression::CaseInsensitiveOption};
     }
 

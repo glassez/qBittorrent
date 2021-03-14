@@ -33,7 +33,6 @@
 
 #include <QCollator>
 #include <QLocale>
-#include <QRegExp>
 #include <QtGlobal>
 #include <QVector>
 
@@ -179,15 +178,6 @@ QString Utils::String::fromDouble(const double n, const int precision)
 
     const double prec = std::pow(10.0, precision);
     return QLocale::system().toString(std::floor(n * prec) / prec, 'f', precision);
-}
-
-// This is marked as internal in QRegExp.cpp, but is exported. The alternative would be to
-// copy the code from QRegExp::wc2rx().
-QString qt_regexp_toCanonical(const QString &pattern, QRegExp::PatternSyntax patternSyntax);
-
-QString Utils::String::wildcardToRegex(const QString &pattern)
-{
-    return qt_regexp_toCanonical(pattern, QRegExp::Wildcard);
 }
 
 std::optional<bool> Utils::String::parseBool(const QString &string)
