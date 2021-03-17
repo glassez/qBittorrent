@@ -50,6 +50,7 @@
 #include "cachestatus.h"
 #include "sessionstatus.h"
 #include "torrentinfo.h"
+#include "trackerentry.h"
 
 class QFile;
 class QString;
@@ -98,7 +99,6 @@ namespace BitTorrent
     class TorrentImpl;
     class Tracker;
     struct LoadTorrentParams;
-    struct TrackerEntry;
 
     enum class MoveStorageMode;
 
