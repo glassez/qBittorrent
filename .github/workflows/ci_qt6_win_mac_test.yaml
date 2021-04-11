@@ -1,0 +1,267 @@
+name: Qt6 test builds CI
+
+# TODO: revise cache usage, we don't care about it too much now.
+
+on: [pull_request, push]
+
+env:
+  VCPKG_COMMIT: b361c2eefa3966cb7cec45275aff32e90430aaa6
+  VCPKG_DEST_MACOS: /Users/runner/qbt_tools/vcpkg
+  VCPKG_DEST_WIN: C:\qbt_tools\vcpkg
+  # default features include zstd, which must be excluded until https://bugreports.qt.io/browse/QTBUG-93604 is fixed
+  # see the related comment in the main CMakeLists.txt for more information.
+  QTBASE_FEATURES: "[brotli,concurrent,core,dbus,doubleconversion,freetype,gui,harfbuzz,icu,jpeg,network,openssl,pcre2,png,sql,sql-psql,sql-sqlite,testlib,widgets]"
+
+jobs:
+
+  ci_windows_static:
+    name: Windows + vcpkg
+
+    strategy:
+      matrix:
+        build_type: ["Release", "Debug"]
+      fail-fast: false
+
+    runs-on: windows-2019
+
+    defaults:
+      run:
+        shell: pwsh
+
+    steps:
+    - name: checkout repository
+      uses: actions/checkout@v2
+
+    # - ninja is needed for building qBittorrent (because it's preferable, not a hard requirement)
+    - name: install additional required packages with chocolatey
+      run: |
+        choco install ninja
+
+    - name: setup vcpkg (cached, if possible)
+      uses: lukka/run-vcpkg@v7
+      with:
+        vcpkgDirectory: ${{ env.VCPKG_DEST_WIN }}
+        vcpkgGitCommitId: ${{ env.VCPKG_COMMIT }}
+        setupOnly: true
+        doNotCache: true
+
+    # clear buildtrees after each package installation to reduce disk space requirements
+    - name: install dependencies via vcpkg
+      run: |
+        $packages = `
+          "boost-circular-buffer:x64-windows-static",
+          "libtorrent:x64-windows-static",
+          "qtbase${{ env.QTBASE_FEATURES }}:x64-windows-static",
+          "qtsvg:x64-windows-static",
+          "qttools:x64-windows-static",
+          "qttranslations:x64-windows-static"
+        ${{ env.RUNVCPKG_VCPKG_ROOT }}/vcpkg.exe upgrade `
+            --no-dry-run `
+            --host-triplet=x64-windows-static
+        foreach($package in $packages)
+        {
+          ${{ env.RUNVCPKG_VCPKG_ROOT }}/vcpkg.exe install $package `
+            --clean-after-build `
+            --host-triplet=x64-windows-static
+        }
+
+    # NOTE: this is necessary to correctly find and use cl.exe with the Ninja generator for now
+    - name: setup devcmd
+      uses: ilammy/msvc-dev-cmd@v1
+
+    - name: build qBittorrent (${{ matrix.build_type }})
+      shell: cmd
+      run: |
+        cmake -B build -G "Ninja" ^
+          -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} ^
+          -DCMAKE_TOOLCHAIN_FILE=${{ env.VCPKG_DEST_WIN }}\scripts\buildsystems\vcpkg.cmake ^
+          -DVCPKG_TARGET_TRIPLET=x64-windows-static ^
+          -DVERBOSE_CONFIGURE=ON ^
+          -DMSVC_RUNTIME_DYNAMIC=OFF ^
+          --graphviz=build\target_graph.dot
+        cmake --build build
+
+    - name: install qBittorrent
+      run: |
+        cmake --install build --prefix qBittorrent_x64-windows-static_${{ matrix.build_type }}
+
+    - name: upload artifact as zip
+      uses: actions/upload-artifact@v2
+      with:
+        name: qBittorrent-CI_Windows-x64-static
+        path: |
+          build/compile_commands.json
+          build/install_manifest.txt
+          build/target_graph.dot
+          qBittorrent_x64-windows-static_${{ matrix.build_type }}
+
+  ci_windows_dynamic:
+    name: Windows (dynamic) + vcpkg
+
+    strategy:
+      matrix:
+        build_type: ["Release", "Debug"]
+      fail-fast: false
+
+    runs-on: windows-2019
+
+    defaults:
+      run:
+        shell: pwsh
+
+    steps:
+    - name: checkout repository
+      uses: actions/checkout@v2
+
+    # - ninja is needed for building qBittorrent (because it's preferable, not a hard requirement)
+    - name: install additional required packages with chocolatey
+      run: |
+        choco install ninja
+
+    - name: setup vcpkg (cached, if possible)
+      uses: lukka/run-vcpkg@v7
+      with:
+        vcpkgDirectory: ${{ env.VCPKG_DEST_WIN }}
+        vcpkgGitCommitId: ${{ env.VCPKG_COMMIT }}
+        setupOnly: true
+        appendedCacheKey: x64-windows-dynamic_${{ matrix.build_type }}
+
+    # clear buildtrees after each package installation to reduce disk space requirements
+    - name: install dependencies via vcpkg
+      run: |
+        $packages = `
+          "boost-circular-buffer:x64-windows",
+          "libtorrent:x64-windows",
+          "qtbase${{ env.QTBASE_FEATURES }}:x64-windows",
+          "qtsvg:x64-windows",
+          "qttools:x64-windows",
+          "qttranslations:x64-windows"
+        ${{ env.RUNVCPKG_VCPKG_ROOT }}/vcpkg.exe upgrade `
+            --no-dry-run `
+            --host-triplet=x64-windows
+        foreach($package in $packages)
+        {
+          ${{ env.RUNVCPKG_VCPKG_ROOT }}/vcpkg.exe install $package `
+            --clean-after-build `
+            --host-triplet=x64-windows
+        }
+
+    # NOTE: this is necessary to correctly find and use cl.exe with the Ninja generator for now
+    - name: setup devcmd
+      uses: ilammy/msvc-dev-cmd@v1
+
+    - name: build qBittorrent (${{ matrix.build_type }})
+      shell: cmd
+      run: |
+        cmake -B build -G "Ninja" ^
+          -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} ^
+          -DCMAKE_TOOLCHAIN_FILE=${{ env.VCPKG_DEST_WIN }}\scripts\buildsystems\vcpkg.cmake ^
+          -DVCPKG_TARGET_TRIPLET=x64-windows ^
+          -DVERBOSE_CONFIGURE=ON ^
+          -DMSVC_RUNTIME_DYNAMIC=ON ^
+          --graphviz=build\target_graph.dot
+        cmake --build build
+
+    - name: install qBittorrent
+      run: |
+        cmake --install build --prefix qBittorrent_x64-windows_${{ matrix.build_type }}
+
+    - name: upload artifact as zip
+      uses: actions/upload-artifact@v2
+      with:
+        name: qBittorrent-CI_Windows-x64-dynamic
+        path: |
+          build/compile_commands.json
+          build/install_manifest.txt
+          build/target_graph.dot
+          qBittorrent_x64-windows_${{ matrix.build_type }}
+
+  ci_macos:
+    name: macOS + vcpkg
+
+    strategy:
+      matrix:
+        qbt_gui: ["GUI=ON", "GUI=OFF"]
+      fail-fast: false
+
+    runs-on: macos-10.15
+
+    defaults:
+      run:
+        shell: pwsh
+
+    steps:
+    - name: checkout repository
+      uses: actions/checkout@v2
+
+    # - ninja is needed for building qBittorrent (because it's preferable, not a hard requirement)
+    # - automake is needed for the installation the vcpkg installation of fontconfig, a dependency of qt5-base
+    - name: install additional required packages with homebrew
+      shell: bash
+      run: |
+        brew install automake ninja
+
+    - name: setup vcpkg (cached, if possible)
+      uses: lukka/run-vcpkg@v7
+      with:
+        vcpkgDirectory: ${{ env.VCPKG_DEST_MACOS }}
+        vcpkgGitCommitId: ${{ env.VCPKG_COMMIT }}
+        setupOnly: true
+        appendedCacheKey: x64-osx-relonly
+
+    - name: configure vcpkg triplet overlay for release builds only
+      run: |
+        New-Item -Path ${{ github.workspace }} -Name "triplets_overlay" -ItemType Directory
+        Copy-Item ${{ env.RUNVCPKG_VCPKG_ROOT }}/triplets/x64-osx.cmake `
+          ${{ github.workspace }}/triplets_overlay/x64-osx-release.cmake
+        Add-Content ${{ github.workspace }}/triplets_overlay/x64-osx-release.cmake `
+          -Value "set(VCPKG_BUILD_TYPE release)","set(VCPKG_OSX_DEPLOYMENT_TARGET 10.15)"
+
+    # NOTE: Avoids a libtorrent ABI issue. See https://github.com/arvidn/libtorrent/issues/4965
+    - name: force AppleClang to compile libtorrent with the same C++ standard as qBittorrent
+      run: |
+        (Get-Content -path ${{ env.RUNVCPKG_VCPKG_ROOT }}/ports/libtorrent/portfile.cmake).Replace( `
+          '${FEATURE_OPTIONS}', '${FEATURE_OPTIONS} -DCMAKE_CXX_STANDARD=17') `
+          | Set-Content -Path ${{ env.RUNVCPKG_VCPKG_ROOT }}/ports/libtorrent/portfile.cmake
+
+    - name: install dependencies via vcpkg
+      run: |
+        $packages = `
+          "boost-circular-buffer:x64-osx-release",
+          "libtorrent:x64-osx-release",
+          "qtbase${{ env.QTBASE_FEATURES }}:x64-osx-release",
+          "qtsvg:x64-osx-release",
+          "qttools:x64-osx-release",
+          "qttranslations:x64-osx-release"
+        ${{ env.RUNVCPKG_VCPKG_ROOT }}/vcpkg upgrade `
+            --overlay-triplets=${{ github.workspace }}/triplets_overlay `
+            --host-triplet=x64-osx-release `
+            --no-dry-run
+        foreach($package in $packages)
+        {
+          ${{ env.RUNVCPKG_VCPKG_ROOT }}/vcpkg install $package `
+            --overlay-triplets=${{ github.workspace }}/triplets_overlay `
+            --host-triplet=x64-osx-release `
+            --clean-after-build
+        }
+
+    - name: build qBittorrent
+      shell: bash
+      run: |
+        cmake -B build -G "Ninja" -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+          -DCMAKE_TOOLCHAIN_FILE=${{ env.VCPKG_DEST_MACOS }}/scripts/buildsystems/vcpkg.cmake \
+          -DVCPKG_TARGET_TRIPLET=x64-osx-release \
+          -D${{ matrix.qbt_gui }} \
+          -DVERBOSE_CONFIGURE=ON \
+          --graphviz=build/target_graph.dot
+        cmake --build build
+
+    - name: upload artifact as zip
+      uses: actions/upload-artifact@v2
+      with:
+        name: qBittorrent-CI_macOS_${{ matrix.qbt_gui }}
+        path: |
+          build/compile_commands.json
+          build/target_graph.dot
+          build/qbittorrent.app
+          build/qbittorrent-nox.app
