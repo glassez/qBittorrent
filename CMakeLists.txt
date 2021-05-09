@@ -1,6 +1,6 @@
-cmake_minimum_required(VERSION 3.16 FATAL_ERROR) # Policies <= CMP0097 default to NEW
+cmake_minimum_required(VERSION 3.20 FATAL_ERROR) # Configurable policies: up to and including CMP0120
 
-list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake/Modules)
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake/Modules")
 
 project(qBittorrent
     DESCRIPTION "The qBittorrent BitTorrent client"
@@ -9,16 +9,17 @@ project(qBittorrent
 )
 
 # use CONFIG mode first in find_package
+# TODO: compatibility with Qt6's ZSTD support is broken until https://bugreports.qt.io/browse/QTBUG-93604 is resolved
 set(CMAKE_FIND_PACKAGE_PREFER_CONFIG ON)
 # version requirements - older vesions may work, but you are on your own
 set(minBoostVersion 1.65)
-set(minQtVersion 6.1)
+set(minQtVersion 6.1.1)
 set(minOpenSSLVersion 1.1.1)
-set(minLibtorrentVersion 1.2.13)
+set(minLibtorrentVersion 1.2.14)
 set(minZlibVersion 1.2.11)
 
 # features (some are platform-specific)
-include(CheckCXXSourceCompiles) # TODO: migrate to CheckSourceCompiles in CMake >= 3.19
+include(CheckSourceCompiles)
 include(FeatureSummary)
 include(FeatureOptionsSetup)
 feature_option(STACKTRACE "Enable stacktraces" ON)
@@ -35,7 +36,8 @@ if (CMAKE_SYSTEM_NAME STREQUAL "Linux")
         OFF "NOT GUI" OFF
     )
     if (STACKTRACE)
-        check_cxx_source_compiles(
+        check_source_compiles(
+            CXX
             "#include <execinfo.h>
             int main(){return 0;}"
             QBITTORRENT_HAS_EXECINFO_H
