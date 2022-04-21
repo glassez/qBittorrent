@@ -43,6 +43,7 @@
 #include <QMap>
 #include <QObject>
 #include <QQueue>
+#include <QSet>
 #include <QString>
 #include <QVector>
 
@@ -288,6 +289,7 @@ namespace BitTorrent
         PathList m_filePaths;
         QHash<lt::file_index_t, int> m_indexMap;
         QVector<DownloadPriority> m_filePriorities;
+        QSet<int> m_completedFiles;
         SpeedMonitor m_speedMonitor;
 
         InfoHash m_infoHash;

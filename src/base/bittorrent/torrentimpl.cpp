@@ -1123,6 +1123,9 @@ QVector<qreal> TorrentImpl::filesProgress() const
     if (!hasMetadata())
         return {};
 
+    if (m_completedFiles.count() == filesCount())
+        return QVector<qreal>(filesCount(), 1);
+
     std::vector<int64_t> fp;
     m_nativeHandle.file_progress(fp, lt::torrent_handle::piece_granularity);
 
@@ -1420,6 +1423,7 @@ void TorrentImpl::forceRecheck()
     m_nativeHandle.force_recheck();
     m_hasMissingFiles = false;
     m_unchecked = false;
+    m_completedFiles.clear();
 
     if (isPaused())
     {
@@ -1552,6 +1556,7 @@ void TorrentImpl::endReceivedMetadataHandling(const Path &savePath, const PathLi
 
 void TorrentImpl::reload()
 {
+    m_completedFiles.clear();
     const auto queuePos = m_nativeHandle.queue_position();
 
     m_nativeSession->remove_torrent(m_nativeHandle, lt::session::delete_partfile);
@@ -1931,11 +1936,13 @@ void TorrentImpl::handleFileCompletedAlert(const lt::file_completed_alert *p)
     if (m_maintenanceJob == MaintenanceJob::HandleMetadata)
         return;
 
+    const int fileIndex = m_indexMap.value(p->index, -1);
+    Q_ASSERT(fileIndex >= 0);
+
+    m_completedFiles.insert(fileIndex);
+
     if (m_session->isAppendExtensionEnabled())
     {
-        const int fileIndex = m_indexMap.value(p->index, -1);
-        Q_ASSERT(fileIndex >= 0);
-
         const Path path = filePath(fileIndex);
         const Path actualPath = actualFilePath(fileIndex);
         if (actualPath != path)
@@ -2041,13 +2048,6 @@ void TorrentImpl::handleAlert(const lt::alert *a)
 void TorrentImpl::manageIncompleteFiles()
 {
     const bool isAppendExtensionEnabled = m_session->isAppendExtensionEnabled();
-    const QVector<qreal> fp = filesProgress();
-    if (fp.size() != filesCount())
-    {
-        qDebug() << "skip manageIncompleteFiles because of invalid torrent meta-data or empty file-progress";
-        return;
-    }
-
     const lt::file_storage &nativeFiles = m_nativeHandle.torrent_file()->files();
 
     for (int i = 0; i < filesCount(); ++i)
@@ -2057,7 +2057,7 @@ void TorrentImpl::manageIncompleteFiles()
         const auto nativeIndex = m_torrentInfo.nativeIndexes().at(i);
         const Path actualPath {nativeFiles.file_path(nativeIndex)};
 
-        if (isAppendExtensionEnabled && (fileSize(i) > 0) && (fp[i] < 1))
+        if (isAppendExtensionEnabled && (fileSize(i) > 0) && !m_completedFiles.contains(i))
         {
             const Path wantedPath = path + QB_EXT;
             if (actualPath != wantedPath)
@@ -2240,13 +2240,12 @@ void TorrentImpl::prioritizeFiles(const QVector<DownloadPriority> &priorities)
 
     // Reset 'm_hasSeedStatus' if needed in order to react again to
     // 'torrent_finished_alert' and eg show tray notifications
-    const QVector<qreal> progress = filesProgress();
     const QVector<DownloadPriority> oldPriorities = filePriorities();
     for (int i = 0; i < oldPriorities.size(); ++i)
     {
         if ((oldPriorities[i] == DownloadPriority::Ignored)
             && (priorities[i] > DownloadPriority::Ignored)
-            && (progress[i] < 1.0))
+            && !m_completedFiles.contains(i))
         {
             m_hasSeedStatus = false;
             break;
