@@ -1398,19 +1398,17 @@ void TorrentImpl::forceDHTAnnounce()
 
 void TorrentImpl::forceRecheck()
 {
-    if (!hasMetadata()) return;
+    if (!hasMetadata())
+        return;
 
+    m_maintenanceJob = MaintenanceJob::PrepareRecheck;
+    setAutoManaged(false);
+    m_nativeHandle.pause();
     m_nativeHandle.force_recheck();
     m_hasMissingFiles = false;
     m_unchecked = false;
     m_completedFiles.fill(false);
-
-    if (isPaused())
-    {
-        // When "force recheck" is applied on paused torrent, we temporarily resume it
-        // (really we just allow libtorrent to resume it by enabling auto management for it).
-        m_nativeHandle.set_flags(lt::torrent_flags::stop_when_ready | lt::torrent_flags::auto_managed);
-    }
+    m_session->findIncompleteFiles(m_torrentInfo, savePath(), downloadPath(), filePaths());
 }
 
 void TorrentImpl::setSequentialDownload(const bool enable)
@@ -1483,7 +1481,17 @@ void TorrentImpl::applyFirstLastPiecePriority(const bool enabled)
 
 void TorrentImpl::fileSearchFinished(const Path &savePath, const PathList &fileNames)
 {
-    endReceivedMetadataHandling(savePath, fileNames);
+    switch (m_maintenanceJob)
+    {
+    case MaintenanceJob::HandleMetadata:
+        endReceivedMetadataHandling(savePath, fileNames);
+        break;
+    case MaintenanceJob::PrepareRecheck:
+        endRecheckPreparing(savePath, fileNames);
+        break;
+    default:
+        Q_ASSERT(false);
+    }
 }
 
 void TorrentImpl::updatePeerCount(const QString &trackerURL, const TrackerEntry::Endpoint &endpoint, const int count)
@@ -1577,6 +1585,44 @@ void TorrentImpl::endReceivedMetadataHandling(const Path &savePath, const PathLi
     prepareResumeData(p);
 
     m_session->handleTorrentMetadataReceived(this);
+}
+
+void TorrentImpl::endRecheckPreparing(const Path &savePath, const PathList &fileNames)
+{
+    lt::add_torrent_params &p = m_ltAddTorrentParams;
+
+    m_filePaths.clear();
+    const auto nativeIndexes = m_torrentInfo.nativeIndexes();
+    for (int i = 0; i < fileNames.size(); ++i)
+    {
+        const auto nativeIndex = nativeIndexes.at(i);
+
+        const Path actualFilePath = fileNames.at(i);
+        p.renamed_files[nativeIndex] = actualFilePath.toString().toStdString();
+
+        const Path filePath = actualFilePath.removedExtension(QB_EXT);
+        m_filePaths.append(filePath);
+    }
+    p.save_path = savePath.toString().toStdString();
+    p.ti = std::const_pointer_cast<lt::torrent_info>(nativeTorrentInfo());
+    p.have_pieces.clear();
+    p.verified_pieces.clear();
+
+    reload();
+
+    if (isPaused())
+    {
+        // When "force recheck" is applied on paused torrent, we temporarily resume it
+        // (really we just allow libtorrent to resume it by enabling auto management for it).
+        m_nativeHandle.set_flags(lt::torrent_flags::stop_when_ready | lt::torrent_flags::auto_managed);
+    }
+    else
+    {
+        setAutoManaged(true);
+    }
+
+    m_maintenanceJob = MaintenanceJob::None;
+    m_session->handleTorrentNeedSaveResumeData(this);
 }
 
 void TorrentImpl::reload()

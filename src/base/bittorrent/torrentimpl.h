@@ -70,7 +70,8 @@ namespace BitTorrent
     enum class MaintenanceJob
     {
         None,
-        HandleMetadata
+        HandleMetadata,
+        PrepareRecheck
     };
 
     struct FileErrorInfo
@@ -283,6 +284,7 @@ namespace BitTorrent
 
         void prepareResumeData(const lt::add_torrent_params &params);
         void endReceivedMetadataHandling(const Path &savePath, const PathList &fileNames);
+        void endRecheckPreparing(const Path &savePath, const PathList &fileNames);
         void reload();
 
         nonstd::expected<lt::entry, QString> exportTorrent() const;

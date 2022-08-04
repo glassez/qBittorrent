@@ -136,7 +136,7 @@ void CustomDiskIOThread::async_check_files(lt::storage_index_t storage, const lt
                                            , lt::aux::vector<std::string, lt::file_index_t> links
                                            , std::function<void (lt::status_t, const lt::storage_error &)> handler)
 {
-    handleCompleteFiles(storage, m_storageData[storage].savePath);
+//    handleCompleteFiles(storage, m_storageData[storage].savePath);
     m_nativeDiskIO->async_check_files(storage, resume_data, links, std::move(handler));
 }
 
@@ -247,7 +247,7 @@ CustomStorage::CustomStorage(const lt::storage_params &params, lt::file_pool &fi
 
 bool CustomStorage::verify_resume_data(const lt::add_torrent_params &rd, const lt::aux::vector<std::string, lt::file_index_t> &links, lt::storage_error &ec)
 {
-    handleCompleteFiles(m_savePath);
+//    handleCompleteFiles(m_savePath);
     return lt::default_storage::verify_resume_data(rd, links, ec);
 }
 
