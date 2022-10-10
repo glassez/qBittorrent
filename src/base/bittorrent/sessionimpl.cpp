@@ -550,6 +550,7 @@ SessionImpl::SessionImpl(QObject *parent)
     m_fileSearcher->moveToThread(m_ioThread);
     connect(m_ioThread, &QThread::finished, m_fileSearcher, &QObject::deleteLater);
     connect(m_fileSearcher, &FileSearcher::searchFinished, this, &SessionImpl::fileSearchFinished);
+    connect(m_fileSearcher, &FileSearcher::existingFilesChecked, this, &SessionImpl::existingFilesChecked);
 
     m_ioThread->start();
 
@@ -1359,6 +1360,14 @@ void SessionImpl::processNextResumeData(ResumeSessionContext *context)
         m_hybridTorrentsByAltID.insert(torrentIDv1, nullptr);
     }
 #endif
+
+    if (resumeData.stopped)
+    {
+        // Prevent validating "resume data" of stopped torrent against any files on disk.
+        // This will be done once torrent is started for the first time within current session.
+        resumeData.ltAddTorrentParams.flags |= lt::torrent_flags::no_verify_files;
+    }
+
     m_nativeSession->async_add_torrent(resumeData.ltAddTorrentParams);
     ++context->processingResumeDataCount;
 }
@@ -2144,6 +2153,13 @@ void SessionImpl::fileSearchFinished(const TorrentID &id, const Path &savePath, 
     }
 }
 
+void SessionImpl::existingFilesChecked(const TorrentID &id, const bool hasMissingFiles)
+{
+    TorrentImpl *torrent = m_torrents.value(id);
+    if (torrent)
+        torrent->existingFilesChecked(hasMissingFiles);
+}
+
 Torrent *SessionImpl::getTorrent(const TorrentID &id) const
 {
     return m_torrents.value(id);
@@ -2760,6 +2776,15 @@ void SessionImpl::findIncompleteFiles(const TorrentInfo &torrentInfo, const Path
     QMetaObject::invokeMethod(m_fileSearcher, [=]()
     {
         m_fileSearcher->search(searchId, originalFileNames, savePath, downloadPath, isAppendExtensionEnabled());
+    });
+}
+
+void SessionImpl::checkExistingFiles(const TorrentImpl *torrent, const Path &savePath, const PathList &fileNames)
+{
+    const auto searchId = torrent->id();
+    QMetaObject::invokeMethod(m_fileSearcher, [=]()
+    {
+        m_fileSearcher->checkExistingFiles(searchId, savePath, fileNames);
     });
 }
 

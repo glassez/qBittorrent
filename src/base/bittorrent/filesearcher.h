@@ -48,7 +48,9 @@ public:
 public slots:
     void search(const BitTorrent::TorrentID &id, const PathList &originalFileNames
                 , const Path &savePath, const Path &downloadPath, bool forceAppendExt);
+    void checkExistingFiles(const BitTorrent::TorrentID &id, const Path &savePath, const PathList &fileNames);
 
 signals:
     void searchFinished(const BitTorrent::TorrentID &id, const Path &savePath, const PathList &fileNames);
+    void existingFilesChecked(const BitTorrent::TorrentID &id, bool hasMissingFiles);
 };

@@ -434,6 +434,7 @@ namespace BitTorrent
 
         void findIncompleteFiles(const TorrentInfo &torrentInfo, const Path &savePath
                                  , const Path &downloadPath, const PathList &filePaths = {}) const;
+        void checkExistingFiles(const TorrentImpl *torrent, const Path &savePath, const PathList &fileNames);
 
     private slots:
         void configureDeferred();
@@ -445,6 +446,7 @@ namespace BitTorrent
         void handleIPFilterError();
         void handleDownloadFinished(const Net::DownloadResult &result);
         void fileSearchFinished(const TorrentID &id, const Path &savePath, const PathList &fileNames);
+        void existingFilesChecked(const TorrentID &id, bool hasMissingFiles);
 
 #if (QT_VERSION < QT_VERSION_CHECK(6, 0, 0))
         // Session reconfiguration triggers

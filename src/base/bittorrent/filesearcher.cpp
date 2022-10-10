@@ -71,3 +71,18 @@ void FileSearcher::search(const BitTorrent::TorrentID &id, const PathList &origi
 
     emit searchFinished(id, usedPath, adjustedFileNames);
 }
+
+void FileSearcher::checkExistingFiles(const BitTorrent::TorrentID &id, const Path &savePath, const PathList &fileNames)
+{
+    bool hasMissingFiles = false;
+    for (const Path &fileName : fileNames)
+    {
+        if (!(savePath / fileName).exists())
+        {
+            hasMissingFiles = true;
+            break;
+        }
+    }
+
+    emit existingFilesChecked(id, hasMissingFiles);
+}

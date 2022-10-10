@@ -246,6 +246,7 @@ namespace BitTorrent
         void saveResumeData();
         void handleMoveStorageJobFinished(const Path &path, bool hasOutstandingJob);
         void fileSearchFinished(const Path &savePath, const PathList &fileNames);
+        void existingFilesChecked(bool hasMissingFiles);
         void updatePeerCount(const QString &trackerURL, const TrackerEntry::Endpoint &endpoint, int count);
         void invalidateTrackerEntry(const QString &trackerURL);
 
@@ -345,5 +346,7 @@ namespace BitTorrent
         int m_uploadLimit = 0;
 
         mutable QBitArray m_pieces;
+
+        bool m_hasUnverifiedFiles = true;
     };
 }

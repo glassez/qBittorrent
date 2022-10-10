@@ -261,6 +261,7 @@ TorrentImpl::TorrentImpl(SessionImpl *session, lt::session *nativeSession
     , m_ltAddTorrentParams(params.ltAddTorrentParams)
     , m_downloadLimit(cleanLimitValue(m_ltAddTorrentParams.download_limit))
     , m_uploadLimit(cleanLimitValue(m_ltAddTorrentParams.upload_limit))
+    , m_hasUnverifiedFiles(params.ltAddTorrentParams.flags & lt::torrent_flags::no_verify_files)
 {
     if (m_ltAddTorrentParams.ti)
     {
@@ -1419,6 +1420,7 @@ void TorrentImpl::forceRecheck()
     m_hasMissingFiles = false;
     m_unchecked = false;
     m_completedFiles.fill(false);
+    m_hasUnverifiedFiles = false;
 
     if (isPaused())
     {
@@ -1499,6 +1501,11 @@ void TorrentImpl::applyFirstLastPiecePriority(const bool enabled)
 void TorrentImpl::fileSearchFinished(const Path &savePath, const PathList &fileNames)
 {
     endReceivedMetadataHandling(savePath, fileNames);
+}
+
+void TorrentImpl::existingFilesChecked(bool hasMissingFiles)
+{
+
 }
 
 void TorrentImpl::updatePeerCount(const QString &trackerURL, const TrackerEntry::Endpoint &endpoint, const int count)
