@@ -1,6 +1,6 @@
 /*
  * Bittorrent Client using Qt and libtorrent.
- * Copyright (C) 2016  Vladimir Golovnev <glassez@yandex.ru>
+ * Copyright (C) 2016-2022  Vladimir Golovnev <glassez@yandex.ru>
  * Copyright (C) 2014  sledgehammer999 <hammered999@gmail.com>
  *
  * This program is free software; you can redistribute it and/or
@@ -29,93 +29,32 @@
 
 #pragma once
 
-#include <type_traits>
-
-#include <QObject>
 #include <QReadWriteLock>
 #include <QTimer>
 #include <QVariant>
 #include <QVariantHash>
 
-#include "base/interfaces/istringable.h"
-#include "utils/string.h"
+#include "keyvaluedatastorage.h"
 
-template <typename T>
-struct IsQFlags : std::false_type {};
-
-template <typename T>
-struct IsQFlags<QFlags<T>> : std::true_type {};
-
-// There are 2 ways for class `T` provide serialization support into `SettingsStorage`:
-// 1. If the `T` state is intended for users to edit (via a text editor), then
-//    implement `IStringable` interface
-// 2. Otherwise, use `Q_DECLARE_METATYPE(T)` and let `QMetaType` handle the serialization
-class SettingsStorage final : public QObject
+class SettingsStorage final : public KeyValueDataStorage
 {
-    Q_OBJECT
     Q_DISABLE_COPY_MOVE(SettingsStorage)
-
-    SettingsStorage();
-    ~SettingsStorage();
 
 public:
     static void initInstance();
     static void freeInstance();
     static SettingsStorage *instance();
 
-    template <typename T>
-    T loadValue(const QString &key, const T &defaultValue = {}) const
-    {
-        if constexpr (std::is_base_of_v<IStringable, T>)
-        {
-            const QString value = loadValue(key, defaultValue.toString());
-            return T {value};
-        }
-        else if constexpr (std::is_enum_v<T>)
-        {
-            const auto value = loadValue<QString>(key);
-            return Utils::String::toEnum(value, defaultValue);
-        }
-        else if constexpr (IsQFlags<T>::value)
-        {
-            const typename T::Int value = loadValue(key, static_cast<typename T::Int>(defaultValue));
-            return T {value};
-        }
-        else if constexpr (std::is_same_v<T, QVariant>)
-        {
-            // fast path for loading QVariant
-            return loadValueImpl(key, defaultValue);
-        }
-        else
-        {
-            const QVariant value = loadValueImpl(key);
-            // check if retrieved value is convertible to T
-            return value.template canConvert<T>() ? value.template value<T>() : defaultValue;
-        }
-    }
+    SettingsStorage();
+    ~SettingsStorage() override;
 
-    template <typename T>
-    void storeValue(const QString &key, const T &value)
-    {
-        if constexpr (std::is_base_of_v<IStringable, T>)
-            storeValueImpl(key, value.toString());
-        else if constexpr (std::is_enum_v<T>)
-            storeValueImpl(key, Utils::String::fromEnum(value));
-        else if constexpr (IsQFlags<T>::value)
-            storeValueImpl(key, static_cast<typename T::Int>(value));
-        else
-            storeValueImpl(key, QVariant::fromValue(value));
-    }
-
-    void removeValue(const QString &key);
-    bool hasKey(const QString &key) const;
-
-public slots:
-    bool save();
+    void removeValue(const QString &key) override;
+    bool hasKey(const QString &key) const override;
+    bool flush() override;
 
 private:
-    QVariant loadValueImpl(const QString &key, const QVariant &defaultValue = {}) const;
-    void storeValueImpl(const QString &key, const QVariant &value);
+    QVariant loadValueImpl(const QString &key, const QVariant &defaultValue = {}) const override;
+    void storeValueImpl(const QString &key, const QVariant &value) override;
     void readNativeSettings();
     bool writeNativeSettings() const;
 

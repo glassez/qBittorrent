@@ -55,6 +55,8 @@ add_library(qbt_base STATIC
     indexrange.h
     interfaces/iapplication.h
     interfaces/istringable.h
+    keyvaluedataaccessor.h
+    keyvaluedatastorage.h
     logger.h
     net/dnsupdater.h
     net/downloadhandlerimpl.h
@@ -84,6 +86,7 @@ add_library(qbt_base STATIC
     search/searchhandler.h
     search/searchpluginmanager.h
     settingsstorage.h
+    settingvalue.h
     tagset.h
     torrentfileguard.h
     torrentfileswatcher.h

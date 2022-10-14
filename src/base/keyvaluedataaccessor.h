@@ -30,45 +30,91 @@
 
 #include <QString>
 
-#include "keyvaluedataaccessor.h"
-#include "settingsstorage.h"
+#include "keyvaluedatastorage.h"
 
+// This is a thin/handy wrapper over `KeyValueDataStorage`. Use it when store/load value
+// rarely occurs, otherwise use `CachedKeyValueDataAccessor`.
 template <typename T>
-class SettingValue : public KeyValueDataAccessor<T>
+class KeyValueDataAccessor
 {
 public:
-    explicit SettingValue(const QString &keyName)
-        : KeyValueDataAccessor<T>(SettingsStorage::instance(), keyName)
+    explicit KeyValueDataAccessor(KeyValueDataStorage *storage, const QString &keyName)
+        : m_storage {storage}
+        , m_keyName {keyName}
     {
     }
 
-    SettingValue<T> &operator=(const T &value)
+    T get(const T &defaultValue = {}) const
     {
-        this->set(value);
+        return m_storage->loadValue(m_keyName, defaultValue);
+    }
+
+    void set(const T &value)
+    {
+        m_storage->storeValue(m_keyName, value);
+    }
+
+    operator T() const
+    {
+        return get();
+    }
+
+    KeyValueDataAccessor<T> &operator=(const T &value)
+    {
+        set(value);
         return *this;
     }
+
+private:
+    KeyValueDataStorage *m_storage = nullptr;
+    const QString m_keyName;
 };
 
 template <typename T>
-class CachedSettingValue : public CachedKeyValueDataAccessor<T>
+class CachedKeyValueDataAccessor
 {
 public:
-    explicit CachedSettingValue(const QString &keyName, const T &defaultValue = {})
-        : CachedKeyValueDataAccessor<T>(SettingsStorage::instance(), keyName, defaultValue)
+    explicit CachedKeyValueDataAccessor(KeyValueDataStorage *storage, const QString &keyName, const T &defaultValue = {})
+        : m_accessor {storage, keyName}
+        , m_cache {m_accessor.get(defaultValue)}
     {
     }
 
     // The signature of the ProxyFunc should be equivalent to the following:
     // T proxyFunc(const T &a);
     template <typename ProxyFunc>
-    explicit CachedSettingValue(const QString &keyName, const T &defaultValue, ProxyFunc &&proxyFunc)
-        : CachedKeyValueDataAccessor<T>(SettingsStorage::instance(), keyName, defaultValue, proxyFunc)
+    explicit CachedKeyValueDataAccessor(KeyValueDataStorage *storage, const QString &keyName, const T &defaultValue, ProxyFunc &&proxyFunc)
+        : m_accessor {storage, keyName}
+        , m_cache {proxyFunc(m_accessor.get(defaultValue))}
     {
     }
 
-    CachedSettingValue<T> &operator=(const T &value)
+    T get() const
     {
-        this->set(value);
+        return m_cache;
+    }
+
+    operator T() const
+    {
+        return get();
+    }
+
+    void set(const T &value)
+    {
+        if (m_cache != value)
+        {
+            m_accessor.set(value);
+            m_cache = value;
+        }
+    }
+
+    CachedKeyValueDataAccessor<T> &operator=(const T &value)
+    {
+        set(value);
         return *this;
     }
+
+private:
+    KeyValueDataAccessor<T> m_accessor;
+    T m_cache;
 };

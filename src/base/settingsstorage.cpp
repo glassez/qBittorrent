@@ -1,6 +1,6 @@
 /*
  * Bittorrent Client using Qt and libtorrent.
- * Copyright (C) 2016  Vladimir Golovnev <glassez@yandex.ru>
+ * Copyright (C) 2016-2022  Vladimir Golovnev <glassez@yandex.ru>
  * Copyright (C) 2014  sledgehammer999 <hammered999@gmail.com>
  *
  * This program is free software; you can redistribute it and/or
@@ -52,12 +52,12 @@ SettingsStorage::SettingsStorage()
 
     m_timer.setSingleShot(true);
     m_timer.setInterval(5s);
-    connect(&m_timer, &QTimer::timeout, this, &SettingsStorage::save);
+    connect(&m_timer, &QTimer::timeout, this, &SettingsStorage::flush);
 }
 
 SettingsStorage::~SettingsStorage()
 {
-    save();
+    flush();
 }
 
 void SettingsStorage::initInstance()
@@ -77,9 +77,9 @@ SettingsStorage *SettingsStorage::instance()
     return m_instance;
 }
 
-bool SettingsStorage::save()
+bool SettingsStorage::flush()
 {
-    const QWriteLocker locker(&m_lock);  // guard for `m_dirty` too
+    const QWriteLocker locker {&m_lock};  // guard for `m_dirty` too
     if (!m_dirty) return true;
 
     if (!writeNativeSettings())
@@ -94,13 +94,13 @@ bool SettingsStorage::save()
 
 QVariant SettingsStorage::loadValueImpl(const QString &key, const QVariant &defaultValue) const
 {
-    const QReadLocker locker(&m_lock);
+    const QReadLocker locker {&m_lock};
     return m_data.value(key, defaultValue);
 }
 
 void SettingsStorage::storeValueImpl(const QString &key, const QVariant &value)
 {
-    const QWriteLocker locker(&m_lock);
+    const QWriteLocker locker {&m_lock};
     QVariant &currentValue = m_data[key];
     if (currentValue != value)
     {
@@ -209,7 +209,7 @@ bool SettingsStorage::writeNativeSettings() const
 
 void SettingsStorage::removeValue(const QString &key)
 {
-    const QWriteLocker locker(&m_lock);
+    const QWriteLocker locker {&m_lock};
 #if (QT_VERSION >= QT_VERSION_CHECK(6, 0, 0))
     if (m_data.remove(key))
 #else

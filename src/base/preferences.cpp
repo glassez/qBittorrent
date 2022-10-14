@@ -1630,6 +1630,6 @@ void Preferences::setSpeedWidgetGraphEnable(const int id, const bool enable)
 
 void Preferences::apply()
 {
-    if (SettingsStorage::instance()->save())
+    if (SettingsStorage::instance()->flush())
         emit changed();
 }

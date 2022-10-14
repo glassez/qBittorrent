@@ -54,6 +54,8 @@ HEADERS += \
     $$PWD/indexrange.h \
     $$PWD/interfaces/iapplication.h \
     $$PWD/interfaces/istringable.h \
+    $$PWD/keyvaluedataaccessor.h \
+    $$PWD/keyvaluedatastorage.h \
     $$PWD/logger.h \
     $$PWD/net/dnsupdater.h \
     $$PWD/net/downloadhandlerimpl.h \
