@@ -35,6 +35,7 @@
 
 class QString;
 
+class KeyValueDataStorage;
 class Path;
 struct QBtCommandLineParameters;
 
@@ -83,4 +84,6 @@ public:
     virtual MemoryPriority processMemoryPriority() const = 0;
     virtual void setProcessMemoryPriority(MemoryPriority priority) = 0;
 #endif
+
+    virtual KeyValueDataStorage *dataStorage() = 0;
 };

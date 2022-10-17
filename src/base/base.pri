@@ -41,6 +41,7 @@ HEADERS += \
     $$PWD/bittorrent/trackerentry.h \
     $$PWD/digest32.h \
     $$PWD/exceptions.h \
+    $$PWD/genericdatastorage.h \
     $$PWD/global.h \
     $$PWD/http/connection.h \
     $$PWD/http/httperror.h \
@@ -135,6 +136,7 @@ SOURCES += \
     $$PWD/bittorrent/torrentinfo.cpp \
     $$PWD/bittorrent/tracker.cpp \
     $$PWD/bittorrent/trackerentry.cpp \
+    $$PWD/genericdatastorage.cpp \
     $$PWD/exceptions.cpp \
     $$PWD/http/connection.cpp \
     $$PWD/http/httperror.cpp \

@@ -54,6 +54,7 @@
 
 class ApplicationInstanceManager;
 class FileLogger;
+class GenericDataStorage;
 
 namespace BitTorrent
 {
@@ -125,6 +126,8 @@ public:
     MemoryPriority processMemoryPriority() const override;
     void setProcessMemoryPriority(MemoryPriority priority) override;
 #endif
+
+    KeyValueDataStorage *dataStorage() override;
 
 #ifndef DISABLE_GUI
     DesktopIntegration *desktopIntegration() override;
@@ -201,6 +204,8 @@ private:
 #ifdef Q_OS_WIN
     SettingValue<MemoryPriority> m_processMemoryPriority;
 #endif
+
+    GenericDataStorage *m_dataStorage = nullptr;
 
 #ifndef DISABLE_GUI
     SettingValue<bool> m_storeNotificationTorrentAdded;

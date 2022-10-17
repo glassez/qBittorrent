@@ -67,6 +67,7 @@
 #include "base/bittorrent/session.h"
 #include "base/bittorrent/torrent.h"
 #include "base/exceptions.h"
+#include "base/genericdatastorage.h"
 #include "base/global.h"
 #include "base/iconprovider.h"
 #include "base/logger.h"
@@ -692,6 +693,8 @@ try
     adjustThreadPriority();
 #endif
 
+    m_dataStorage = new GenericDataStorage((Profile::instance()->location(SpecialFolder::Data) / Path(u"qBittorrent-data"_qs)).data(), this);
+
     Net::ProxyConfigurationManager::initInstance();
     Net::DownloadManager::initInstance();
     IconProvider::initInstance();
@@ -1058,6 +1061,11 @@ void Application::setProcessMemoryPriority(const MemoryPriority priority)
     applyMemoryPriority();
 }
 
+KeyValueDataStorage *Application::dataStorage()
+{
+    return m_dataStorage;
+}
+
 void Application::applyMemoryPriority() const
 {
     using SETPROCESSINFORMATION = BOOL (WINAPI *)(HANDLE, PROCESS_INFORMATION_CLASS, LPVOID, DWORD);
@@ -1178,6 +1186,9 @@ void Application::cleanup()
     Net::GeoIPManager::freeInstance();
     Net::DownloadManager::freeInstance();
     Net::ProxyConfigurationManager::freeInstance();
+
+    delete m_dataStorage;
+
     Preferences::freeInstance();
     SettingsStorage::freeInstance();
     IconProvider::freeInstance();

@@ -42,6 +42,7 @@ add_library(qbt_base STATIC
     bittorrent/trackerentry.h
     digest32.h
     exceptions.h
+    genericdatastorage.h
     global.h
     http/connection.h
     http/httperror.h
@@ -137,6 +138,7 @@ add_library(qbt_base STATIC
     bittorrent/tracker.cpp
     bittorrent/trackerentry.cpp
     exceptions.cpp
+    genericdatastorage.cpp
     http/connection.cpp
     http/httperror.cpp
     http/requestparser.cpp
