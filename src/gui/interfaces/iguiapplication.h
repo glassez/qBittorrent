@@ -1,7 +1,7 @@
 /*
  * Bittorrent Client using Qt and libtorrent.
  * Copyright (C) 2022  Mike Tzou (Chocobo1)
- * Copyright (C) 2015, 2019  Vladimir Golovnev <glassez@yandex.ru>
+ * Copyright (C) 2015-2022  Vladimir Golovnev <glassez@yandex.ru>
  * Copyright (C) 2006  Christophe Dumez
  *
  * This program is free software; you can redistribute it and/or
@@ -30,7 +30,10 @@
 
 #pragma once
 
+#include "base/bittorrent/addtorrentparams.h"
 #include "base/interfaces/iapplication.h"
+
+class QWidget;
 
 class DesktopIntegration;
 class MainWindow;
@@ -45,4 +48,6 @@ public:
 
     virtual bool isTorrentAddedNotificationsEnabled() const = 0;
     virtual void setTorrentAddedNotificationsEnabled(bool value) = 0;
+
+    virtual void showAddNewTorrentDialog(QWidget *parent, const QString &source, const BitTorrent::AddTorrentParams &inParams = {}) = 0;
 };

@@ -52,8 +52,9 @@
 #include "searchsortmodel.h"
 #include "ui_searchjobwidget.h"
 
-SearchJobWidget::SearchJobWidget(SearchHandler *searchHandler, QWidget *parent)
+SearchJobWidget::SearchJobWidget(IGUIApplication *app, SearchHandler *searchHandler, QWidget *parent)
     : QWidget(parent)
+    , GUIApplicationComponent(app)
     , m_ui(new Ui::SearchJobWidget)
     , m_searchHandler(searchHandler)
     , m_nameFilteringMode(u"Search/FilteringMode"_qs)
@@ -292,7 +293,7 @@ void SearchJobWidget::addTorrentToSession(const QString &source, const AddTorren
     if (source.isEmpty()) return;
 
     if ((option == AddTorrentOption::ShowDialog) || ((option == AddTorrentOption::Default) && AddNewTorrentDialog::isEnabled()))
-        AddNewTorrentDialog::show(source, this);
+        app()->showAddNewTorrentDialog(this, source);
     else
         BitTorrent::Session::instance()->addTorrent(source);
 }

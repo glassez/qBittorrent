@@ -32,6 +32,8 @@
 
 #include <QWidget>
 
+#include "gui/guiapplicationcomponent.h"
+
 class QListWidgetItem;
 class QTreeWidgetItem;
 
@@ -43,14 +45,14 @@ namespace Ui
     class RSSWidget;
 }
 
-class RSSWidget : public QWidget
+class RSSWidget : public QWidget, public GUIApplicationComponent
 {
     Q_OBJECT
     Q_DISABLE_COPY_MOVE(RSSWidget)
 
 public:
-    RSSWidget(QWidget *parent);
-    ~RSSWidget();
+    RSSWidget(IGUIApplication *app, QWidget *parent);
+    ~RSSWidget() override;
 
 public slots:
     void deleteSelectedItems();

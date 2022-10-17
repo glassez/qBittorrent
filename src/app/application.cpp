@@ -91,9 +91,12 @@
 #include "filelogger.h"
 
 #ifndef DISABLE_GUI
+#include "base/bittorrent/magneturi.h"
+#include "base/bittorrent/torrentinfo.h"
 #include "gui/addnewtorrentdialog.h"
 #include "gui/desktopintegration.h"
 #include "gui/mainwindow.h"
+#include "gui/raisedmessagebox.h"
 #include "gui/shutdownconfirmdialog.h"
 #include "gui/uithememanager.h"
 #include "gui/utils.h"
@@ -225,6 +228,132 @@ bool Application::isTorrentAddedNotificationsEnabled() const
 void Application::setTorrentAddedNotificationsEnabled(const bool value)
 {
     m_storeNotificationTorrentAdded = value;
+}
+
+void Application::showAddNewTorrentDialog(QWidget *parent, const QString &source, const BitTorrent::AddTorrentParams &inParams)
+{
+    if (Net::DownloadManager::hasSupportedScheme(source))
+    {
+        // Launch downloader
+        Net::DownloadManager::instance()->download(
+                    Net::DownloadRequest(source).limit(MAX_TORRENT_SIZE)
+                    , this, [this](const Net::DownloadResult &downloadResult)
+        {
+            switch (downloadResult.status)
+            {
+            case Net::DownloadStatus::Success:
+                if (const nonstd::expected<BitTorrent::TorrentInfo, QString> result = BitTorrent::TorrentInfo::load(downloadResult.data))
+                {
+
+                }
+                else
+                {
+                    RaisedMessageBox::critical(mainWindow(), tr("Invalid torrent")
+                        , tr("Failed to load from URL: %1.\nError: %2").arg(downloadResult.url, result.error()));
+                }
+                break;
+            case Net::DownloadStatus::RedirectedToMagnet:
+                downloadResult.magnet;
+                break;
+            default:
+                RaisedMessageBox::critical(mainWindow(), tr("Download Error")
+                    , tr("Cannot download '%1': %2").arg(downloadResult.url, downloadResult.errorString));
+            }
+        });
+    }
+    else if (const BitTorrent::MagnetUri magnetURI {source}; magnetURI.isValid())
+    {
+        const BitTorrent::InfoHash infoHash = magnetURI.infoHash();
+
+        // Prevent showing the dialog if download is already present
+        if (BitTorrent::Session::instance()->isKnownTorrent(infoHash))
+        {
+            BitTorrent::Torrent *const torrent = BitTorrent::Session::instance()->findTorrent(infoHash);
+            if (torrent)
+            {
+                if (torrent->isPrivate())
+                {
+                    RaisedMessageBox::warning(mainWindow(), tr("Torrent is already present"), tr("Torrent '%1' is already in the transfer list. Trackers haven't been merged because it is a private torrent.").arg(torrent->name()), QMessageBox::Ok);
+                }
+                else
+                {
+                    const QMessageBox::StandardButton btn = RaisedMessageBox::question(mainWindow(), tr("Torrent is already present")
+                            , tr("Torrent '%1' is already in the transfer list. Do you want to merge trackers from new source?").arg(torrent->name())
+                            , (QMessageBox::Yes | QMessageBox::No), QMessageBox::Yes);
+                    if (btn == QMessageBox::Yes)
+                    {
+                        torrent->addTrackers(magnetURI.trackers());
+                        torrent->addUrlSeeds(magnetURI.urlSeeds());
+                    }
+                }
+            }
+            else
+            {
+                RaisedMessageBox::information(mainWindow(), tr("Torrent is already present"), tr("Magnet link is already queued for processing."), QMessageBox::Ok);
+            }
+        }
+        else
+        {
+            auto *dlg = new AddNewTorrentDialog(parent, magnetURI, inParams);
+            dlg->setAttribute(Qt::WA_DeleteOnClose);
+            dlg->show();
+        }
+    }
+    else
+    {
+        const Path decodedPath {source.startsWith(u"file://", Qt::CaseInsensitive)
+                    ? QUrl::fromEncoded(source.toLocal8Bit()).toLocalFile()
+                    : source};
+
+        if (const nonstd::expected<BitTorrent::TorrentInfo, QString> result = BitTorrent::TorrentInfo::loadFromFile(decodedPath))
+        {
+            BitTorrent::TorrentInfo torrentInfo = result.value();
+            const BitTorrent::InfoHash infoHash = torrentInfo.infoHash();
+
+            // Prevent showing the dialog if download is already present
+            if (BitTorrent::Session::instance()->isKnownTorrent(infoHash))
+            {
+                BitTorrent::Torrent *const torrent = BitTorrent::Session::instance()->findTorrent(infoHash);
+                if (torrent)
+                {
+                    // Trying to set metadata to existing torrent in case if it has none
+                    torrent->setMetadata(torrentInfo);
+
+                    if (torrent->isPrivate() || torrentInfo.isPrivate())
+                    {
+                        RaisedMessageBox::warning(mainWindow(), tr("Torrent is already present"), tr("Torrent '%1' is already in the transfer list. Trackers cannot be merged because it is a private torrent.").arg(torrent->name()), QMessageBox::Ok);
+                    }
+                    else
+                    {
+                        const QMessageBox::StandardButton btn = RaisedMessageBox::question(mainWindow(), tr("Torrent is already present")
+                                , tr("Torrent '%1' is already in the transfer list. Do you want to merge trackers from new source?").arg(torrent->name())
+                                , (QMessageBox::Yes | QMessageBox::No), QMessageBox::Yes);
+                        if (btn == QMessageBox::Yes)
+                        {
+                            torrent->addTrackers(torrentInfo.trackers());
+                            torrent->addUrlSeeds(torrentInfo.urlSeeds());
+                        }
+                    }
+                }
+                else
+                {
+                    RaisedMessageBox::information(mainWindow(), tr("Torrent is already present"), tr("Torrent is already queued for processing."), QMessageBox::Ok);
+                }
+            }
+            else
+            {
+                auto *dlg = new AddNewTorrentDialog(parent, torrentInfo, inParams);
+                dlg->setAttribute(Qt::WA_DeleteOnClose);
+                dlg->show();
+            }
+        }
+        else
+        {
+            RaisedMessageBox::critical(mainWindow(), tr("Invalid torrent")
+                , tr("Failed to load the torrent: %1.\nError: %2", "Don't remove the '\n' characters. They insert a newline.")
+                    .arg(decodedPath.toString(), result.error()));
+        }
+    }
 }
 #endif
 
@@ -670,7 +799,7 @@ void Application::processParams(const AddTorrentParams &params)
     // should be overridden.
     const bool showDialogForThisTorrent = !params.skipTorrentDialog.value_or(!AddNewTorrentDialog::isEnabled());
     if (showDialogForThisTorrent)
-        AddNewTorrentDialog::show(params.torrentSource, params.torrentParams, m_window);
+        showAddNewTorrentDialog(m_window, params.torrentSource, params.torrentParams);
     else
 #endif
         BitTorrent::Session::instance()->addTorrent(params.torrentSource, params.torrentParams);

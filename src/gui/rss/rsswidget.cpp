@@ -55,8 +55,9 @@
 #include "feedlistwidget.h"
 #include "ui_rsswidget.h"
 
-RSSWidget::RSSWidget(QWidget *parent)
+RSSWidget::RSSWidget(IGUIApplication *app, QWidget *parent)
     : QWidget(parent)
+    , GUIApplicationComponent(app)
     , m_ui(new Ui::RSSWidget)
 {
     m_ui->setupUi(this);
@@ -368,7 +369,7 @@ void RSSWidget::downloadSelectedTorrents()
         if (!article->torrentUrl().isEmpty())
         {
             if (AddNewTorrentDialog::isEnabled())
-                AddNewTorrentDialog::show(article->torrentUrl(), window());
+                app()->showAddNewTorrentDialog(window(), article->torrentUrl());
             else
                 BitTorrent::Session::instance()->addTorrent(article->torrentUrl());
         }

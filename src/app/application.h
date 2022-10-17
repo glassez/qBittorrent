@@ -135,6 +135,8 @@ public:
 
     bool isTorrentAddedNotificationsEnabled() const override;
     void setTorrentAddedNotificationsEnabled(bool value) override;
+
+    void showAddNewTorrentDialog(QWidget *parent, const QString &source, const BitTorrent::AddTorrentParams &inParams) override;
 #endif
 
 private slots:

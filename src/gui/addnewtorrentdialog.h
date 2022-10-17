@@ -43,11 +43,6 @@ namespace BitTorrent
     class InfoHash;
 }
 
-namespace Net
-{
-    struct DownloadResult;
-}
-
 namespace Ui
 {
     class AddNewTorrentDialog;
@@ -67,6 +62,8 @@ public:
     static const int minPathHistoryLength = 0;
     static const int maxPathHistoryLength = 99;
 
+    AddNewTorrentDialog(QWidget *parent, const BitTorrent::MagnetUri &magnetURI, const BitTorrent::AddTorrentParams &inParams = {});
+    AddNewTorrentDialog(QWidget *parent, const BitTorrent::TorrentInfo &torrentInfo, const BitTorrent::AddTorrentParams &inParams = {});
     ~AddNewTorrentDialog() override;
 
     static bool isEnabled();
@@ -76,9 +73,6 @@ public:
     static int savePathHistoryLength();
     static void setSavePathHistoryLength(int value);
 
-    static void show(const QString &source, const BitTorrent::AddTorrentParams &inParams, QWidget *parent);
-    static void show(const QString &source, QWidget *parent);
-
 private slots:
     void displayContentTreeMenu();
     void displayColumnHeaderMenu();
@@ -87,7 +81,6 @@ private slots:
     void onDownloadPathChanged(const Path &newPath);
     void onUseDownloadPathChanged(bool checked);
     void updateMetadata(const BitTorrent::TorrentInfo &metadata);
-    void handleDownloadFinished(const Net::DownloadResult &downloadResult);
     void TMMChanged(int index);
     void categoryChanged(int index);
     void contentLayoutChanged();
@@ -99,12 +92,9 @@ private slots:
     void reject() override;
 
 private:
-    explicit AddNewTorrentDialog(const BitTorrent::AddTorrentParams &inParams, QWidget *parent);
+    AddNewTorrentDialog(QWidget *parent, const BitTorrent::AddTorrentParams &inParams);
 
     void applyContentLayout();
-    bool loadTorrentFile(const QString &source);
-    bool loadTorrentImpl();
-    bool loadMagnet(const BitTorrent::MagnetUri &magnetUri);
     void populateSavePaths();
     void loadState();
     void saveState();

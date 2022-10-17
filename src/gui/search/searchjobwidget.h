@@ -32,6 +32,7 @@
 #include <QWidget>
 
 #include "base/settingvalue.h"
+#include "gui/guiapplicationcomponent.h"
 
 #define ENGINE_URL_COLUMN 4
 #define URL_COLUMN 5
@@ -52,7 +53,7 @@ namespace Ui
     class SearchJobWidget;
 }
 
-class SearchJobWidget final : public QWidget
+class SearchJobWidget final : public QWidget, public GUIApplicationComponent
 {
     Q_OBJECT
     Q_DISABLE_COPY_MOVE(SearchJobWidget)
@@ -74,7 +75,7 @@ public:
         NoResults
     };
 
-    explicit SearchJobWidget(SearchHandler *searchHandler, QWidget *parent = nullptr);
+    explicit SearchJobWidget(IGUIApplication *app, SearchHandler *searchHandler, QWidget *parent = nullptr);
     ~SearchJobWidget() override;
 
     Status status() const;

@@ -647,7 +647,7 @@ void MainWindow::displayRSSTab(bool enable)
         // RSS tab
         if (!m_rssWidget)
         {
-            m_rssWidget = new RSSWidget(m_tabs);
+            m_rssWidget = new RSSWidget(app(), m_tabs);
             connect(m_rssWidget.data(), &RSSWidget::unreadCountUpdated, this, &MainWindow::handleRSSUnreadCountUpdated);
 #ifdef Q_OS_MACOS
             m_tabs->addTab(m_rssWidget, tr("RSS (%1)").arg(RSS::Session::instance()->rootFolder()->unreadCount()));
@@ -1101,7 +1101,7 @@ void MainWindow::keyPressEvent(QKeyEvent *event)
                     continue;
 
                 if (useTorrentAdditionDialog)
-                    AddNewTorrentDialog::show(line, this);
+                    app()->showAddNewTorrentDialog(this, line);
                 else
                     BitTorrent::Session::instance()->addTorrent(line);
             }
@@ -1285,7 +1285,7 @@ void MainWindow::dropEvent(QDropEvent *event)
     for (const QString &file : asConst(torrentFiles))
     {
         if (useTorrentAdditionDialog)
-            AddNewTorrentDialog::show(file, this);
+            app()->showAddNewTorrentDialog(this, file);
         else
             BitTorrent::Session::instance()->addTorrent(file);
     }
@@ -1337,7 +1337,7 @@ void MainWindow::on_actionOpen_triggered()
     for (const QString &file : pathsList)
     {
         if (useTorrentAdditionDialog)
-            AddNewTorrentDialog::show(file, this);
+            app()->showAddNewTorrentDialog(this, file);
         else
             BitTorrent::Session::instance()->addTorrent(file);
     }
@@ -1555,7 +1555,7 @@ void MainWindow::downloadFromURLList(const QStringList &urlList)
     for (const QString &url : urlList)
     {
         if (useTorrentAdditionDialog)
-            AddNewTorrentDialog::show(url, this);
+            app()->showAddNewTorrentDialog(this, url);
         else
             BitTorrent::Session::instance()->addTorrent(url);
     }
