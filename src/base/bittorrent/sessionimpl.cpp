@@ -580,6 +580,8 @@ SessionImpl::SessionImpl(QObject *parent)
 
 SessionImpl::~SessionImpl()
 {
+    m_isShuttingDown = true;
+
     // Do some bittorrent related saving
     // After this, (ideally) no more important alerts will be generated/handled
     saveResumeData();
@@ -5644,13 +5646,16 @@ void SessionImpl::handleStateUpdateAlert(const lt::state_update_alert *p)
         updatedTorrents.push_back(torrent);
     }
 
-    if (!updatedTorrents.isEmpty())
-        emit torrentsUpdated(updatedTorrents);
+    if (m_isShuttingDown)
+    {
+        if (!updatedTorrents.isEmpty())
+            emit torrentsUpdated(updatedTorrents);
 
-    if (m_refreshEnqueued)
-        m_refreshEnqueued = false;
-    else
-        enqueueRefresh();
+        if (m_refreshEnqueued)
+            m_refreshEnqueued = false;
+        else
+            enqueueRefresh();
+    }
 }
 
 void SessionImpl::handleSocks5Alert(const lt::socks5_alert *p) const

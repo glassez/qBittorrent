@@ -664,6 +664,7 @@ namespace BitTorrent
         CachedSettingValue<ResumeDataStorageType> m_resumeDataStorageType;
 
         bool m_isRestored = false;
+        bool m_isShuttingDown = false;
 
         // Order is important. This needs to be declared after its CachedSettingsValue
         // counterpart, because it uses it for initialization in the constructor
