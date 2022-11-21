@@ -1,7 +1,6 @@
 /*
  * Bittorrent Client using Qt and libtorrent.
  * Copyright (C) 2022  Vladimir Golovnev <glassez@yandex.ru>
- * Copyright (C) 2006-2012  Christophe Dumez <chris@qbittorrent.org>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -29,26 +28,25 @@
 
 #pragma once
 
-#include "torrentcontentmodelitem.h"
+#include <QObject>
+
+#include "abstractfilestorage.h"
+#include "downloadpriority.h"
 
 namespace BitTorrent
 {
-    enum class DownloadPriority;
+    class TorrentContentHandler : public AbstractFileStorage
+    {
+    public:
+        virtual bool hasMetadata() const = 0;
+        virtual QVector<DownloadPriority> filePriorities() const = 0;
+        virtual QVector<qreal> filesProgress() const = 0;
+        /**
+         * @brief fraction of file pieces that are available at least from one peer
+         *
+         * This is not the same as torrrent availability, it is just a fraction of pieces
+         * that can be downloaded right now. It varies between 0 to 1.
+         */
+        virtual QVector<qreal> availableFileFractions() const = 0;
+    };
 }
-
-class TorrentContentModelFile final : public TorrentContentModelItem
-{
-public:
-    static const ItemType ITEM_TYPE = FileType;
-
-    TorrentContentModelFile(const QString &fileName, qlonglong fileSize, int fileIndex);
-
-    int fileIndex() const;
-    void setPriority(BitTorrent::DownloadPriority newPriority) override;
-    void setProgress(qreal progress);
-    void setAvailability(qreal availability);
-    ItemType itemType() const override;
-
-private:
-    int m_fileIndex;
-};

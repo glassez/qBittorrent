@@ -308,7 +308,6 @@ void PropertiesWidget::clear()
     m_piecesAvailability->clear();
     m_peerList->clear();
     m_contentFilterLine->clear();
-    m_propListModel->model()->clear();
 }
 
 BitTorrent::Torrent *PropertiesWidget::getCurrentTorrent() const
@@ -355,14 +354,15 @@ void PropertiesWidget::loadTorrentInfos(BitTorrent::Torrent *const torrent)
     m_torrent = torrent;
     m_downloadedPieces->setTorrent(m_torrent);
     m_piecesAvailability->setTorrent(m_torrent);
-    if (!m_torrent) return;
+    m_propListModel->model()->setHandler(m_torrent);
+    if (!m_torrent)
+        return;
 
     // Save path
     updateSavePath(m_torrent);
     // Info hashes
     m_ui->labelInfohash1Val->setText(m_torrent->infoHash().v1().isValid() ? m_torrent->infoHash().v1().toString() : tr("N/A"));
     m_ui->labelInfohash2Val->setText(m_torrent->infoHash().v2().isValid() ? m_torrent->infoHash().v2().toString() : tr("N/A"));
-    m_propListModel->model()->clear();
     if (m_torrent->hasMetadata())
     {
         // Creation date
@@ -543,12 +543,7 @@ void PropertiesWidget::loadDynamicData()
             if (!isContentInitialized)
             {
                 // List files in torrent
-                m_propListModel->model()->setupModelData(*m_torrent);
-                // Load file priorities
-                m_propListModel->model()->updateFilesPriorities(m_torrent->filePriorities());
-                // Update file progress/availability
-                m_propListModel->model()->updateFilesProgress(m_torrent->filesProgress());
-                m_propListModel->model()->updateFilesAvailability(m_torrent->availableFileFractions());
+                m_propListModel->model()->setHandler(m_torrent);
 
                 // Expand single-item folders recursively.
                 // This will trigger sorting and filtering so do it after all relevant data is loaded.
@@ -562,13 +557,7 @@ void PropertiesWidget::loadDynamicData()
             else
             {
                 // Torrent content was loaded already, only make some updates
-
-                m_propListModel->model()->updateFilesProgress(m_torrent->filesProgress());
-                m_propListModel->model()->updateFilesAvailability(m_torrent->availableFileFractions());
-                // XXX: We don't update file priorities regularly for performance
-                // reasons. This means that priorities will not be updated if
-                // set from the Web UI.
-                // m_propListModel->model()->updateFilesPriorities(m_torrent->filePriorities());
+                m_propListModel->model()->refresh();
             }
 
             m_ui->filesList->setUpdatesEnabled(true);

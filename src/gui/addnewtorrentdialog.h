@@ -1,5 +1,6 @@
 /*
  * Bittorrent Client using Qt and libtorrent.
+ * Copyright (C) 2022  Vladimir Golovnev <glassez@yandex.ru>
  * Copyright (C) 2012  Christophe Dumez <chris@qbittorrent.org>
  *
  * This program is free software; you can redistribute it and/or
@@ -55,7 +56,7 @@ namespace Ui
 
 class LineEdit;
 class PropListDelegate;
-class TorrentContentFilterModel;
+class TorrentContentModel;
 class TorrentFileGuard;
 
 class AddNewTorrentDialog final : public QDialog
@@ -101,7 +102,6 @@ private slots:
 private:
     explicit AddNewTorrentDialog(const BitTorrent::AddTorrentParams &inParams, QWidget *parent);
 
-    void applyContentLayout();
     bool loadTorrentFile(const QString &source);
     bool loadTorrentImpl();
     bool loadMagnet(const BitTorrent::MagnetUri &magnetUri);
@@ -116,12 +116,10 @@ private:
     void showEvent(QShowEvent *event) override;
 
     Ui::AddNewTorrentDialog *m_ui = nullptr;
-    TorrentContentFilterModel *m_contentModel = nullptr;
+    TorrentContentModel *m_contentModel = nullptr;
     PropListDelegate *m_contentDelegate = nullptr;
     BitTorrent::MagnetUri m_magnetURI;
     BitTorrent::TorrentInfo m_torrentInfo;
-    Path m_originalRootFolder;
-    BitTorrent::TorrentContentLayout m_currentContentLayout;
     int m_savePathIndex = -1;
     int m_downloadPathIndex = -1;
     bool m_useDownloadPath = false;

@@ -1,5 +1,6 @@
 /*
  * Bittorrent Client using Qt and libtorrent.
+ * Copyright (C) 2022  Vladimir Golovnev <glassez@yandex.ru>
  * Copyright (C) 2006-2012  Christophe Dumez <chris@qbittorrent.org>
  *
  * This program is free software; you can redistribute it and/or
@@ -32,6 +33,7 @@
 #include <QVector>
 
 #include "base/bittorrent/downloadpriority.h"
+#include "base/pathfwd.h"
 
 class QVariant;
 
@@ -40,6 +42,8 @@ class TorrentContentModelFolder;
 class TorrentContentModelItem
 {
     Q_DECLARE_TR_FUNCTIONS(TorrentContentModelItem)
+
+    friend class TorrentContentModelFolder;
 
 public:
     enum TreeItemColumns
@@ -59,14 +63,14 @@ public:
         FolderType
     };
 
-    explicit TorrentContentModelItem(TorrentContentModelFolder *parent);
+    TorrentContentModelItem() = default;
     virtual ~TorrentContentModelItem();
 
-    bool isRootItem() const;
     TorrentContentModelFolder *parent() const;
     virtual ItemType itemType() const = 0;
 
     QString name() const;
+    Path path() const;
     void setName(const QString &name);
 
     qulonglong size() const;
@@ -76,7 +80,7 @@ public:
     qreal availability() const;
 
     BitTorrent::DownloadPriority priority() const;
-    virtual void setPriority(BitTorrent::DownloadPriority newPriority, bool updateParent = true) = 0;
+    virtual void setPriority(BitTorrent::DownloadPriority newPriority) = 0;
 
     int columnCount() const;
     QString displayData(int column) const;
@@ -85,9 +89,6 @@ public:
 
 protected:
     TorrentContentModelFolder *m_parentItem = nullptr;
-    // Root item members
-    QVector<QString> m_itemData;
-    // Non-root item members
     QString m_name;
     qulonglong m_size = 0;
     qulonglong m_remaining = 0;

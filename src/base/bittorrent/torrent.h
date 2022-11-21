@@ -37,7 +37,7 @@
 #include "base/3rdparty/expected.hpp"
 #include "base/pathfwd.h"
 #include "base/tagset.h"
-#include "abstractfilestorage.h"
+#include "torrentcontenthandler.h"
 
 class QBitArray;
 class QByteArray;
@@ -106,7 +106,7 @@ namespace BitTorrent
     uint qHash(TorrentState key, uint seed = 0);
 #endif
 
-    class Torrent : public AbstractFileStorage
+    class Torrent : public TorrentContentHandler
     {
         Q_GADGET
 
@@ -213,7 +213,6 @@ namespace BitTorrent
 
         virtual Path actualFilePath(int index) const = 0;
         virtual PathList filePaths() const = 0;
-        virtual QVector<DownloadPriority> filePriorities() const = 0;
 
         virtual TorrentInfo info() const = 0;
         virtual bool isSeed() const = 0;
@@ -243,7 +242,6 @@ namespace BitTorrent
         virtual qlonglong activeTime() const = 0;
         virtual qlonglong finishedTime() const = 0;
         virtual qlonglong eta() const = 0;
-        virtual QVector<qreal> filesProgress() const = 0;
         virtual int seedsCount() const = 0;
         virtual int peersCount() const = 0;
         virtual int leechsCount() const = 0;
@@ -276,13 +274,6 @@ namespace BitTorrent
         virtual int connectionsCount() const = 0;
         virtual int connectionsLimit() const = 0;
         virtual qlonglong nextAnnounce() const = 0;
-        /**
-         * @brief fraction of file pieces that are available at least from one peer
-         *
-         * This is not the same as torrrent availability, it is just a fraction of pieces
-         * that can be downloaded right now. It varies between 0 to 1.
-         */
-        virtual QVector<qreal> availableFileFractions() const = 0;
 
         virtual void setName(const QString &name) = 0;
         virtual void setSequentialDownload(bool enable) = 0;

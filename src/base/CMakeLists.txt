@@ -34,6 +34,7 @@ add_library(qbt_base STATIC
     bittorrent/sessionstatus.h
     bittorrent/speedmonitor.h
     bittorrent/torrent.h
+    bittorrent/torrentcontenthandler.h
     bittorrent/torrentcontentlayout.h
     bittorrent/torrentcreatorthread.h
     bittorrent/torrentimpl.h

@@ -1,5 +1,6 @@
 /*
  * Bittorrent Client using Qt and libtorrent.
+ * Copyright (C) 2022  Vladimir Golovnev <glassez@yandex.ru>
  * Copyright (C) 2006-2012  Christophe Dumez <chris@qbittorrent.org>
  *
  * This program is free software; you can redistribute it and/or
@@ -32,6 +33,7 @@
 #include <QVector>
 
 #include "base/indexrange.h"
+#include "base/pathfwd.h"
 #include "torrentcontentmodelitem.h"
 
 class QFileIconProvider;
@@ -42,7 +44,7 @@ class TorrentContentModelFile;
 
 namespace BitTorrent
 {
-    class AbstractFileStorage;
+    class TorrentContentHandler;
 }
 
 class TorrentContentModel final : public QAbstractItemModel
@@ -56,12 +58,13 @@ public:
         UnderlyingDataRole = Qt::UserRole
     };
 
-    TorrentContentModel(QObject *parent = nullptr);
+    explicit TorrentContentModel(QObject *parent = nullptr);
     ~TorrentContentModel() override;
 
-    void updateFilesProgress(const QVector<qreal> &fp);
-    void updateFilesPriorities(const QVector<BitTorrent::DownloadPriority> &fprio);
-    void updateFilesAvailability(const QVector<qreal> &fa);
+    void setHandler(BitTorrent::TorrentContentHandler *torrentContentHandler);
+    BitTorrent::TorrentContentHandler *handler() const;
+
+    void refresh();
     QVector<BitTorrent::DownloadPriority> getFilePriorities() const;
     bool allFiltered() const;
     int columnCount(const QModelIndex &parent = {}) const override;
@@ -74,8 +77,6 @@ public:
     QModelIndex index(int row, int column, const QModelIndex &parent = {}) const override;
     QModelIndex parent(const QModelIndex &index) const override;
     int rowCount(const QModelIndex &parent = {}) const override;
-    void clear();
-    void setupModelData(const BitTorrent::AbstractFileStorage &info);
 
 signals:
     void filteredFilesChanged();
@@ -84,7 +85,16 @@ private:
     using ColumnInterval = IndexInterval<int>;
 
     void notifySubtreeUpdated(const QModelIndex &index, const QVector<ColumnInterval> &columns);
+    void populate();
+    TorrentContentModelFolder *createFolderItem(const Path &path);
+    void onMetadataReceived();
+    void updateFilesProgress(const QVector<qreal> &fp);
+    void updateFilesPriorities(const QVector<BitTorrent::DownloadPriority> &fprio);
+    void updateFilesAvailability(const QVector<qreal> &fa);
+    QModelIndex getIndex(const TorrentContentModelItem *item) const;
 
+    const QVector<QString> m_headers;
+    BitTorrent::TorrentContentHandler *m_torrentContentHandler = nullptr;
     TorrentContentModelFolder *m_rootItem = nullptr;
     QVector<TorrentContentModelFile *> m_filesIndex;
     QFileIconProvider *m_fileIconProvider = nullptr;
