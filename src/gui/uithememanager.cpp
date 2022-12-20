@@ -29,6 +29,8 @@
 
 #include "uithememanager.h"
 
+#include <chrono>
+
 #include <QApplication>
 #include <QDir>
 #include <QFile>
@@ -37,11 +39,16 @@
 #include <QPalette>
 #include <QResource>
 
+#ifdef Q_OS_WIN
+#include <QSettings>
+#include <QStyleFactory>
+#include <QTimer>
+#endif
+
 #include "base/global.h"
 #include "base/logger.h"
 #include "base/path.h"
 #include "base/preferences.h"
-#include "base/utils/fs.h"
 
 namespace
 {
@@ -55,6 +62,16 @@ namespace
     const QString STYLESHEET_RESOURCES_DIR = u":/uitheme"_qs;
 
     const Path THEME_ICONS_DIR {u"icons"_qs};
+
+#ifdef Q_OS_WIN
+    bool isDarkModeEnabled()
+    {
+        const QSettings winReg {
+                u"HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize"_qs
+                , QSettings::NativeFormat};
+        return winReg.value("AppsUseLightTheme", 1).toInt() == 0;
+    }
+#endif
 
     Path findIcon(const QString &iconId, const Path &dir)
     {
@@ -168,6 +185,10 @@ void UIThemeManager::initInstance()
 
 UIThemeManager::UIThemeManager()
     : m_useCustomTheme(Preferences::instance()->useCustomUITheme())
+#ifdef Q_OS_WIN
+    , m_isDarkModeEnabled {isDarkModeEnabled()}
+    , m_darkModeChecker {new QTimer(this)}
+#endif
 {
     if (m_useCustomTheme)
     {
@@ -184,6 +205,60 @@ UIThemeManager::UIThemeManager()
             applyStyleSheet();
         }
     }
+
+#ifdef Q_OS_WIN
+    const QPalette defaultPalette = qApp->palette();
+
+    const QColor darkGray {53, 53, 53};
+    const QColor gray {128, 128, 128};
+    const QColor black {25, 25, 25};
+    const QColor blue {42, 130, 218};
+
+    QPalette darkPalette = defaultPalette;
+    darkPalette.setColor(QPalette::Window, darkGray);
+    darkPalette.setColor(QPalette::WindowText, Qt::white);
+    darkPalette.setColor(QPalette::Base, black);
+    darkPalette.setColor(QPalette::AlternateBase, darkGray);
+    darkPalette.setColor(QPalette::ToolTipBase, blue);
+    darkPalette.setColor(QPalette::ToolTipText, Qt::white);
+    darkPalette.setColor(QPalette::Text, Qt::white);
+    darkPalette.setColor(QPalette::Button, darkGray);
+    darkPalette.setColor(QPalette::ButtonText, Qt::white);
+    darkPalette.setColor(QPalette::Link, blue);
+    darkPalette.setColor(QPalette::Highlight, blue);
+    darkPalette.setColor(QPalette::HighlightedText, Qt::black);
+
+    darkPalette.setColor(QPalette::Active, QPalette::Button, gray.darker());
+    darkPalette.setColor(QPalette::Disabled, QPalette::ButtonText, gray);
+    darkPalette.setColor(QPalette::Disabled, QPalette::WindowText, gray);
+    darkPalette.setColor(QPalette::Disabled, QPalette::Text, gray);
+    darkPalette.setColor(QPalette::Disabled, QPalette::Light, darkGray);
+
+    if (m_isDarkModeEnabled)
+    {
+        qApp->setStyle(QStyleFactory::create(u"Fusion"_qs));
+        qApp->setPalette(darkPalette);
+    }
+
+    qDebug() << "Windows Dark mode:" << (m_isDarkModeEnabled ? "ON" : "OFF");
+
+    connect(m_darkModeChecker, &QTimer::timeout, this, [this, defaultPalette, darkPalette]
+    {
+        const auto enabled = isDarkModeEnabled();
+        if (m_isDarkModeEnabled != enabled)
+        {
+            m_isDarkModeEnabled = enabled;
+
+            qApp->setStyle(QStyleFactory::create(m_isDarkModeEnabled ? u"Fusion"_qs : u"WindowsVista"_qs));
+            qApp->setPalette(m_isDarkModeEnabled ? darkPalette : defaultPalette);
+
+            emit darkModeChanged();
+
+            qDebug() << "Windows Dark mode:" << (m_isDarkModeEnabled ? "ON" : "OFF");
+        }
+    });
+    m_darkModeChecker->start(std::chrono::seconds(5));
+#endif
 }
 
 UIThemeManager *UIThemeManager::instance()

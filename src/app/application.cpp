@@ -139,6 +139,7 @@ Application::Application(int &argc, char **argv)
 #endif
 #ifndef DISABLE_GUI
     , m_storeNotificationTorrentAdded(NOTIFICATIONS_SETTINGS_KEY(u"TorrentAdded"_qs))
+    , m_storeColorMode(u"GUI/ColorMode"_qs)
 #endif
 {
     qRegisterMetaType<Log::Msg>("Log::Msg");
@@ -221,6 +222,18 @@ MainWindow *Application::mainWindow()
 {
     return m_window;
 }
+
+#ifdef QBT_HAS_COLORMODE
+ColorMode Application::colorMode() const
+{
+    return m_storeColorMode;
+}
+
+void Application::setColorMode(const ColorMode colorMode)
+{
+    m_storeColorMode = colorMode;
+}
+#endif
 
 bool Application::isTorrentAddedNotificationsEnabled() const
 {

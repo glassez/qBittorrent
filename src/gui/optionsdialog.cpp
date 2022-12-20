@@ -53,7 +53,6 @@
 #include "base/torrentfileguard.h"
 #include "base/torrentfileswatcher.h"
 #include "base/unicodestrings.h"
-#include "base/utils/fs.h"
 #include "base/utils/net.h"
 #include "base/utils/password.h"
 #include "base/utils/random.h"
@@ -258,6 +257,9 @@ OptionsDialog::OptionsDialog(IGUIApplication *app, QWidget *parent)
 
     if (const QSize dialogSize = m_storeDialogSize; dialogSize.isValid())
         resize(dialogSize);
+
+    connect(m_ui->buttonBox, &QDialogButtonBox::accepted, this, &QDialog::accept);
+    connect(m_ui->buttonBox, &QDialogButtonBox::rejected, this, &QDialog::reject);
 }
 
 OptionsDialog::~OptionsDialog()
@@ -282,6 +284,22 @@ void OptionsDialog::loadBehaviorTabOptions()
 
     initializeLanguageCombo();
     setLocale(pref->getLocale());
+
+#ifdef QBT_HAS_COLORMODE
+    m_prevColorMode = app()->colorMode();
+    switch (m_prevColorMode)
+    {
+    case ColorMode::Light:
+        m_ui->lightColorModeButton->setChecked(true);
+        break;
+    case ColorMode::Dark:
+        m_ui->darkColorModeButton->setChecked(true);
+        break;
+    default:
+        m_ui->systemColorModeButton->setChecked(true);
+        break;
+    }
+#endif
 
     m_ui->checkUseCustomTheme->setChecked(Preferences::instance()->useCustomUITheme());
     m_ui->customThemeFilePath->setSelectedPath(Preferences::instance()->customUIThemePath());
@@ -381,6 +399,25 @@ void OptionsDialog::loadBehaviorTabOptions()
     m_ui->checkBoxPerformanceWarning->setChecked(session->isPerformanceWarningEnabled());
 
     connect(m_ui->comboI18n, qComboBoxCurrentIndexChanged, this, &ThisType::enableApplyButton);
+
+#ifdef QBT_HAS_COLORMODE
+    connect(m_ui->lightColorModeButton, &QRadioButton::toggled, this, &ThisType::enableApplyButton);
+    connect(m_ui->darkColorModeButton, &QRadioButton::toggled, this, &ThisType::enableApplyButton);
+    connect(m_ui->systemColorModeButton, &QRadioButton::toggled, this, &ThisType::enableApplyButton);
+
+    connect(m_ui->lightColorModeButton, &QRadioButton::toggled, this, [this]
+    {
+        app()->setColorMode(ColorMode::Light);
+    });
+    connect(m_ui->darkColorModeButton, &QRadioButton::toggled, this, [this]
+    {
+        app()->setColorMode(ColorMode::Dark);
+    });
+    connect(m_ui->systemColorModeButton, &QRadioButton::toggled, this, [this]
+    {
+        app()->setColorMode(ColorMode::System);
+    });
+#endif
 
     connect(m_ui->checkUseCustomTheme, &QGroupBox::toggled, this, &ThisType::enableApplyButton);
     connect(m_ui->customThemeFilePath, &FileSystemPathEdit::selectedPathChanged, this, &ThisType::enableApplyButton);
@@ -1365,6 +1402,43 @@ void OptionsDialog::showEvent(QShowEvent *e)
     loadSplitterState();
 }
 
+void OptionsDialog::accept()
+{
+    if (m_applyButton->isEnabled())
+    {
+        if (!schedTimesOk())
+        {
+            m_ui->tabSelection->setCurrentRow(TAB_SPEED);
+            return;
+        }
+#ifndef DISABLE_WEBUI
+        if (!webUIAuthenticationOk())
+        {
+            m_ui->tabSelection->setCurrentRow(TAB_WEBUI);
+            return;
+        }
+        if (!isAlternativeWebUIPathValid())
+        {
+            m_ui->tabSelection->setCurrentRow(TAB_WEBUI);
+            return;
+        }
+#endif
+
+        m_applyButton->setEnabled(false);
+        saveOptions();
+    }
+
+    QDialog::accept();
+}
+
+void OptionsDialog::reject()
+{
+#ifdef QBT_HAS_COLORMODE
+    app()->setColorMode(m_prevColorMode);
+#endif
+    QDialog::reject();
+}
+
 void OptionsDialog::saveOptions() const
 {
     auto *pref = Preferences::instance();
@@ -1514,35 +1588,6 @@ int OptionsDialog::getMaxUploadsPerTorrent() const
     return m_ui->spinMaxUploadsPerTorrent->value();
 }
 
-void OptionsDialog::on_buttonBox_accepted()
-{
-    if (m_applyButton->isEnabled())
-    {
-        if (!schedTimesOk())
-        {
-            m_ui->tabSelection->setCurrentRow(TAB_SPEED);
-            return;
-        }
-#ifndef DISABLE_WEBUI
-        if (!webUIAuthenticationOk())
-        {
-            m_ui->tabSelection->setCurrentRow(TAB_WEBUI);
-            return;
-        }
-        if (!isAlternativeWebUIPathValid())
-        {
-            m_ui->tabSelection->setCurrentRow(TAB_WEBUI);
-            return;
-        }
-#endif
-
-        m_applyButton->setEnabled(false);
-        saveOptions();
-    }
-
-    accept();
-}
-
 void OptionsDialog::applySettings()
 {
     if (!schedTimesOk())
@@ -1565,11 +1610,6 @@ void OptionsDialog::applySettings()
 
     m_applyButton->setEnabled(false);
     saveOptions();
-}
-
-void OptionsDialog::on_buttonBox_rejected()
-{
-    reject();
 }
 
 bool OptionsDialog::useAdditionDialog() const

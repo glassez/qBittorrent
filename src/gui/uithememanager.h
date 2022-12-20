@@ -38,6 +38,10 @@
 
 #include "base/pathfwd.h"
 
+#ifdef Q_OS_WIN
+class QTimer;
+#endif
+
 class UIThemeSource
 {
 public:
@@ -68,6 +72,9 @@ public:
     QIcon getSystrayIcon() const;
 #endif
 
+signals:
+    void darkModeChanged();
+
 private:
     UIThemeManager(); // singleton class
     Path getIconPathFromResources(const QString &iconId, const QString &fallback = {}) const;
@@ -81,4 +88,9 @@ private:
     QHash<QString, QColor> m_colors;
     mutable QHash<QString, QIcon> m_iconCache;
     mutable QHash<QString, QIcon> m_flagCache;
+
+#ifdef Q_OS_WIN
+    bool m_isDarkModeEnabled = false;
+    QTimer *m_darkModeChecker = nullptr;
+#endif
 };

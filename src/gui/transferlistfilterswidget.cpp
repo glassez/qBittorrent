@@ -138,6 +138,8 @@ BaseFilterWidget::BaseFilterWidget(QWidget *parent, TransferListWidget *transfer
             , this, &BaseFilterWidget::handleTorrentsLoaded);
     connect(BitTorrent::Session::instance(), &BitTorrent::Session::torrentAboutToBeRemoved
             , this, &BaseFilterWidget::torrentAboutToBeDeleted);
+
+    connect(UIThemeManager::instance(), &UIThemeManager::darkModeChanged, this, qOverload<>(&QWidget::update));
 }
 
 QSize BaseFilterWidget::sizeHint() const
@@ -885,6 +887,8 @@ TransferListFiltersWidget::TransferListFiltersWidget(QWidget *parent, TransferLi
     connect(statusLabel, &QCheckBox::toggled, pref, &Preferences::setStatusFilterState);
     connect(trackerLabel, &QCheckBox::toggled, m_trackerFilters, &TrackerFiltersList::toggleFilter);
     connect(trackerLabel, &QCheckBox::toggled, pref, &Preferences::setTrackerFilterState);
+
+    connect(UIThemeManager::instance(), &UIThemeManager::darkModeChanged, this, qOverload<>(&QWidget::update));
 }
 
 void TransferListFiltersWidget::setDownloadTrackerFavicon(bool value)

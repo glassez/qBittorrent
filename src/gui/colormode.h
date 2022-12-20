@@ -1,8 +1,6 @@
 /*
  * Bittorrent Client using Qt and libtorrent.
- * Copyright (C) 2022  Mike Tzou (Chocobo1)
- * Copyright (C) 2015, 2019  Vladimir Golovnev <glassez@yandex.ru>
- * Copyright (C) 2006  Christophe Dumez
+ * Copyright (C) 2022  Vladimir Golovnev <glassez@yandex.ru>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -30,29 +28,17 @@
 
 #pragma once
 
-#include "base/interfaces/iapplication.h"
-#include "gui/colormode.h"
+#include <QMetaObject>
 
-#ifdef Q_OS_WIN
-#define QBT_HAS_COLORMODE
-#endif
-
-class DesktopIntegration;
-class MainWindow;
-
-class IGUIApplication : public IApplication
+inline namespace ColorModeNS
 {
-public:
-    virtual ~IGUIApplication() = default;
+    Q_NAMESPACE
 
-    virtual DesktopIntegration *desktopIntegration() = 0;
-    virtual MainWindow *mainWindow() = 0;
-
-#ifdef QBT_HAS_COLORMODE
-    virtual ColorMode colorMode() const = 0;
-    virtual void setColorMode(ColorMode colorMode) = 0;
-#endif
-
-    virtual bool isTorrentAddedNotificationsEnabled() const = 0;
-    virtual void setTorrentAddedNotificationsEnabled(bool value) = 0;
-};
+    enum class ColorMode
+    {
+        Light,
+        Dark,
+        System
+    };
+    Q_ENUM_NS(ColorMode);
+}

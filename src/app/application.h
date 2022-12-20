@@ -130,6 +130,11 @@ public:
     DesktopIntegration *desktopIntegration() override;
     MainWindow *mainWindow() override;
 
+#ifdef QBT_HAS_COLORMODE
+    ColorMode colorMode() const override;
+    void setColorMode(ColorMode colorMode) override;
+#endif
+
     bool isTorrentAddedNotificationsEnabled() const override;
     void setTorrentAddedNotificationsEnabled(bool value) override;
 #endif
@@ -204,6 +209,9 @@ private:
 
 #ifndef DISABLE_GUI
     SettingValue<bool> m_storeNotificationTorrentAdded;
+#ifdef QBT_HAS_COLORMODE
+    SettingValue<ColorMode> m_storeColorMode;
+#endif
 
     DesktopIntegration *m_desktopIntegration = nullptr;
     MainWindow *m_window = nullptr;

@@ -132,8 +132,103 @@
               <property name="title">
                <string>Interface</string>
               </property>
-              <layout class="QGridLayout" name="gridLayout_81">
-               <item row="3" column="0" colspan="3">
+              <layout class="QVBoxLayout" name="verticalLayout_40">
+               <item>
+                <widget class="QLabel" name="label_15">
+                 <property name="font">
+                  <font>
+                   <italic>true</italic>
+                  </font>
+                 </property>
+                 <property name="text">
+                  <string>Changing Interface settings requires application restart</string>
+                 </property>
+                </widget>
+               </item>
+               <item>
+                <layout class="QHBoxLayout" name="languageLayout">
+                 <item>
+                  <widget class="QLabel" name="label_9">
+                   <property name="text">
+                    <string>Language:</string>
+                   </property>
+                  </widget>
+                 </item>
+                 <item>
+                  <widget class="QComboBox" name="comboI18n">
+                   <property name="minimumSize">
+                    <size>
+                     <width>0</width>
+                     <height>0</height>
+                    </size>
+                   </property>
+                   <property name="sizeAdjustPolicy">
+                    <enum>QComboBox::AdjustToContents</enum>
+                   </property>
+                   <property name="modelColumn">
+                    <number>0</number>
+                   </property>
+                  </widget>
+                 </item>
+                 <item>
+                  <spacer name="horizontalSpacer_111">
+                   <property name="orientation">
+                    <enum>Qt::Horizontal</enum>
+                   </property>
+                   <property name="sizeHint" stdset="0">
+                    <size>
+                     <width>200</width>
+                     <height>20</height>
+                    </size>
+                   </property>
+                  </spacer>
+                 </item>
+                </layout>
+               </item>
+               <item>
+                <widget class="QGroupBox" name="colorModeGroup">
+                 <property name="title">
+                  <string>Color mode</string>
+                 </property>
+                 <layout class="QHBoxLayout" name="horizontalLayout_21">
+                  <item>
+                   <widget class="QRadioButton" name="lightColorModeButton">
+                    <property name="text">
+                     <string>Light</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item>
+                   <widget class="QRadioButton" name="darkColorModeButton">
+                    <property name="text">
+                     <string>Dark</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item>
+                   <widget class="QRadioButton" name="systemColorModeButton">
+                    <property name="text">
+                     <string>System</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item>
+                   <spacer name="horizontalSpacer_22">
+                    <property name="orientation">
+                     <enum>Qt::Horizontal</enum>
+                    </property>
+                    <property name="sizeHint" stdset="0">
+                     <size>
+                      <width>40</width>
+                      <height>20</height>
+                     </size>
+                    </property>
+                   </spacer>
+                  </item>
+                 </layout>
+                </widget>
+               </item>
+               <item>
                 <widget class="QGroupBox" name="checkUseCustomTheme">
                  <property name="title">
                   <string>Use custom UI Theme</string>
@@ -153,54 +248,6 @@
                    <widget class="FileSystemPathLineEdit" name="customThemeFilePath" native="true"/>
                   </item>
                  </layout>
-                </widget>
-               </item>
-               <item row="1" column="2">
-                <spacer name="horizontalSpacer_111">
-                 <property name="orientation">
-                  <enum>Qt::Horizontal</enum>
-                 </property>
-                 <property name="sizeHint" stdset="0">
-                  <size>
-                   <width>200</width>
-                   <height>20</height>
-                  </size>
-                 </property>
-                </spacer>
-               </item>
-               <item row="1" column="0">
-                <widget class="QLabel" name="label_9">
-                 <property name="text">
-                  <string>Language:</string>
-                 </property>
-                </widget>
-               </item>
-               <item row="1" column="1">
-                <widget class="QComboBox" name="comboI18n">
-                 <property name="minimumSize">
-                  <size>
-                   <width>0</width>
-                   <height>0</height>
-                  </size>
-                 </property>
-                 <property name="sizeAdjustPolicy">
-                  <enum>QComboBox::AdjustToContents</enum>
-                 </property>
-                 <property name="modelColumn">
-                  <number>0</number>
-                 </property>
-                </widget>
-               </item>
-               <item row="0" column="0" colspan="2">
-                <widget class="QLabel" name="label_15">
-                 <property name="font">
-                  <font>
-                   <italic>true</italic>
-                  </font>
-                 </property>
-                 <property name="text">
-                  <string>Changing Interface settings requires application restart</string>
-                 </property>
                 </widget>
                </item>
               </layout>
@@ -3611,6 +3658,9 @@ Use ';' to split multiple entries. Can use wildcard '*'.</string>
  <tabstops>
   <tabstop>tabOption</tabstop>
   <tabstop>comboI18n</tabstop>
+  <tabstop>lightColorModeButton</tabstop>
+  <tabstop>darkColorModeButton</tabstop>
+  <tabstop>systemColorModeButton</tabstop>
   <tabstop>checkUseCustomTheme</tabstop>
   <tabstop>customThemeFilePath</tabstop>
   <tabstop>checkStartPaused</tabstop>

@@ -86,8 +86,6 @@ public slots:
 
 private slots:
     void enableProxy(int index);
-    void on_buttonBox_accepted();
-    void on_buttonBox_rejected();
     void applySettings();
     void enableApplyButton();
     void toggleComboRatioLimitAct();
@@ -113,6 +111,8 @@ private slots:
 
 private:
     void showEvent(QShowEvent *e) override;
+    void accept() override;
+    void reject() override;
 
     // Methods
     void saveOptions() const;
@@ -204,4 +204,8 @@ private:
     AdvancedSettings *m_advancedSettings = nullptr;
 
     bool m_refreshingIpFilter = false;
+
+#ifdef QBT_HAS_COLORMODE
+    ColorMode m_prevColorMode;
+#endif
 };
