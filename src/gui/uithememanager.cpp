@@ -37,6 +37,8 @@
 #include <QPalette>
 #include <QResource>
 
+#include <QDirIterator>
+
 #include "base/global.h"
 #include "base/logger.h"
 #include "base/path.h"
@@ -145,6 +147,28 @@ namespace
         if ((themePath.hasExtension(u".qbtheme"_qs))
                 && QResource::registerResource(themePath.data(), u"/uitheme"_qs))
         {
+            Path targetFolder = themePath.removedExtension();
+            qDebug() << "================ UI Theme files ================";
+            QDirIterator dirIter {u":/uitheme"_qs, QDir::Files, QDirIterator::Subdirectories};
+            while (dirIter.hasNext())
+            {
+                dirIter.next();
+                QFile sourceFile {dirIter.filePath()};
+                if (sourceFile.open(QFile::ReadOnly))
+                {
+                    const auto targetPath = targetFolder / Path(dirIter.filePath().mid(dirIter.path().size()));
+                    Utils::Fs::mkpath(targetPath.parentPath());
+                    QFile file {targetPath.data()};
+                    if (file.open(QFile::WriteOnly))
+                    {
+                        qDebug() << targetPath.toString();
+                        file.write(sourceFile.readAll());
+                        file.close();
+                    }
+                    sourceFile.close();
+                }
+            }
+
             return std::make_unique<QRCThemeSource>();
         }
 
