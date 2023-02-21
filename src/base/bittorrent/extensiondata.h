@@ -28,6 +28,7 @@
 
 #pragma once
 
+#include <memory>
 #include <set>
 #include <string>
 #include <vector>
@@ -42,9 +43,12 @@ using LTClientData = lt::client_data_t;
 using LTClientData = void *;
 #endif
 
+#include "nativetorrentextension.h"
+
 struct ExtensionData
 {
     lt::torrent_status status;
     std::vector<lt::announce_entry> trackers;
     std::set<std::string> urlSeeds;
+    std::shared_ptr<NativeTorrentExtension> nativeTorrentExtension;
 };

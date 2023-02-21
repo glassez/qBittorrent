@@ -49,6 +49,7 @@
 
 #include "base/path.h"
 #include "base/tagset.h"
+#include "extensiondata.h"
 #include "infohash.h"
 #include "speedmonitor.h"
 #include "torrent.h"
@@ -305,6 +306,7 @@ namespace BitTorrent
         SessionImpl *const m_session = nullptr;
         lt::session *m_nativeSession = nullptr;
         lt::torrent_handle m_nativeHandle;
+        std::unique_ptr<ExtensionData> m_extensionData;
         mutable lt::torrent_status m_nativeStatus;
         TorrentState m_state = TorrentState::Unknown;
         TorrentInfo m_torrentInfo;

@@ -60,7 +60,6 @@
 #include "base/utils/string.h"
 #include "common.h"
 #include "downloadpriority.h"
-#include "extensiondata.h"
 #include "loadtorrentparams.h"
 #include "ltqbitarray.h"
 #include "ltqhash.h"
@@ -297,14 +296,16 @@ TorrentImpl::TorrentImpl(SessionImpl *session, lt::session *nativeSession
 
     setStopCondition(params.stopCondition);
 
-    const auto *extensionData = static_cast<ExtensionData *>(m_ltAddTorrentParams.userdata);
-    m_trackerEntries.reserve(static_cast<decltype(m_trackerEntries)::size_type>(extensionData->trackers.size()));
-    for (const lt::announce_entry &announceEntry : extensionData->trackers)
+    m_extensionData.reset(static_cast<ExtensionData *>(m_ltAddTorrentParams.userdata));
+    Q_ASSERT(m_extensionData);
+
+    m_trackerEntries.reserve(static_cast<decltype(m_trackerEntries)::size_type>(m_extensionData->trackers.size()));
+    for (const lt::announce_entry &announceEntry : m_extensionData->trackers)
         m_trackerEntries.append({QString::fromStdString(announceEntry.url), announceEntry.tier});
-    m_urlSeeds.reserve(static_cast<decltype(m_urlSeeds)::size_type>(extensionData->urlSeeds.size()));
-    for (const std::string &urlSeed : extensionData->urlSeeds)
+    m_urlSeeds.reserve(static_cast<decltype(m_urlSeeds)::size_type>(m_extensionData->urlSeeds.size()));
+    for (const std::string &urlSeed : m_extensionData->urlSeeds)
         m_urlSeeds.append(QString::fromStdString(urlSeed));
-    m_nativeStatus = extensionData->status;
+    m_nativeStatus = m_extensionData->status;
 
     updateState();
 
@@ -1675,11 +1676,10 @@ void TorrentImpl::reload()
         p.flags &= ~(lt::torrent_flags::auto_managed | lt::torrent_flags::paused);
     }
 
-    auto *const extensionData = new ExtensionData;
-    p.userdata = LTClientData(extensionData);
+    p.userdata = LTClientData(m_extensionData.get());
     m_nativeHandle = m_nativeSession->add_torrent(p);
 
-    m_nativeStatus = extensionData->status;
+    m_nativeStatus = m_extensionData->status;
 
     if (queuePos >= lt::queue_position_t {})
         m_nativeHandle.queue_position_set(queuePos);

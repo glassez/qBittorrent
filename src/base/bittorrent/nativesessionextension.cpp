@@ -81,7 +81,16 @@ lt::feature_flags_t NativeSessionExtension::implemented_features()
 
 std::shared_ptr<lt::torrent_plugin> NativeSessionExtension::new_torrent(const lt::torrent_handle &torrentHandle, LTClientData clientData)
 {
-    return std::make_shared<NativeTorrentExtension>(torrentHandle, static_cast<ExtensionData *>(clientData));
+    auto *extensionData = static_cast<ExtensionData *>(clientData);
+    // NOTE: `extensionData` may not exist if a torrent is added behind the scenes to
+    // download metadata so we don't really need to create extension for such a torrent
+    if (!extensionData)
+        return {};
+
+    const auto torrentExtension = std::make_shared<NativeTorrentExtension>(torrentHandle, extensionData);
+    extensionData->nativeTorrentExtension = torrentExtension;
+
+    return torrentExtension;
 }
 
 void NativeSessionExtension::on_alert(const lt::alert *alert)

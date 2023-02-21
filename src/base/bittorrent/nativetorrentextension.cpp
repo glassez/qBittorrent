@@ -30,11 +30,14 @@
 
 #include <libtorrent/torrent_status.hpp>
 
+#include <QtGlobal>
+
+#include "extensiondata.h"
+
 NativeTorrentExtension::NativeTorrentExtension(const lt::torrent_handle &torrentHandle, ExtensionData *data)
     : m_torrentHandle {torrentHandle}
-    , m_data {data}
 {
-    // NOTE: `data` may not exist if a torrent is added behind the scenes to download metadata
+    Q_ASSERT(data);
 
 #ifdef QBT_USES_LIBTORRENT2
     // libtorrent < 2.0.7 has a bug that add_torrent_alert is posted too early
@@ -42,20 +45,12 @@ NativeTorrentExtension::NativeTorrentExtension(const lt::torrent_handle &torrent
     // so we have to fill "extension data" in add_torrent_alert handler and
     // we have it already filled at this point
 
-    if (m_data)
-    {
-        m_data->status = m_torrentHandle.status({});
-        m_data->trackers = m_torrentHandle.trackers();
-        m_data->urlSeeds = m_torrentHandle.url_seeds();
-    }
+    data->status = m_torrentHandle.status({});
+    data->trackers = m_torrentHandle.trackers();
+    data->urlSeeds = m_torrentHandle.url_seeds();
 #endif
 
-    on_state(m_data ? m_data->status.state : m_torrentHandle.status({}).state);
-}
-
-NativeTorrentExtension::~NativeTorrentExtension()
-{
-    delete m_data;
+    on_state(data->status.state);
 }
 
 void NativeTorrentExtension::on_state(const lt::torrent_status::state_t state)
