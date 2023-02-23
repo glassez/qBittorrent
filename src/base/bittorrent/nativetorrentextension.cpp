@@ -39,16 +39,9 @@ NativeTorrentExtension::NativeTorrentExtension(const lt::torrent_handle &torrent
 {
     Q_ASSERT(data);
 
-#ifdef QBT_USES_LIBTORRENT2
-    // libtorrent < 2.0.7 has a bug that add_torrent_alert is posted too early
-    // (before torrent is fully initialized and torrent extensions are created)
-    // so we have to fill "extension data" in add_torrent_alert handler and
-    // we have it already filled at this point
-
     data->status = m_torrentHandle.status({});
     data->trackers = m_torrentHandle.trackers();
     data->urlSeeds = m_torrentHandle.url_seeds();
-#endif
 
     on_state(data->status.state);
 }
