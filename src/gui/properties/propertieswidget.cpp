@@ -486,21 +486,14 @@ void PropertiesWidget::loadUrlSeeds()
     if (!m_torrent)
         return;
 
-    using TorrentPtr = QPointer<BitTorrent::Torrent>;
-    m_torrent->fetchURLSeeds([this, torrent = TorrentPtr(m_torrent)](const QVector<QUrl> &urlSeeds)
+    m_ui->listWebSeeds->clear();
+    qDebug("Loading URL seeds...");
+    // Add url seeds
+    for (const QUrl &urlSeed : asConst(m_torrent->urlSeeds()))
     {
-        if (torrent != m_torrent)
-            return;
-
-        m_ui->listWebSeeds->clear();
-        qDebug("Loading URL seeds");
-        // Add url seeds
-        for (const QUrl &urlSeed : urlSeeds)
-        {
-            qDebug("Loading URL seed: %s", qUtf8Printable(urlSeed.toString()));
-            new QListWidgetItem(urlSeed.toString(), m_ui->listWebSeeds);
-        }
-    });
+        qDebug("Loading URL seed: %s...", qUtf8Printable(urlSeed.toString()));
+        new QListWidgetItem(urlSeed.toString(), m_ui->listWebSeeds);
+    }
 }
 
 void PropertiesWidget::displayWebSeedListMenu()

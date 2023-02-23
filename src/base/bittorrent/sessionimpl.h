@@ -530,7 +530,6 @@ namespace BitTorrent
         void handlePortmapAlert(const lt::portmap_alert *p);
         void handlePeerBlockedAlert(const lt::peer_blocked_alert *p);
         void handlePeerBanAlert(const lt::peer_ban_alert *p);
-        void handleUrlSeedAlert(const lt::url_seed_alert *p);
         void handleListenSucceededAlert(const lt::listen_succeeded_alert *p);
         void handleListenFailedAlert(const lt::listen_failed_alert *p);
         void handleExternalIPAlert(const lt::external_ip_alert *p);

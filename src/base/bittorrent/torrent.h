@@ -319,7 +319,6 @@ namespace BitTorrent
         virtual nonstd::expected<void, QString> exportToFile(const Path &path) const = 0;
 
         virtual void fetchPeerInfo(std::function<void (QVector<PeerInfo>)> resultHandler) const = 0;
-        virtual void fetchURLSeeds(std::function<void (QVector<QUrl>)> resultHandler) const = 0;
         virtual void fetchPieceAvailability(std::function<void (QVector<int>)> resultHandler) const = 0;
         virtual void fetchDownloadingPieces(std::function<void (QBitArray)> resultHandler) const = 0;
 

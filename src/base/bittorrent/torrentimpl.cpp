@@ -1886,16 +1886,25 @@ void TorrentImpl::handleTorrentResumedAlert(const lt::torrent_resumed_alert *p)
     Q_UNUSED(p);
 }
 
+void TorrentImpl::handleUrlSeedAlert(const lt::url_seed_alert *p)
+{
+    const auto url = QString::fromUtf8(p->server_url());
+    const auto message = QString::fromStdString(p->message());
+    if (p->error)
+    {
+        m_urlSeeds.removeOne(url);
+        LogMsg(tr("URL seed DNS lookup failed. Torrent: \"%1\". URL: \"%2\". Error: \"%3\"")
+                .arg(name(), url, message), Log::WARNING);
+    }
+    else
+    {
+        LogMsg(tr("Received error message from URL seed. Torrent: \"%1\". URL: \"%2\". Message: \"%3\"")
+                .arg(name(), url, message), Log::WARNING);
+    }
+}
+
 void TorrentImpl::handleSaveResumeDataAlert(const lt::save_resume_data_alert *p)
 {
-    if (m_ltAddTorrentParams.url_seeds != p->params.url_seeds)
-    {
-        // URL seed list have been changed by libtorrent for some reason, so we need to update cached one.
-        // Unfortunately, URL seed list containing in "resume data" is generated according to different rules
-        // than the list we usually cache, so we have to request it from the appropriate source.
-        fetchURLSeeds([this](const QVector<QUrl> &urlSeeds) { m_urlSeeds = urlSeeds; });
-    }
-
     if (m_maintenanceJob == MaintenanceJob::HandleMetadata)
     {
         Q_ASSERT(m_indexMap.isEmpty());
@@ -2512,26 +2521,6 @@ void TorrentImpl::fetchPeerInfo(std::function<void (QVector<PeerInfo>)> resultHa
             for (const lt::peer_info &peer : nativePeers)
                 peers.append(PeerInfo(peer, allPieces));
             return peers;
-        }
-        catch (const std::exception &) {}
-
-        return {};
-    }
-    , std::move(resultHandler));
-}
-
-void TorrentImpl::fetchURLSeeds(std::function<void (QVector<QUrl>)> resultHandler) const
-{
-    invokeAsync([nativeHandle = m_nativeHandle]() -> QVector<QUrl>
-    {
-        try
-        {
-            const std::set<std::string> currentSeeds = nativeHandle.url_seeds();
-            QVector<QUrl> urlSeeds;
-            urlSeeds.reserve(static_cast<decltype(urlSeeds)::size_type>(currentSeeds.size()));
-            for (const std::string &urlSeed : currentSeeds)
-                urlSeeds.append(QString::fromStdString(urlSeed));
-            return urlSeeds;
         }
         catch (const std::exception &) {}
 

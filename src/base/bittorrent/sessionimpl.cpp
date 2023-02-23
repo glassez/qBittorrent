@@ -5238,6 +5238,7 @@ void SessionImpl::handleAlert(const lt::alert *a)
         case lt::torrent_checked_alert::alert_type:
         case lt::metadata_received_alert::alert_type:
         case lt::performance_alert::alert_type:
+        case lt::url_seed_alert::alert_type:
             dispatchTorrentAlert(static_cast<const lt::torrent_alert *>(a));
             break;
         case lt::state_update_alert::alert_type:
@@ -5278,9 +5279,6 @@ void SessionImpl::handleAlert(const lt::alert *a)
             break;
         case lt::peer_ban_alert::alert_type:
             handlePeerBanAlert(static_cast<const lt::peer_ban_alert*>(a));
-            break;
-        case lt::url_seed_alert::alert_type:
-            handleUrlSeedAlert(static_cast<const lt::url_seed_alert*>(a));
             break;
         case lt::listen_succeeded_alert::alert_type:
             handleListenSucceededAlert(static_cast<const lt::listen_succeeded_alert*>(a));
@@ -5555,26 +5553,6 @@ void SessionImpl::handlePeerBanAlert(const lt::peer_ban_alert *p)
     const QString ip {toString(p->endpoint.address())};
     if (!ip.isEmpty())
         Logger::instance()->addPeer(ip, false);
-}
-
-void SessionImpl::handleUrlSeedAlert(const lt::url_seed_alert *p)
-{
-    const TorrentImpl *torrent = m_torrents.value(p->handle.info_hash());
-    if (!torrent)
-        return;
-
-    if (p->error)
-    {
-        LogMsg(tr("URL seed DNS lookup failed. Torrent: \"%1\". URL: \"%2\". Error: \"%3\"")
-            .arg(torrent->name(), QString::fromUtf8(p->server_url()), QString::fromStdString(p->message()))
-            , Log::WARNING);
-    }
-    else
-    {
-        LogMsg(tr("Received error message from URL seed. Torrent: \"%1\". URL: \"%2\". Message: \"%3\"")
-            .arg(torrent->name(), QString::fromUtf8(p->server_url()), QString::fromUtf8(p->error_message()))
-            , Log::WARNING);
-    }
 }
 
 void SessionImpl::handleListenSucceededAlert(const lt::listen_succeeded_alert *p)

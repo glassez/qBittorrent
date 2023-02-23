@@ -237,7 +237,6 @@ namespace BitTorrent
         nonstd::expected<void, QString> exportToFile(const Path &path) const override;
 
         void fetchPeerInfo(std::function<void (QVector<PeerInfo>)> resultHandler) const override;
-        void fetchURLSeeds(std::function<void (QVector<QUrl>)> resultHandler) const override;
         void fetchFilesProgress(std::function<void (QVector<qreal>)> resultHandler) const override;
         void fetchPieceAvailability(std::function<void (QVector<int>)> resultHandler) const override;
         void fetchDownloadingPieces(std::function<void (QBitArray)> resultHandler) const override;
@@ -281,6 +280,7 @@ namespace BitTorrent
         void handleTorrentFinishedAlert(const lt::torrent_finished_alert *p);
         void handleTorrentPausedAlert(const lt::torrent_paused_alert *p);
         void handleTorrentResumedAlert(const lt::torrent_resumed_alert *p);
+        void handleUrlSeedAlert(const lt::url_seed_alert *p);
 
         bool isMoveInProgress() const;
 
