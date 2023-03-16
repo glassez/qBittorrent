@@ -3003,6 +3003,22 @@ void SessionImpl::saveResumeData()
     QElapsedTimer timer;
     timer.start();
 
+    const QSet<int> wantedAlerts {
+        lt::save_resume_data_alert::alert_type,
+        lt::save_resume_data_failed_alert::alert_type,
+        lt::storage_moved_alert::alert_type,
+        lt::storage_moved_failed_alert::alert_type,
+        lt::state_update_alert::alert_type};
+
+    const QSet<int> skippedAlerts  {
+        lt::tracker_announce_alert::alert_type,
+        lt::tracker_reply_alert::alert_type,
+        lt::tracker_warning_alert::alert_type,
+        lt::tracker_error_alert::alert_type,
+        lt::torrent_paused_alert::alert_type,
+        lt::torrent_resumed_alert::alert_type
+    };
+
     while ((m_numResumeData > 0) || !m_moveStorageQueue.isEmpty() || m_needSaveTorrentsQueue)
     {
         const lt::seconds waitTime {5};
@@ -3021,15 +3037,14 @@ void SessionImpl::saveResumeData()
         bool hasWantedAlert = false;
         for (const lt::alert *a : alerts)
         {
-            if (const int alertType = a->type();
-                (alertType == lt::save_resume_data_alert::alert_type) || (alertType == lt::save_resume_data_failed_alert::alert_type)
-                || (alertType == lt::storage_moved_alert::alert_type) || (alertType == lt::storage_moved_failed_alert::alert_type)
-                || (alertType == lt::state_update_alert::alert_type))
-            {
-                hasWantedAlert = true;
-            }
+            const int alertType = a->type();
 
-            handleAlert(a);
+            if (!skippedAlerts.contains(alertType))
+            {
+                handleAlert(a);
+                if (wantedAlerts.contains(a->type()))
+                    hasWantedAlert = true;
+            }
         }
 
         if (hasWantedAlert)
