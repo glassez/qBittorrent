@@ -1,7 +1,7 @@
 /*
  * Bittorrent Client using Qt and libtorrent.
  * Copyright (C) 2022  Mike Tzou (Chocobo1)
- * Copyright (C) 2015, 2019  Vladimir Golovnev <glassez@yandex.ru>
+ * Copyright (C) 2015-2023  Vladimir Golovnev <glassez@yandex.ru>
  * Copyright (C) 2006  Christophe Dumez
  *
  * This program is free software; you can redistribute it and/or
@@ -101,6 +101,8 @@ public:
     bool isRunning();
     bool callMainInstance();
     const QBtCommandLineParameters &commandLineArgs() const;
+
+    void addTorrent(const QString &source, const BitTorrent::AddTorrentParams &params) override;
 
     // FileLogger properties
     bool isFileLoggerEnabled() const override;

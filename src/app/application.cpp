@@ -361,6 +361,19 @@ const QBtCommandLineParameters &Application::commandLineArgs() const
     return m_commandLineArgs;
 }
 
+void Application::addTorrent(const QString &source, const BitTorrent::AddTorrentParams &params)
+{
+#ifndef DISABLE_GUI
+    const bool useTorrentAdditionDialog = AddNewTorrentDialog::isEnabled();
+    if (useTorrentAdditionDialog)
+        AddNewTorrentDialog::show(source, params, m_window);
+    else
+        BitTorrent::Session::instance()->addTorrent(source, params);
+#else
+    BitTorrent::Session::instance()->addTorrent(source, params);
+#endif
+}
+
 int Application::memoryWorkingSetLimit() const
 {
     return m_storeMemoryWorkingSetLimit.get(512);

@@ -55,10 +55,17 @@ inline namespace ApplicationSettingsEnums
 }
 #endif
 
+namespace BitTorrent
+{
+    struct AddTorrentParams;
+}
+
 class IApplication
 {
 public:
     virtual ~IApplication() = default;
+
+    void addTorrent(const QString &source, const BitTorrent::AddTorrentParams &params) = 0;
 
     // FileLogger properties
     virtual bool isFileLoggerEnabled() const = 0;
