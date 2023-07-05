@@ -36,6 +36,7 @@ HEADERS += \
     $$PWD/bittorrent/torrentcontentlayout.h \
     $$PWD/bittorrent/torrentcontenthandler.h \
     $$PWD/bittorrent/torrentcreatorthread.h \
+    $$PWD/bittorrent/torrentfile.h \
     $$PWD/bittorrent/torrentimpl.h \
     $$PWD/bittorrent/torrentinfo.h \
     $$PWD/bittorrent/tracker.h \
@@ -133,6 +134,7 @@ SOURCES += \
     $$PWD/bittorrent/torrent.cpp \
     $$PWD/bittorrent/torrentcontenthandler.h \
     $$PWD/bittorrent/torrentcreatorthread.cpp \
+    $$PWD/bittorrent/torrentfile.cpp \
     $$PWD/bittorrent/torrentimpl.cpp \
     $$PWD/bittorrent/torrentinfo.cpp \
     $$PWD/bittorrent/tracker.cpp \

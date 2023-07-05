@@ -109,6 +109,7 @@
 #include "nativesessionextension.h"
 #include "portforwarderimpl.h"
 #include "resumedatastorage.h"
+#include "torrentfile.h"
 #include "torrentimpl.h"
 #include "tracker.h"
 
