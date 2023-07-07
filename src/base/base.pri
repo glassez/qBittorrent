@@ -36,6 +36,7 @@ HEADERS += \
     $$PWD/bittorrent/torrentcontentlayout.h \
     $$PWD/bittorrent/torrentcontenthandler.h \
     $$PWD/bittorrent/torrentcreatorthread.h \
+    $$PWD/bittorrent/torrentdescriptor.h \
     $$PWD/bittorrent/torrentfile.h \
     $$PWD/bittorrent/torrentimpl.h \
     $$PWD/bittorrent/torrentinfo.h \

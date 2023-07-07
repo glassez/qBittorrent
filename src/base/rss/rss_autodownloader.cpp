@@ -474,7 +474,7 @@ void AutoDownloader::processJob(const QSharedPointer<ProcessingJob> &job)
         const auto torrentURL = job->articleData.value(Article::KeyTorrentURL).toString();
         BitTorrent::Session::instance()->addTorrent(torrentURL, rule.addTorrentParams());
 
-        if (BitTorrent::MagnetUri(torrentURL).isValid())
+        if (BitTorrent::MagnetURI::parse(torrentURL))
         {
             if (Feed *feed = Session::instance()->feedByURL(job->feedURL))
             {

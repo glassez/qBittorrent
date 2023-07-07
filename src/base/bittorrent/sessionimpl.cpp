@@ -2221,14 +2221,14 @@ void SessionImpl::handleDownloadFinished(const Net::DownloadResult &result)
     {
     case Net::DownloadStatus::Success:
         emit downloadFromUrlFinished(result.url);
-        if (const nonstd::expected<TorrentInfo, QString> loadResult = TorrentInfo::load(result.data); loadResult)
+        if (const auto loadResult = TorrentFile::load(result.data); loadResult)
             addTorrent(loadResult.value(), m_downloadedTorrents.take(result.url));
         else
             LogMsg(tr("Failed to load torrent. Reason: \"%1\"").arg(loadResult.error()), Log::WARNING);
         break;
     case Net::DownloadStatus::RedirectedToMagnet:
         emit downloadFromUrlFinished(result.url);
-        addTorrent(MagnetUri(result.magnet), m_downloadedTorrents.take(result.url));
+        addTorrent(result.magnet, m_downloadedTorrents.take(result.url));
         break;
     default:
         emit downloadFromUrlFailed(result.url, result.errorString);
@@ -2562,13 +2562,12 @@ bool SessionImpl::addTorrent(const QString &source, const AddTorrentParams &para
         return true;
     }
 
-    const MagnetUri magnetUri {source};
-    if (magnetUri.isValid())
-        return addTorrent(magnetUri, params);
+    if (const auto parseResult = MagnetURI::parse(source))
+        return addTorrent(parseResult.value(), params);
 
     const Path path {source};
     TorrentFileGuard guard {path};
-    const nonstd::expected<TorrentInfo, QString> loadResult = TorrentInfo::loadFromFile(path);
+    const auto loadResult = TorrentFile::loadFromFile(path);
     if (!loadResult)
     {
        LogMsg(tr("Failed to load torrent. Source: \"%1\". Reason: \"%2\"").arg(source, loadResult.error()), Log::WARNING);
@@ -2579,23 +2578,12 @@ bool SessionImpl::addTorrent(const QString &source, const AddTorrentParams &para
     return addTorrent(loadResult.value(), params);
 }
 
-bool SessionImpl::addTorrent(const MagnetUri &magnetUri, const AddTorrentParams &params)
+bool SessionImpl::addTorrent(const std::shared_ptr<TorrentDescriptor> torrentDescr, const AddTorrentParams &params)
 {
     if (!isRestored())
         return false;
 
-    if (!magnetUri.isValid())
-        return false;
-
-    return addTorrent_impl(magnetUri, params);
-}
-
-bool SessionImpl::addTorrent(const TorrentInfo &torrentInfo, const AddTorrentParams &params)
-{
-    if (!isRestored())
-        return false;
-
-    return addTorrent_impl(torrentInfo, params);
+    return addTorrent_impl(torrentDescr, params);
 }
 
 LoadTorrentParams SessionImpl::initLoadTorrentParams(const AddTorrentParams &addTorrentParams)
@@ -2660,12 +2648,12 @@ LoadTorrentParams SessionImpl::initLoadTorrentParams(const AddTorrentParams &add
 }
 
 // Add a torrent to the BitTorrent session
-bool SessionImpl::addTorrent_impl(const std::variant<MagnetUri, TorrentInfo> &source, const AddTorrentParams &addTorrentParams)
+bool SessionImpl::addTorrent_impl(const std::shared_ptr<TorrentDescriptor> source, const AddTorrentParams &addTorrentParams)
 {
     Q_ASSERT(isRestored());
 
-    const bool hasMetadata = std::holds_alternative<TorrentInfo>(source);
-    const auto infoHash = (hasMetadata ? std::get<TorrentInfo>(source).infoHash() : std::get<MagnetUri>(source).infoHash());
+    const bool hasMetadata = (source->type() == TorrentDescriptor::TorrentFile);
+    const auto infoHash = source->infoHash();
     const auto id = TorrentID::fromInfoHash(infoHash);
 
     // alternative ID can be useful to find existing torrent in case if hybrid torrent was added by v1 info hash
@@ -2681,7 +2669,7 @@ bool SessionImpl::addTorrent_impl(const std::variant<MagnetUri, TorrentInfo> &so
         if (hasMetadata)
         {
             // Trying to set metadata to existing torrent in case if it has none
-            torrent->setMetadata(std::get<TorrentInfo>(source));
+            torrent->setMetadata(std::static_pointer_cast<TorrentFile>(source)->info());
         }
 
         return false;
@@ -2697,6 +2685,7 @@ bool SessionImpl::addTorrent_impl(const std::variant<MagnetUri, TorrentInfo> &so
 
     LoadTorrentParams loadTorrentParams = initLoadTorrentParams(addTorrentParams);
     lt::add_torrent_params &p = loadTorrentParams.ltAddTorrentParams;
+    p = source->ltAddTorrentParams();
 
     bool isFindingIncompleteFiles = false;
 
@@ -2705,7 +2694,7 @@ bool SessionImpl::addTorrent_impl(const std::variant<MagnetUri, TorrentInfo> &so
 
     if (hasMetadata)
     {
-        const TorrentInfo &torrentInfo = std::get<TorrentInfo>(source);
+        const TorrentInfo &torrentInfo = std::static_pointer_cast<TorrentFile>(source)->info();
 
         Q_ASSERT(addTorrentParams.filePaths.isEmpty() || (addTorrentParams.filePaths.size() == torrentInfo.filesCount()));
 
@@ -2717,8 +2706,7 @@ bool SessionImpl::addTorrent_impl(const std::variant<MagnetUri, TorrentInfo> &so
             {
                 const Path originalRootFolder = Path::findRootFolder(filePaths);
                 const auto originalContentLayout = (originalRootFolder.isEmpty()
-                                                    ? TorrentContentLayout::NoSubfolder
-                                                    : TorrentContentLayout::Subfolder);
+                        ? TorrentContentLayout::NoSubfolder : TorrentContentLayout::Subfolder);
                 if (loadTorrentParams.contentLayout != originalContentLayout)
                 {
                     if (loadTorrentParams.contentLayout == TorrentContentLayout::NoSubfolder)
@@ -2781,13 +2769,10 @@ bool SessionImpl::addTorrent_impl(const std::variant<MagnetUri, TorrentInfo> &so
                 p.file_priorities[LT::toUnderlyingType(nativeIndexes[i])] = LT::toNative(addTorrentParams.filePriorities[i]);
         }
 
-        p.ti = torrentInfo.nativeInfo();
+        Q_ASSERT(p.ti);
     }
     else
     {
-        const MagnetUri &magnetUri = std::get<MagnetUri>(source);
-        p = magnetUri.addTorrentParams();
-
         if (loadTorrentParams.name.isEmpty() && !p.name.empty())
             loadTorrentParams.name = QString::fromStdString(p.name);
     }
@@ -2947,19 +2932,20 @@ void SessionImpl::invokeAsync(std::function<void ()> func)
 
 // Add a torrent to libtorrent session in hidden mode
 // and force it to download its metadata
-bool SessionImpl::downloadMetadata(const MagnetUri &magnetUri)
+bool SessionImpl::downloadMetadata(const std::shared_ptr<MagnetURI> magnetURI)
 {
-    if (!magnetUri.isValid())
+    Q_ASSERT(magnetURI);
+    if (Q_UNLIKELY(!magnetURI))
         return false;
 
-    const InfoHash infoHash = magnetUri.infoHash();
+    const InfoHash infoHash = magnetURI->infoHash();
 
     // We should not add torrent if it's already
     // processed or adding to session
     if (isKnownTorrent(infoHash))
         return false;
 
-    lt::add_torrent_params p = magnetUri.addTorrentParams();
+    lt::add_torrent_params p = magnetURI->ltAddTorrentParams();
 
     if (isAddTrackersEnabled())
     {
@@ -5229,8 +5215,7 @@ void SessionImpl::recursiveTorrentDownload(const TorrentID &id)
             AddTorrentParams params;
             // Passing the save path along to the sub torrent file
             params.savePath = torrent->savePath();
-            const nonstd::expected<TorrentInfo, QString> loadResult = TorrentInfo::loadFromFile(torrentFullpath);
-            if (loadResult)
+            if (const auto loadResult = TorrentFile::loadFromFile(torrentFullpath))
             {
                 addTorrent(loadResult.value(), params);
             }

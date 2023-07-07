@@ -1,6 +1,6 @@
 /*
  * Bittorrent Client using Qt and libtorrent.
- * Copyright (C) 2015-2023  Vladimir Golovnev <glassez@yandex.ru>
+ * Copyright (C) 2023  Vladimir Golovnev <glassez@yandex.ru>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -28,18 +28,12 @@
 
 #pragma once
 
-#include <memory>
-
-#include <libtorrent/add_torrent_params.hpp>
+#include <libtorrent/fwd.hpp>
 
 #include <QtContainerFwd>
 
-#include "base/3rdparty/expected.hpp"
-#include "base/path.h"
-#include "torrentdescriptor.h"
-#include "torrentinfo.h"
+#include "base/pathfwd.h"
 
-class QByteArray;
 class QDateTime;
 class QString;
 class QUrl;
@@ -49,36 +43,24 @@ namespace BitTorrent
     class InfoHash;
     struct TrackerEntry;
 
-    class TorrentFile final : public TorrentDescriptor
+    class TorrentDescriptor
     {
     public:
-        static nonstd::expected<std::shared_ptr<TorrentFile>, QString> load(const QByteArray &data) noexcept;
-        static nonstd::expected<std::shared_ptr<TorrentFile>, QString> loadFromFile(const Path &path) noexcept;
-        nonstd::expected<void, QString> saveToFile(const Path &path) const;
+        enum Type
+        {
+            TorrentFile,
+            MagnetURI
+        };
 
-        InfoHash infoHash() const override;
-        QString name() const override;
-        QVector<TrackerEntry> trackers() const override;
-        QVector<QUrl> urlSeeds() const override;
+        virtual ~TorrentDescriptor() = default;
 
-        QDateTime creationDate() const;
-        QString creator() const;
-        QString comment() const;
+        virtual Type type() const = 0;
 
-        const TorrentInfo &info() const;
-        const Path &source() const;
+        virtual InfoHash infoHash() const = 0;
+        virtual QString name() const = 0;
+        virtual QVector<TrackerEntry> trackers() const = 0;
+        virtual QVector<QUrl> urlSeeds() const = 0;
 
-        lt::add_torrent_params ltAddTorrentParams() const override;
-
-    private:
-        explicit TorrentFile(Path source);
-        explicit TorrentFile(const QByteArray &data);
-        explicit TorrentFile(lt::add_torrent_params ltAddTorrentParams);
-
-        Type type() const override;
-
-        Path m_source;
-        lt::add_torrent_params m_ltAddTorrentParams;
-        TorrentInfo m_info;
+        virtual lt::add_torrent_params ltAddTorrentParams() const = 0;
     };
 }

@@ -1,6 +1,6 @@
 /*
  * Bittorrent Client using Qt and libtorrent.
- * Copyright (C) 2015  Vladimir Golovnev <glassez@yandex.ru>
+ * Copyright (C) 2015, 2023  Vladimir Golovnev <glassez@yandex.ru>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -36,7 +36,6 @@
 #include <QRegularExpression>
 
 #include "base/global.h"
-#include "infohash.h"
 
 namespace
 {
@@ -70,81 +69,88 @@ namespace
     }
 }
 
-using namespace BitTorrent;
+const int MAGNETURI_TYPEID = qRegisterMetaType<BitTorrent::MagnetURI>();
 
-const int magnetUriId = qRegisterMetaType<MagnetUri>();
-
-MagnetUri::MagnetUri(const QString &source)
-    : m_url(source)
+BitTorrent::MagnetURI::MagnetURI(const QString &uri)
+    : m_uri {uri}
 {
-    if (source.isEmpty()) return;
+    if (isV2Hash(uri))
+        m_uri = u"magnet:?xt=urn:btmh:1220" + uri; // 0x12 0x20 is the "multihash format" tag for the SHA-256 hashing scheme.
+    else if (isV1Hash(uri))
+        m_uri = u"magnet:?xt=urn:btih:" + uri;
 
-    if (isV2Hash(source))
-        m_url = u"magnet:?xt=urn:btmh:1220" + source; // 0x12 0x20 is the "multihash format" tag for the SHA-256 hashing scheme.
-    else if (isV1Hash(source))
-        m_url = u"magnet:?xt=urn:btih:" + source;
-
+    // Let it throw exception if failed
     lt::error_code ec;
-    lt::parse_magnet_uri(m_url.toStdString(), m_addTorrentParams, ec);
-    if (ec) return;
-
-    m_valid = true;
+    lt::parse_magnet_uri(m_uri.toStdString(), m_ltAddTorrentParams, ec);
+    if (ec)
+        throw lt::system_error(std::move(ec));
 
 #ifdef QBT_USES_LIBTORRENT2
-    m_infoHash = m_addTorrentParams.info_hashes;
+    m_infoHash = m_ltAddTorrentParams.info_hashes;
 #else
-    m_infoHash = m_addTorrentParams.info_hash;
+    m_infoHash = m_ltAddTorrentParams.info_hash;
 #endif
 
-    m_name = QString::fromStdString(m_addTorrentParams.name);
+    m_name = QString::fromStdString(m_ltAddTorrentParams.name);
 
-    m_trackers.reserve(static_cast<decltype(m_trackers)::size_type>(m_addTorrentParams.trackers.size()));
+    m_trackers.reserve(static_cast<decltype(m_trackers)::size_type>(m_ltAddTorrentParams.trackers.size()));
     int tier = 0;
-    auto tierIter = m_addTorrentParams.tracker_tiers.cbegin();
-    for (const std::string &url : m_addTorrentParams.trackers)
+    auto tierIter = m_ltAddTorrentParams.tracker_tiers.cbegin();
+    for (const std::string &url : m_ltAddTorrentParams.trackers)
     {
-        if (tierIter != m_addTorrentParams.tracker_tiers.cend())
+        if (tierIter != m_ltAddTorrentParams.tracker_tiers.cend())
             tier = *tierIter++;
 
         m_trackers.append({QString::fromStdString(url), tier});
     }
 
-    m_urlSeeds.reserve(static_cast<decltype(m_urlSeeds)::size_type>(m_addTorrentParams.url_seeds.size()));
-    for (const std::string &urlSeed : m_addTorrentParams.url_seeds)
+    m_urlSeeds.reserve(static_cast<decltype(m_urlSeeds)::size_type>(m_ltAddTorrentParams.url_seeds.size()));
+    for (const std::string &urlSeed : m_ltAddTorrentParams.url_seeds)
         m_urlSeeds.append(QString::fromStdString(urlSeed));
 }
 
-bool MagnetUri::isValid() const
+nonstd::expected<std::shared_ptr<BitTorrent::MagnetURI>, QString>
+BitTorrent::MagnetURI::parse(const QString &uri) noexcept
+try
 {
-    return m_valid;
+    return std::shared_ptr<MagnetURI>(new MagnetURI(uri));
+}
+catch (const lt::system_error &err)
+{
+    return nonstd::make_unexpected(QString::fromLocal8Bit(err.what()));
 }
 
-InfoHash MagnetUri::infoHash() const
+BitTorrent::InfoHash BitTorrent::MagnetURI::infoHash() const
 {
     return m_infoHash;
 }
 
-QString MagnetUri::name() const
+QString BitTorrent::MagnetURI::name() const
 {
     return m_name;
 }
 
-QVector<TrackerEntry> MagnetUri::trackers() const
+QVector<BitTorrent::TrackerEntry> BitTorrent::MagnetURI::trackers() const
 {
     return m_trackers;
 }
 
-QVector<QUrl> MagnetUri::urlSeeds() const
+QVector<QUrl> BitTorrent::MagnetURI::urlSeeds() const
 {
     return m_urlSeeds;
 }
 
-QString MagnetUri::url() const
+QString BitTorrent::MagnetURI::url() const
 {
-    return m_url;
+    return m_uri;
 }
 
-lt::add_torrent_params MagnetUri::addTorrentParams() const
+lt::add_torrent_params BitTorrent::MagnetURI::ltAddTorrentParams() const
 {
-    return m_addTorrentParams;
+    return m_ltAddTorrentParams;
+}
+
+BitTorrent::TorrentDescriptor::Type BitTorrent::MagnetURI::type() const
+{
+    return TorrentDescriptor::MagnetURI;
 }

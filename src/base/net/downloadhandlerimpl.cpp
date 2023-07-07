@@ -199,10 +199,18 @@ void Net::DownloadHandlerImpl::handleRedirection(const QUrl &newUrl)
     // Redirect to magnet workaround
     if (newUrlString.startsWith(u"magnet:", Qt::CaseInsensitive))
     {
-        qDebug("Magnet redirect detected.");
-        m_result.status = Net::DownloadStatus::RedirectedToMagnet;
-        m_result.magnet = newUrlString;
-        m_result.errorString = tr("Redirected to magnet URI");
+        if (const auto parseResult = BitTorrent::MagnetURI::parse(newUrlString))
+        {
+            m_result.status = Net::DownloadStatus::RedirectedToMagnet;
+            m_result.magnet = parseResult.value();
+            m_result.errorString = tr("Redirected to magnet URI");
+        }
+        else
+        {
+            m_result.status = Net::DownloadStatus::Failed;
+            m_result.errorString = tr("The request was redirected to invalid Magnet URI. %1")
+                    .arg(parseResult.error());
+        }
 
         finish();
         return;

@@ -1,6 +1,6 @@
 /*
  * Bittorrent Client using Qt and libtorrent.
- * Copyright (C) 2015  Vladimir Golovnev <glassez@yandex.ru>
+ * Copyright (C) 2015, 2023  Vladimir Golovnev <glassez@yandex.ru>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -34,34 +34,37 @@
 #include <QUrl>
 #include <QVector>
 
+#include "base/3rdparty/expected.hpp"
 #include "infohash.h"
+#include "torrentdescriptor.h"
 #include "trackerentry.h"
 
 namespace BitTorrent
 {
-    class MagnetUri
+    class MagnetURI final : public TorrentDescriptor
     {
     public:
-        explicit MagnetUri(const QString &source = {});
+        static nonstd::expected<std::shared_ptr<MagnetURI>, QString> parse(const QString &uri) noexcept;
 
-        bool isValid() const;
-        InfoHash infoHash() const;
-        QString name() const;
-        QVector<TrackerEntry> trackers() const;
-        QVector<QUrl> urlSeeds() const;
+        InfoHash infoHash() const override;
+        QString name() const override;
+        QVector<TrackerEntry> trackers() const override;
+        QVector<QUrl> urlSeeds() const override;
+
         QString url() const;
 
-        lt::add_torrent_params addTorrentParams() const;
+        lt::add_torrent_params ltAddTorrentParams() const override;
 
     private:
-        bool m_valid = false;
-        QString m_url;
+        explicit MagnetURI(const QString &uri);
+
+        Type type() const override;
+
+        QString m_uri;
         InfoHash m_infoHash;
         QString m_name;
         QVector<TrackerEntry> m_trackers;
         QVector<QUrl> m_urlSeeds;
-        lt::add_torrent_params m_addTorrentParams;
+        lt::add_torrent_params m_ltAddTorrentParams;
     };
 }
-
-Q_DECLARE_METATYPE(BitTorrent::MagnetUri)

@@ -497,7 +497,7 @@ void AddNewTorrentDialog::show(const QString &source, const BitTorrent::AddTorre
         return;
     }
 
-    const BitTorrent::MagnetUri magnetUri {source};
+    const BitTorrent::MagnetURI magnetUri {source};
     const bool isLoaded = magnetUri.isValid()
         ? dlg->loadMagnet(magnetUri)
         : dlg->loadTorrentFile(source);
@@ -579,7 +579,7 @@ bool AddNewTorrentDialog::loadTorrentImpl()
     return true;
 }
 
-bool AddNewTorrentDialog::loadMagnet(const BitTorrent::MagnetUri &magnetUri)
+bool AddNewTorrentDialog::loadMagnet(const BitTorrent::MagnetURI &magnetUri)
 {
     if (!magnetUri.isValid())
     {
@@ -996,7 +996,7 @@ void AddNewTorrentDialog::handleDownloadFinished(const Net::DownloadResult &down
         }
         break;
     case Net::DownloadStatus::RedirectedToMagnet:
-        if (loadMagnet(BitTorrent::MagnetUri(downloadResult.magnet)))
+        if (loadMagnet(BitTorrent::MagnetURI(downloadResult.magnet)))
             open();
         else
             deleteLater();

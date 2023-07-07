@@ -1,6 +1,6 @@
 /*
  * Bittorrent Client using Qt and libtorrent.
- * Copyright (C) 2015, 2018  Vladimir Golovnev <glassez@yandex.ru>
+ * Copyright (C) 2015-2023  Vladimir Golovnev <glassez@yandex.ru>
  * Copyright (C) 2006  Christophe Dumez <chris@qbittorrent.org>
  *
  * This program is free software; you can redistribute it and/or
@@ -36,6 +36,7 @@
 #include <QQueue>
 #include <QSet>
 
+#include "base/bittorrent/magneturi.h"
 #include "base/path.h"
 
 class QNetworkAccessManager;
@@ -107,7 +108,7 @@ namespace Net
         QString errorString;
         QByteArray data;
         Path filePath;
-        QString magnet;
+        std::shared_ptr<BitTorrent::MagnetURI> magnet;
     };
 
     class DownloadHandler : public QObject

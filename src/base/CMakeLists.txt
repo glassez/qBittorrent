@@ -37,6 +37,7 @@ add_library(qbt_base STATIC
     bittorrent/torrentcontenthandler.h
     bittorrent/torrentcontentlayout.h
     bittorrent/torrentcreatorthread.h
+    bittorrent/torrentdescriptor.h
     bittorrent/torrentfile.h
     bittorrent/torrentimpl.h
     bittorrent/torrentinfo.h

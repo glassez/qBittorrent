@@ -35,6 +35,7 @@
 #include "base/pathfwd.h"
 #include "addtorrentparams.h"
 #include "categoryoptions.h"
+#include "torrentdescriptor.h"
 #include "trackerentry.h"
 
 class QString;
@@ -58,7 +59,7 @@ enum DeleteOption
 namespace BitTorrent
 {
     class InfoHash;
-    class MagnetUri;
+    class MagnetURI;
     class Torrent;
     class TorrentID;
     class TorrentInfo;
@@ -437,10 +438,9 @@ namespace BitTorrent
 
         virtual bool isKnownTorrent(const InfoHash &infoHash) const = 0;
         virtual bool addTorrent(const QString &source, const AddTorrentParams &params = {}) = 0;
-        virtual bool addTorrent(const MagnetUri &magnetUri, const AddTorrentParams &params = {}) = 0;
-        virtual bool addTorrent(const TorrentInfo &torrentInfo, const AddTorrentParams &params = {}) = 0;
+        virtual bool addTorrent(std::shared_ptr<TorrentDescriptor> torrentDescr, const AddTorrentParams &params = {}) = 0;
         virtual bool deleteTorrent(const TorrentID &id, DeleteOption deleteOption = DeleteOption::DeleteTorrent) = 0;
-        virtual bool downloadMetadata(const MagnetUri &magnetUri) = 0;
+        virtual bool downloadMetadata(std::shared_ptr<MagnetURI> magnetURI) = 0;
         virtual bool cancelDownloadMetadata(const TorrentID &id) = 0;
 
         virtual void recursiveTorrentDownload(const TorrentID &id) = 0;

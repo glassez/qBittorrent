@@ -100,7 +100,7 @@ private:
 
     bool loadTorrentFile(const QString &source);
     bool loadTorrentImpl();
-    bool loadMagnet(const BitTorrent::MagnetUri &magnetUri);
+    bool loadMagnet(const BitTorrent::MagnetURI &magnetUri);
     void populateSavePaths();
     void loadState();
     void saveState();
@@ -113,7 +113,7 @@ private:
 
     Ui::AddNewTorrentDialog *m_ui = nullptr;
     TorrentContentAdaptor *m_contentAdaptor = nullptr;
-    BitTorrent::MagnetUri m_magnetURI;
+    BitTorrent::MagnetURI m_magnetURI;
     BitTorrent::TorrentInfo m_torrentInfo;
     int m_savePathIndex = -1;
     int m_downloadPathIndex = -1;

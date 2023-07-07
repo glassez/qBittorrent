@@ -59,22 +59,22 @@ namespace
     }
 }
 
-nonstd::expected<std::shared_ptr<const BitTorrent::TorrentFile>, QString>
+nonstd::expected<std::shared_ptr<BitTorrent::TorrentFile>, QString>
 BitTorrent::TorrentFile::load(const QByteArray &data) noexcept
 try
 {
-    return std::shared_ptr<const TorrentFile>(new TorrentFile(data));
+    return std::shared_ptr<TorrentFile>(new TorrentFile(data));
 }
 catch (const lt::system_error &err)
 {
     return nonstd::make_unexpected(QString::fromLocal8Bit(err.what()));
 }
 
-nonstd::expected<std::shared_ptr<const BitTorrent::TorrentFile>, QString>
+nonstd::expected<std::shared_ptr<BitTorrent::TorrentFile>, QString>
 BitTorrent::TorrentFile::loadFromFile(const Path &path) noexcept
 try
 {
-    return std::shared_ptr<const TorrentFile>(new TorrentFile(path));
+    return std::shared_ptr<TorrentFile>(new TorrentFile(path));
 }
 catch (const lt::system_error &err)
 {
@@ -94,6 +94,11 @@ try
 catch (const lt::system_error &err)
 {
     return nonstd::make_unexpected(QString::fromLocal8Bit(err.what()));
+}
+
+BitTorrent::TorrentDescriptor::Type BitTorrent::TorrentFile::type() const
+{
+    return TorrentDescriptor::TorrentFile;
 }
 
 BitTorrent::TorrentFile::TorrentFile(lt::add_torrent_params ltAddTorrentParams)
