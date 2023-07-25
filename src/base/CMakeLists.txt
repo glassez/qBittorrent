@@ -1,5 +1,32 @@
+set(LUABRIDGE_HEADERS
+    3rdparty/LuaBridge/List.h
+    3rdparty/LuaBridge/LuaBridge.h
+    3rdparty/LuaBridge/Map.h
+    3rdparty/LuaBridge/RefCountedObject.h
+    3rdparty/LuaBridge/RefCountedPtr.h
+    3rdparty/LuaBridge/UnorderedMap.h
+    3rdparty/LuaBridge/Vector.h
+    3rdparty/LuaBridge/Array.h
+    3rdparty/LuaBridge/detail/CFunctions.h
+    3rdparty/LuaBridge/detail/ClassInfo.h
+    3rdparty/LuaBridge/detail/Config.h
+    3rdparty/LuaBridge/detail/Constructor.h
+    3rdparty/LuaBridge/detail/dump.h
+    3rdparty/LuaBridge/detail/FuncTraits.h
+    3rdparty/LuaBridge/detail/Iterator.h
+    3rdparty/LuaBridge/detail/LuaException.h
+    3rdparty/LuaBridge/detail/LuaHelpers.h
+    3rdparty/LuaBridge/detail/LuaRef.h
+    3rdparty/LuaBridge/detail/Namespace.h
+    3rdparty/LuaBridge/detail/Stack.h
+    3rdparty/LuaBridge/detail/TypeList.h
+    3rdparty/LuaBridge/detail/TypeTraits.h
+    3rdparty/LuaBridge/detail/Userdata.h
+)
+
 add_library(qbt_base STATIC
     # headers
+    ${LUABRIDGE_HEADERS}
     3rdparty/expected.hpp
     addtorrentmanager.h
     algorithm.h
@@ -77,6 +104,7 @@ add_library(qbt_base STATIC
     orderedset.h
     path.h
     pathfwd.h
+    pluginsengine.h
     preferences.h
     profile.h
     profile_p.h
@@ -175,6 +203,7 @@ add_library(qbt_base STATIC
     net/reverseresolution.cpp
     net/smtp.cpp
     path.cpp
+    pluginsengine.cpp
     preferences.cpp
     profile.cpp
     profile_p.cpp
@@ -215,6 +244,10 @@ add_library(qbt_base STATIC
     utils/version.cpp
 )
 
+add_subdirectory(3rdparty/lua)
+
+set_target_properties(qbt_lua PROPERTIES INTERFACE_SYSTEM_INCLUDE_DIRECTORIES $<TARGET_PROPERTY:qbt_lua,INTERFACE_INCLUDE_DIRECTORIES>)
+
 target_link_libraries(qbt_base
     PRIVATE
         OpenSSL::Crypto
@@ -228,6 +261,7 @@ target_link_libraries(qbt_base
         Qt::Sql
         Qt::Xml
         qbt_common_cfg
+        qbt_lua
 )
 
 if (CMAKE_SYSTEM_NAME STREQUAL "Darwin")
