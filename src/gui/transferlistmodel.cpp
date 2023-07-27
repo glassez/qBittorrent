@@ -662,7 +662,8 @@ BitTorrent::Torrent *TransferListModel::torrentHandle(const QModelIndex &index) 
 void TransferListModel::handleTorrentAboutToBeRemoved(BitTorrent::Torrent *const torrent)
 {
     const int row = m_torrentMap.value(torrent, -1);
-    Q_ASSERT(row >= 0);
+    if (row < 0)
+        return;
 
     beginRemoveRows({}, row, row);
     m_torrentList.removeAt(row);
@@ -678,7 +679,8 @@ void TransferListModel::handleTorrentAboutToBeRemoved(BitTorrent::Torrent *const
 void TransferListModel::handleTorrentStatusUpdated(BitTorrent::Torrent *const torrent)
 {
     const int row = m_torrentMap.value(torrent, -1);
-    Q_ASSERT(row >= 0);
+    if (row < 0)
+        return;
 
     emit dataChanged(index(row, 0), index(row, columnCount() - 1));
 }
@@ -692,7 +694,8 @@ void TransferListModel::handleTorrentsUpdated(const QList<BitTorrent::Torrent *>
         for (BitTorrent::Torrent *const torrent : torrents)
         {
             const int row = m_torrentMap.value(torrent, -1);
-            Q_ASSERT(row >= 0);
+            if (row < 0)
+                continue;
 
             emit dataChanged(index(row, 0), index(row, columns));
         }

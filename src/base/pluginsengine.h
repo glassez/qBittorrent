@@ -28,7 +28,17 @@
 
 #pragma once
 
+#include <functional>
+#include <memory>
+#include <vector>
+
 #include <QObject>
+
+#include "base/pathfwd.h"
+
+struct lua_State;
+using LuaStateDeleter = std::function<void (lua_State *)>;
+using LuaStatePrt = std::unique_ptr<lua_State, LuaStateDeleter>;
 
 class PluginsEngine : public QObject
 {
@@ -37,4 +47,7 @@ class PluginsEngine : public QObject
 
 public:
     explicit PluginsEngine(QObject *parent = nullptr);
+
+private:
+    std::vector<LuaStatePrt> m_plugins;
 };

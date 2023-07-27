@@ -1,7 +1,7 @@
 /*
  * Bittorrent Client using Qt and libtorrent.
+ * Copyright (C) 2015-2023  Vladimir Golovnev <glassez@yandex.ru>
  * Copyright (C) 2022  Mike Tzou (Chocobo1)
- * Copyright (C) 2015, 2019  Vladimir Golovnev <glassez@yandex.ru>
  * Copyright (C) 2006  Christophe Dumez
  *
  * This program is free software; you can redistribute it and/or
@@ -42,7 +42,6 @@
 #include <QApplication>
 #endif
 
-#include "base/bittorrent/addtorrentparams.h"
 #include "base/interfaces/iapplication.h"
 #include "base/path.h"
 #include "base/settingvalue.h"
@@ -55,6 +54,7 @@
 
 class ApplicationInstanceManager;
 class FileLogger;
+class PluginsEngine;
 
 namespace BitTorrent
 {
@@ -191,8 +191,8 @@ private:
     ShutdownDialogAction m_shutdownAct = ShutdownDialogAction::Exit;
     QBtCommandLineParameters m_commandLineArgs;
 
-    // FileLog
     QPointer<FileLogger> m_fileLogger;
+    PluginsEngine *m_pluginsEngine = nullptr;
 
     QTranslator m_qtTranslator;
     QTranslator m_translator;
