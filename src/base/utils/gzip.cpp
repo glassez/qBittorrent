@@ -29,8 +29,6 @@
 
 #include "gzip.h"
 
-#include <vector>
-
 #include <QtAssert>
 #include <QBuffer>
 #include <QByteArray>
@@ -60,7 +58,7 @@ bool Utils::Gzip::compress(QIODevice &source, QIODevice &dest, const int level)
     if (ret != Z_OK)
         return false;
 
-    int flush;
+    int flush = Z_NO_FLUSH;
     do
     {
         Q_ASSERT(source.isReadable());
@@ -71,7 +69,7 @@ bool Utils::Gzip::compress(QIODevice &source, QIODevice &dest, const int level)
             return false;
         }
 
-        flush = (source.atEnd()) ? Z_FINISH : Z_NO_FLUSH;
+        flush = source.atEnd() ? Z_FINISH : Z_NO_FLUSH;
         strm.avail_in = readBytes;
         strm.next_in = reinterpret_cast<const Bytef *>(in);
 
@@ -96,6 +94,8 @@ bool Utils::Gzip::compress(QIODevice &source, QIODevice &dest, const int level)
     Q_ASSERT(ret == Z_STREAM_END);
 
     deflateEnd(&strm);
+    delete [] in;
+    delete [] out;
     return true;
 }
 
@@ -208,6 +208,8 @@ bool Utils::Gzip::decompress(QIODevice &source, QIODevice &dest)
     } while (ret != Z_STREAM_END);
 
     inflateEnd(&strm);
+    delete [] in;
+    delete [] out;
     return ret == Z_STREAM_END;
 }
 
