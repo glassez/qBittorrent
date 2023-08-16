@@ -47,12 +47,16 @@ private slots:
         // compressed data is not reproducible, see: https://stackoverflow.com/questions/30150972/are-there-test-vectors-available-for-gzip
         const QByteArray data = QByteArrayLiteral("abc");
 
-        bool ok = false;
-        const QByteArray compressedData = Utils::Gzip::compress(data, 6, &ok);
-        QVERIFY(ok);
+        {
+            bool ok = false;
+            const QByteArray compressedData = Utils::Gzip::compress(data, 6, &ok);
+            QVERIFY(ok);
+        }
 
-        const QByteArray compressedData_s1 = Utils::Gzip::compress(data, 6);
-        QVERIFY(!compressedData_s1.isEmpty());
+        {
+            const QByteArray compressedData = Utils::Gzip::compress(data, 6);
+            QVERIFY(!compressedData.isEmpty());
+        }
     }
 
     void testDecompress() const
@@ -64,13 +68,17 @@ private slots:
         QVERIFY(ok);
         QVERIFY(compressedData != data);
 
-        ok = false;
-        const QByteArray decompressedData = Utils::Gzip::decompress(compressedData, &ok);
-        QVERIFY(ok);
-        QCOMPARE(decompressedData, data);
+        {
+            ok = false;
+            const QByteArray decompressedData = Utils::Gzip::decompress(compressedData, &ok);
+            QVERIFY(ok);
+            QCOMPARE(decompressedData, data);
+        }
 
-        const QByteArray decompressedData_s1 = Utils::Gzip::decompress(compressedData);
-        QCOMPARE(decompressedData_s1, data);
+        {
+            const QByteArray decompressedData = Utils::Gzip::decompress(compressedData);
+            QCOMPARE(decompressedData, data);
+        }
     }
 
     void testCompressQIODevice() const
