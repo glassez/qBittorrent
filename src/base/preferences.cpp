@@ -52,10 +52,8 @@
 #include <QRegularExpression>
 #endif
 
-#include "algorithm.h"
 #include "global.h"
 #include "path.h"
-#include "profile.h"
 #include "settingsstorage.h"
 #include "utils/fs.h"
 
@@ -72,15 +70,6 @@ namespace
     {
         SettingsStorage::instance()->storeValue(key, value);
     }
-
-#ifdef Q_OS_WIN
-    QString makeProfileID(const Path &profilePath, const QString &profileName)
-    {
-        return profilePath.isEmpty()
-                ? profileName
-                : profileName + u'@' + Utils::Fs::toValidFileName(profilePath.data(), {});
-    }
-#endif
 }
 
 Preferences *Preferences::m_instance = nullptr;
@@ -409,38 +398,6 @@ void Preferences::setPreventFromSuspendWhenSeeding(const bool b)
 
     setValue(u"Preferences/General/PreventFromSuspendWhenSeeding"_s, b);
 }
-
-#ifdef Q_OS_WIN
-bool Preferences::WinStartup() const
-{
-    const QString profileName = Profile::instance()->profileName();
-    const Path profilePath = Profile::instance()->rootPath();
-    const QString profileID = makeProfileID(profilePath, profileName);
-    const QSettings settings {u"HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Run"_s, QSettings::NativeFormat};
-
-    return settings.contains(profileID);
-}
-
-void Preferences::setWinStartup(const bool b)
-{
-    const QString profileName = Profile::instance()->profileName();
-    const Path profilePath = Profile::instance()->rootPath();
-    const QString profileID = makeProfileID(profilePath, profileName);
-    QSettings settings {u"HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Run"_s, QSettings::NativeFormat};
-    if (b)
-    {
-        const QString configuration = Profile::instance()->configurationName();
-
-        const auto cmd = uR"("%1" "--profile=%2" "--configuration=%3")"_s
-                .arg(Path(qApp->applicationFilePath()).toString(), profilePath.toString(), configuration);
-        settings.setValue(profileID, cmd);
-    }
-    else
-    {
-        settings.remove(profileID);
-    }
-}
-#endif // Q_OS_WIN
 
 // Downloads
 Path Preferences::getScanDirsLastPath() const

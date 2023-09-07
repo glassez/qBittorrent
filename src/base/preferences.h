@@ -127,10 +127,6 @@ public:
     void setPreventFromSuspendWhenDownloading(bool b);
     bool preventFromSuspendWhenSeeding() const;
     void setPreventFromSuspendWhenSeeding(bool b);
-#ifdef Q_OS_WIN
-    bool WinStartup() const;
-    void setWinStartup(bool b);
-#endif
 
     // Downloads
     Path getScanDirsLastPath() const;
