@@ -28,8 +28,6 @@
 
 #pragma once
 
-#include <libtorrent/socket.hpp>
-
 #include <QtContainerFwd>
 #include <QDateTime>
 #include <QHash>
@@ -40,8 +38,6 @@ namespace BitTorrent
 {
     struct TrackerEntry
     {
-        using Endpoint = lt::tcp::endpoint;
-
         enum Status
         {
             NotContacted = 1,
@@ -52,9 +48,10 @@ namespace BitTorrent
             Unreachable = 6
         };
 
-        struct EndpointStats
+        struct EndpointEntry
         {
             QString name {};
+            int btVersion = 1;
 
             Status status = NotContacted;
             QString message {};
@@ -64,18 +61,28 @@ namespace BitTorrent
             int numLeeches = -1;
             int numDownloaded = -1;
 
-            QDateTime nextAnnounceTime;
-            QDateTime minAnnounceTime;
+            QDateTime nextAnnounceTime {};
+            QDateTime minAnnounceTime {};
         };
 
         QString url {};
         int tier = 0;
-        Status status = NotContacted;
 
-        QHash<Endpoint, QHash<int, EndpointStats>> stats {};
+        Status status = NotContacted;
+        QString message {};
+
+        int numPeers = -1;
+        int numSeeds = -1;
+        int numLeeches = -1;
+        int numDownloaded = -1;
+
+        QDateTime nextAnnounceTime {};
+        QDateTime minAnnounceTime {};
+
+        QHash<std::pair<QString, int>, EndpointEntry> endpointEntries {};
     };
 
-    QVector<TrackerEntry> parseTrackerEntries(QStringView str);
+    QList<TrackerEntry> parseTrackerEntries(QStringView str);
 
     bool operator==(const TrackerEntry &left, const TrackerEntry &right);
     std::size_t qHash(const TrackerEntry &key, std::size_t seed = 0);

@@ -87,12 +87,17 @@ namespace
         return qNow.addSecs(secsSinceNow);
     }
 
+    QString toString(const lt::tcp::endpoint &ltTCPEndpoint)
+    {
+        return QString::fromStdString((std::stringstream() << ltTCPEndpoint).str());
+    }
+
 #ifdef QBT_USES_LIBTORRENT2
     void updateTrackerEntry(TrackerEntry &trackerEntry, const lt::announce_entry &nativeEntry
-            , const lt::info_hash_t &hashes, const QHash<TrackerEntry::Endpoint, QMap<int, int>> &updateInfo)
+            , const lt::info_hash_t &hashes, const QHash<lt::tcp::endpoint, QMap<int, int>> &updateInfo)
 #else
     void updateTrackerEntry(TrackerEntry &trackerEntry, const lt::announce_entry &nativeEntry
-            , const QHash<TrackerEntry::Endpoint, QMap<int, int>> &updateInfo)
+            , const QHash<lt::tcp::endpoint, QMap<int, int>> &updateInfo)
 #endif
     {
         Q_ASSERT(trackerEntry.url == QString::fromStdString(nativeEntry.url));
@@ -100,12 +105,12 @@ namespace
         trackerEntry.tier = nativeEntry.tier;
 
         // remove outdated endpoints
-        trackerEntry.stats.removeIf([&nativeEntry](const decltype(trackerEntry.stats)::iterator &iter)
+        trackerEntry.endpointEntries.removeIf([&nativeEntry](const QHash<std::pair<QString, int>, TrackerEntry::EndpointEntry>::iterator &iter)
         {
             return std::none_of(nativeEntry.endpoints.cbegin(), nativeEntry.endpoints.cend()
-                    , [&endpoint = iter.key()](const auto &existingEndpoint)
+                    , [&endpointName = iter.key().first](const auto &existingEndpoint)
             {
-                return (endpoint == existingEndpoint.local_endpoint);
+                return (endpointName == toString(existingEndpoint.local_endpoint));
             });
         });
 
@@ -116,139 +121,84 @@ namespace
         int numUnreachable = 0;
 #ifdef QBT_USES_LIBTORRENT2
         const auto numEndpoints = static_cast<qsizetype>(nativeEntry.endpoints.size()) * ((hashes.has_v1() && hashes.has_v2()) ? 2 : 1);
-        for (const lt::announce_endpoint &endpoint : nativeEntry.endpoints)
+#else
+        const auto numEndpoints = static_cast<qsizetype>(nativeEntry.endpoints.size());
+#endif
+        for (const lt::announce_endpoint &ltAnnounceEndpoint : nativeEntry.endpoints)
         {
-            const auto endpointName = QString::fromStdString((std::stringstream() << endpoint.local_endpoint).str());
-
+            const auto endpointName = toString(ltAnnounceEndpoint.local_endpoint);
+#ifdef QBT_USES_LIBTORRENT2
             for (const auto protocolVersion : {lt::protocol_version::V1, lt::protocol_version::V2})
             {
                 if (!hashes.has(protocolVersion))
                     continue;
 
-                const lt::announce_infohash &infoHash = endpoint.info_hashes[protocolVersion];
-
+                const lt::announce_infohash &ltAnnounceInfo = ltAnnounceEndpoint.info_hashes[protocolVersion];
                 const int protocolVersionNum = (protocolVersion == lt::protocol_version::V1) ? 1 : 2;
-                const QMap<int, int> &endpointUpdateInfo = updateInfo[endpoint.local_endpoint];
-                TrackerEntry::EndpointStats &trackerEndpoint = trackerEntry.stats[endpoint.local_endpoint][protocolVersionNum];
+#else
+            {
+                const lt::announce_endpoint &ltAnnounceInfo = ltAnnounceEndpoint;
+                const int protocolVersionNum = 1;
+#endif
+                const QMap<int, int> &endpointUpdateInfo = updateInfo[ltAnnounceEndpoint.local_endpoint];
+                TrackerEntry::EndpointEntry &trackerEndpointEntry = trackerEntry.endpointEntries[std::make_pair(endpointName, protocolVersionNum)];
 
-                trackerEndpoint.name = endpointName;
-                trackerEndpoint.numPeers = endpointUpdateInfo.value(protocolVersionNum, trackerEndpoint.numPeers);
-                trackerEndpoint.numSeeds = infoHash.scrape_complete;
-                trackerEndpoint.numLeeches = infoHash.scrape_incomplete;
-                trackerEndpoint.numDownloaded = infoHash.scrape_downloaded;
-                trackerEndpoint.nextAnnounceTime = fromLTTimePoint32(infoHash.next_announce);
-                trackerEndpoint.minAnnounceTime = fromLTTimePoint32(infoHash.min_announce);
+                trackerEndpointEntry.name = endpointName;
+                trackerEndpointEntry.btVersion = protocolVersionNum;
+                trackerEndpointEntry.numPeers = endpointUpdateInfo.value(protocolVersionNum, trackerEndpointEntry.numPeers);
+                trackerEndpointEntry.numSeeds = ltAnnounceInfo.scrape_complete;
+                trackerEndpointEntry.numLeeches = ltAnnounceInfo.scrape_incomplete;
+                trackerEndpointEntry.numDownloaded = ltAnnounceInfo.scrape_downloaded;
+                trackerEndpointEntry.nextAnnounceTime = fromLTTimePoint32(ltAnnounceInfo.next_announce);
+                trackerEndpointEntry.minAnnounceTime = fromLTTimePoint32(ltAnnounceInfo.min_announce);
 
-                if (infoHash.updating)
+                if (ltAnnounceInfo.updating)
                 {
-                    trackerEndpoint.status = TrackerEntry::Updating;
+                    trackerEndpointEntry.status = TrackerEntry::Updating;
                     ++numUpdating;
                 }
-                else if (infoHash.fails > 0)
+                else if (ltAnnounceInfo.fails > 0)
                 {
-                    if (infoHash.last_error == lt::errors::tracker_failure)
+                    if (ltAnnounceInfo.last_error == lt::errors::tracker_failure)
                     {
-                        trackerEndpoint.status = TrackerEntry::TrackerError;
+                        trackerEndpointEntry.status = TrackerEntry::TrackerError;
                         ++numTrackerError;
                     }
-                    else if (infoHash.last_error == lt::errors::announce_skipped)
+                    else if (ltAnnounceInfo.last_error == lt::errors::announce_skipped)
                     {
-                        trackerEndpoint.status = TrackerEntry::Unreachable;
+                        trackerEndpointEntry.status = TrackerEntry::Unreachable;
                         ++numUnreachable;
                     }
                     else
                     {
-                        trackerEndpoint.status = TrackerEntry::NotWorking;
+                        trackerEndpointEntry.status = TrackerEntry::NotWorking;
                         ++numNotWorking;
                     }
                 }
                 else if (nativeEntry.verified)
                 {
-                    trackerEndpoint.status = TrackerEntry::Working;
+                    trackerEndpointEntry.status = TrackerEntry::Working;
                     ++numWorking;
                 }
                 else
                 {
-                    trackerEndpoint.status = TrackerEntry::NotContacted;
+                    trackerEndpointEntry.status = TrackerEntry::NotContacted;
                 }
 
-                if (!infoHash.message.empty())
+                if (!ltAnnounceInfo.message.empty())
                 {
-                    trackerEndpoint.message = QString::fromStdString(infoHash.message);
+                    trackerEndpointEntry.message = QString::fromStdString(ltAnnounceInfo.message);
                 }
-                else if (infoHash.last_error)
+                else if (ltAnnounceInfo.last_error)
                 {
-                    trackerEndpoint.message = QString::fromLocal8Bit(infoHash.last_error.message());
+                    trackerEndpointEntry.message = QString::fromLocal8Bit(ltAnnounceInfo.last_error.message());
                 }
                 else
                 {
-                    trackerEndpoint.message.clear();
+                    trackerEndpointEntry.message.clear();
                 }
             }
         }
-#else
-        const auto numEndpoints = static_cast<qsizetype>(nativeEntry.endpoints.size());
-        for (const lt::announce_endpoint &endpoint : nativeEntry.endpoints)
-        {
-            const int protocolVersionNum = 1;
-            const QMap<int, int> &endpointUpdateInfo = updateInfo[endpoint.local_endpoint];
-            TrackerEntry::EndpointStats &trackerEndpoint = trackerEntry.stats[endpoint.local_endpoint][protocolVersionNum];
-
-            trackerEndpoint.name = QString::fromStdString((std::stringstream() << endpoint.local_endpoint).str());
-            trackerEndpoint.numPeers = endpointUpdateInfo.value(protocolVersionNum, trackerEndpoint.numPeers);
-            trackerEndpoint.numSeeds = endpoint.scrape_complete;
-            trackerEndpoint.numLeeches = endpoint.scrape_incomplete;
-            trackerEndpoint.numDownloaded = endpoint.scrape_downloaded;
-            trackerEndpoint.nextAnnounceTime = fromLTTimePoint32(endpoint.next_announce);
-            trackerEndpoint.minAnnounceTime = fromLTTimePoint32(endpoint.min_announce);
-
-            if (endpoint.updating)
-            {
-                trackerEndpoint.status = TrackerEntry::Updating;
-                ++numUpdating;
-            }
-            else if (endpoint.fails > 0)
-            {
-                if (endpoint.last_error == lt::errors::tracker_failure)
-                {
-                    trackerEndpoint.status = TrackerEntry::TrackerError;
-                    ++numTrackerError;
-                }
-                else if (endpoint.last_error == lt::errors::announce_skipped)
-                {
-                    trackerEndpoint.status = TrackerEntry::Unreachable;
-                    ++numUnreachable;
-                }
-                else
-                {
-                    trackerEndpoint.status = TrackerEntry::NotWorking;
-                    ++numNotWorking;
-                }
-            }
-            else if (nativeEntry.verified)
-            {
-                trackerEndpoint.status = TrackerEntry::Working;
-                ++numWorking;
-            }
-            else
-            {
-                trackerEndpoint.status = TrackerEntry::NotContacted;
-            }
-
-            if (!endpoint.message.empty())
-            {
-                trackerEndpoint.message = QString::fromStdString(endpoint.message);
-            }
-            else if (endpoint.last_error)
-            {
-                trackerEndpoint.message = QString::fromLocal8Bit(endpoint.last_error.message());
-            }
-            else
-            {
-                trackerEndpoint.message.clear();
-            }
-        }
-#endif
 
         if (numEndpoints > 0)
         {
@@ -271,6 +221,42 @@ namespace
             else if ((numUnreachable + numNotWorking) == numEndpoints)
             {
                 trackerEntry.status = TrackerEntry::NotWorking;
+            }
+        }
+
+        trackerEntry.numPeers = -1;
+        trackerEntry.numSeeds = -1;
+        trackerEntry.numLeeches = -1;
+        trackerEntry.numDownloaded = -1;
+        trackerEntry.nextAnnounceTime = QDateTime();
+        trackerEntry.minAnnounceTime = QDateTime();
+        trackerEntry.message.clear();
+
+        for (const TrackerEntry::EndpointEntry &endpointEntry : asConst(trackerEntry.endpointEntries))
+        {
+            trackerEntry.numPeers = std::max(trackerEntry.numPeers, endpointEntry.numPeers);
+            trackerEntry.numSeeds = std::max(trackerEntry.numSeeds, endpointEntry.numSeeds);
+            trackerEntry.numLeeches = std::max(trackerEntry.numLeeches, endpointEntry.numLeeches);
+            trackerEntry.numDownloaded = std::max(trackerEntry.numDownloaded, endpointEntry.numDownloaded);
+
+            if (endpointEntry.status == trackerEntry.status)
+            {
+                if (!trackerEntry.nextAnnounceTime.isValid() || (trackerEntry.nextAnnounceTime > endpointEntry.nextAnnounceTime))
+                {
+                    trackerEntry.nextAnnounceTime = endpointEntry.nextAnnounceTime;
+                    trackerEntry.minAnnounceTime = endpointEntry.minAnnounceTime;
+                    if ((endpointEntry.status != BitTorrent::TrackerEntry::Status::Working)
+                            || !endpointEntry.message.isEmpty())
+                    {
+                        trackerEntry.message = endpointEntry.message;
+                    }
+                }
+
+                if (endpointEntry.status == BitTorrent::TrackerEntry::Status::Working)
+                {
+                    if (trackerEntry.message.isEmpty())
+                        trackerEntry.message = endpointEntry.message;
+                }
             }
         }
     }
@@ -403,6 +389,11 @@ TorrentImpl::~TorrentImpl() = default;
 bool TorrentImpl::isValid() const
 {
     return m_nativeHandle.is_valid();
+}
+
+Session *TorrentImpl::session() const
+{
+    return m_session;
 }
 
 InfoHash TorrentImpl::infoHash() const
@@ -1664,7 +1655,7 @@ void TorrentImpl::fileSearchFinished(const Path &savePath, const PathList &fileN
         endReceivedMetadataHandling(savePath, fileNames);
 }
 
-TrackerEntry TorrentImpl::updateTrackerEntry(const lt::announce_entry &announceEntry, const QHash<TrackerEntry::Endpoint, QMap<int, int>> &updateInfo)
+TrackerEntry TorrentImpl::updateTrackerEntry(const lt::announce_entry &announceEntry, const QHash<lt::tcp::endpoint, QMap<int, int>> &updateInfo)
 {
     const auto it = std::find_if(m_trackerEntries.begin(), m_trackerEntries.end()
             , [&announceEntry](const TrackerEntry &trackerEntry)

@@ -4817,7 +4817,6 @@ void SessionImpl::handleTorrentTrackersAdded(TorrentImpl *const torrent, const Q
     emit trackersAdded(torrent, newTrackers);
     if (torrent->trackers().size() == newTrackers.size())
         emit trackerlessStateChanged(torrent, false);
-    emit trackersChanged(torrent);
 }
 
 void SessionImpl::handleTorrentTrackersRemoved(TorrentImpl *const torrent, const QStringList &deletedTrackers)
@@ -4827,7 +4826,6 @@ void SessionImpl::handleTorrentTrackersRemoved(TorrentImpl *const torrent, const
     emit trackersRemoved(torrent, deletedTrackers);
     if (torrent->trackers().isEmpty())
         emit trackerlessStateChanged(torrent, true);
-    emit trackersChanged(torrent);
 }
 
 void SessionImpl::handleTorrentTrackersChanged(TorrentImpl *const torrent)
@@ -6040,7 +6038,7 @@ void SessionImpl::loadStatistics()
     m_previouslyUploaded = value[u"AlltimeUL"_s].toLongLong();
 }
 
-void SessionImpl::updateTrackerEntries(lt::torrent_handle torrentHandle, QHash<std::string, QHash<TrackerEntry::Endpoint, QMap<int, int>>> updatedTrackers)
+void SessionImpl::updateTrackerEntries(lt::torrent_handle torrentHandle, QHash<std::string, QHash<lt::tcp::endpoint, QMap<int, int>>> updatedTrackers)
 {
     invokeAsync([this, torrentHandle = std::move(torrentHandle), updatedTrackers = std::move(updatedTrackers)]() mutable
     {

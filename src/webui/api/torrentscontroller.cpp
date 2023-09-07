@@ -483,44 +483,6 @@ void TorrentsController::trackersAction()
 
     for (const BitTorrent::TrackerEntry &tracker : asConst(torrent->trackers()))
     {
-        int numPeers = -1;
-        int numSeeds = -1;
-        int numLeeches = -1;
-        int numDownloaded = -1;
-        QDateTime nextAnnounceTime;
-        QDateTime minAnnounceTime;
-        QString message;
-        for (const auto &endpoint : tracker.stats)
-        {
-            for (const auto &protocolStat : endpoint)
-            {
-                numPeers = std::max(numPeers, protocolStat.numPeers);
-                numSeeds = std::max(numSeeds, protocolStat.numSeeds);
-                numLeeches = std::max(numLeeches, protocolStat.numLeeches);
-                numDownloaded = std::max(numDownloaded, protocolStat.numDownloaded);
-
-                if (protocolStat.status == tracker.status)
-                {
-                    if (!nextAnnounceTime.isValid() || (nextAnnounceTime > protocolStat.nextAnnounceTime))
-                    {
-                        nextAnnounceTime = protocolStat.nextAnnounceTime;
-                        minAnnounceTime = protocolStat.minAnnounceTime;
-                        if ((protocolStat.status != BitTorrent::TrackerEntry::Status::Working)
-                                || !protocolStat.message.isEmpty())
-                        {
-                            message = protocolStat.message;
-                        }
-                    }
-
-                    if (protocolStat.status == BitTorrent::TrackerEntry::Status::Working)
-                    {
-                        if (message.isEmpty())
-                            message = protocolStat.message;
-                    }
-                }
-            }
-        }
-
         const bool isNotWorking = (tracker.status == BitTorrent::TrackerEntry::Status::NotWorking)
                 || (tracker.status == BitTorrent::TrackerEntry::Status::TrackerError)
                 || (tracker.status == BitTorrent::TrackerEntry::Status::Unreachable);
@@ -529,11 +491,11 @@ void TorrentsController::trackersAction()
             {KEY_TRACKER_URL, tracker.url},
             {KEY_TRACKER_TIER, tracker.tier},
             {KEY_TRACKER_STATUS, static_cast<int>((isNotWorking ? BitTorrent::TrackerEntry::Status::NotWorking : tracker.status))},
-            {KEY_TRACKER_MSG, message},
-            {KEY_TRACKER_PEERS_COUNT, numPeers},
-            {KEY_TRACKER_SEEDS_COUNT, numSeeds},
-            {KEY_TRACKER_LEECHES_COUNT, numLeeches},
-            {KEY_TRACKER_DOWNLOADED_COUNT, numDownloaded}
+            {KEY_TRACKER_MSG, tracker.message},
+            {KEY_TRACKER_PEERS_COUNT, tracker.numPeers},
+            {KEY_TRACKER_SEEDS_COUNT, tracker.numSeeds},
+            {KEY_TRACKER_LEECHES_COUNT, tracker.numLeeches},
+            {KEY_TRACKER_DOWNLOADED_COUNT, tracker.numDownloaded}
         };
     }
 
