@@ -267,7 +267,6 @@ namespace BitTorrent
         void handleMoveStorageJobFinished(const Path &path, MoveStorageContext context, bool hasOutstandingJob);
         void fileSearchFinished(const Path &savePath, const PathList &fileNames);
         TrackerEntry updateTrackerEntry(const lt::announce_entry &announceEntry, const QHash<lt::tcp::endpoint, QMap<int, int>> &updateInfo);
-        void resetTrackerEntries();
 
     private:
         using EventTrigger = std::function<void ()>;
@@ -294,6 +293,8 @@ namespace BitTorrent
         void handleTorrentFinishedAlert(const lt::torrent_finished_alert *p);
         void handleTorrentPausedAlert(const lt::torrent_paused_alert *p);
         void handleTorrentResumedAlert(const lt::torrent_resumed_alert *p);
+
+        void onPaused();
 
         bool isMoveInProgress() const;
 

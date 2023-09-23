@@ -94,10 +94,10 @@ namespace
 
 #ifdef QBT_USES_LIBTORRENT2
     void updateTrackerEntry(TrackerEntry &trackerEntry, const lt::announce_entry &nativeEntry
-            , const lt::info_hash_t &hashes, const QHash<lt::tcp::endpoint, QMap<int, int>> &updateInfo)
+            , const lt::info_hash_t &hashes, const QHash<lt::tcp::endpoint, QMap<int, int>> &updateInfo, const bool ignoreAnnounceTimes)
 #else
     void updateTrackerEntry(TrackerEntry &trackerEntry, const lt::announce_entry &nativeEntry
-            , const QHash<lt::tcp::endpoint, QMap<int, int>> &updateInfo)
+            , const QHash<lt::tcp::endpoint, QMap<int, int>> &updateInfo, const bool ignoreAnnounceTimes)
 #endif
     {
         Q_ASSERT(trackerEntry.url == QString::fromStdString(nativeEntry.url));
@@ -149,8 +149,17 @@ namespace
                 trackerEndpointEntry.numSeeds = ltAnnounceInfo.scrape_complete;
                 trackerEndpointEntry.numLeeches = ltAnnounceInfo.scrape_incomplete;
                 trackerEndpointEntry.numDownloaded = ltAnnounceInfo.scrape_downloaded;
-                trackerEndpointEntry.nextAnnounceTime = fromLTTimePoint32(ltAnnounceInfo.next_announce);
-                trackerEndpointEntry.minAnnounceTime = fromLTTimePoint32(ltAnnounceInfo.min_announce);
+
+                if (!ignoreAnnounceTimes)
+                {
+                    trackerEndpointEntry.nextAnnounceTime = fromLTTimePoint32(ltAnnounceInfo.next_announce);
+                    trackerEndpointEntry.minAnnounceTime = fromLTTimePoint32(ltAnnounceInfo.min_announce);
+                }
+                else
+                {
+                    trackerEndpointEntry.nextAnnounceTime = QDateTime();
+                    trackerEndpointEntry.minAnnounceTime = QDateTime();
+                }
 
                 if (ltAnnounceInfo.updating)
                 {
@@ -241,18 +250,21 @@ namespace
 
             if (endpointEntry.status == trackerEntry.status)
             {
-                if (!trackerEntry.nextAnnounceTime.isValid() || (trackerEntry.nextAnnounceTime > endpointEntry.nextAnnounceTime))
+                if (!ignoreAnnounceTimes)
                 {
-                    trackerEntry.nextAnnounceTime = endpointEntry.nextAnnounceTime;
-                    trackerEntry.minAnnounceTime = endpointEntry.minAnnounceTime;
-                    if ((endpointEntry.status != BitTorrent::TrackerEntry::Status::Working)
-                            || !endpointEntry.message.isEmpty())
+                    if (!trackerEntry.nextAnnounceTime.isValid() || (trackerEntry.nextAnnounceTime > endpointEntry.nextAnnounceTime))
                     {
-                        trackerEntry.message = endpointEntry.message;
+                        trackerEntry.nextAnnounceTime = endpointEntry.nextAnnounceTime;
+                        trackerEntry.minAnnounceTime = endpointEntry.minAnnounceTime;
+                        if ((endpointEntry.status != BitTorrent::TrackerEntry::Status::Working)
+                                || !endpointEntry.message.isEmpty())
+                        {
+                            trackerEntry.message = endpointEntry.message;
+                        }
                     }
                 }
 
-                if (endpointEntry.status == BitTorrent::TrackerEntry::Status::Working)
+                if ((endpointEntry.status == BitTorrent::TrackerEntry::Status::Working) || ignoreAnnounceTimes)
                 {
                     if (trackerEntry.message.isEmpty())
                         trackerEntry.message = endpointEntry.message;
@@ -1668,17 +1680,11 @@ TrackerEntry TorrentImpl::updateTrackerEntry(const lt::announce_entry &announceE
         return {};
 
 #ifdef QBT_USES_LIBTORRENT2
-    ::updateTrackerEntry(*it, announceEntry, nativeHandle().info_hashes(), updateInfo);
+    ::updateTrackerEntry(*it, announceEntry, nativeHandle().info_hashes(), updateInfo, isPaused());
 #else
-    ::updateTrackerEntry(*it, announceEntry, updateInfo);
+    ::updateTrackerEntry(*it, announceEntry, updateInfo, isPaused());
 #endif
     return *it;
-}
-
-void TorrentImpl::resetTrackerEntries()
-{
-    for (auto &trackerEntry : m_trackerEntries)
-        trackerEntry = {trackerEntry.url, trackerEntry.tier};
 }
 
 std::shared_ptr<const libtorrent::torrent_info> TorrentImpl::nativeTorrentInfo() const
@@ -1738,7 +1744,7 @@ void TorrentImpl::endReceivedMetadataHandling(const Path &savePath, const PathLi
         p.flags |= lt::torrent_flags::paused;
         p.flags &= ~lt::torrent_flags::auto_managed;
 
-        m_session->handleTorrentPaused(this);
+        onPaused();
     }
 
     reload();
@@ -1811,7 +1817,8 @@ void TorrentImpl::pause()
         m_stopCondition = StopCondition::None;
         m_isStopped = true;
         m_session->handleTorrentNeedSaveResumeData(this);
-        m_session->handleTorrentPaused(this);
+
+        onPaused();
     }
 
     if (m_maintenanceJob == MaintenanceJob::None)
@@ -2003,6 +2010,23 @@ void TorrentImpl::handleTorrentPausedAlert([[maybe_unused]] const lt::torrent_pa
 
 void TorrentImpl::handleTorrentResumedAlert([[maybe_unused]] const lt::torrent_resumed_alert *p)
 {
+}
+
+void TorrentImpl::onPaused()
+{
+    for (TrackerEntry &trackerEntry : m_trackerEntries)
+    {
+        trackerEntry.nextAnnounceTime = QDateTime();
+        trackerEntry.minAnnounceTime = QDateTime();
+
+        for (TrackerEntry::EndpointEntry &endpointEntry : trackerEntry.endpointEntries)
+        {
+            endpointEntry.nextAnnounceTime = QDateTime();
+            endpointEntry.minAnnounceTime = QDateTime();
+        }
+    }
+
+    m_session->handleTorrentPaused(this);
 }
 
 void TorrentImpl::handleSaveResumeDataAlert(const lt::save_resume_data_alert *p)

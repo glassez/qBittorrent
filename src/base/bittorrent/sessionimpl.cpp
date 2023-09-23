@@ -4855,8 +4855,6 @@ void SessionImpl::handleTorrentMetadataReceived(TorrentImpl *const torrent)
 
 void SessionImpl::handleTorrentPaused(TorrentImpl *const torrent)
 {
-    torrent->resetTrackerEntries();
-
     const auto &trackerEntries = torrent->trackers();
     QHash<QString, TrackerEntry> updatedTrackerEntries;
     updatedTrackerEntries.reserve(trackerEntries.size());
