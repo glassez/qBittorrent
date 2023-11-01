@@ -75,6 +75,9 @@ namespace BitTorrent
     {
         Unknown = -1,
 
+        Initializing,
+        CheckingResumeData,
+
         ForcedDownloading,
         Downloading,
         ForcedDownloadingMetadata,
@@ -85,7 +88,6 @@ namespace BitTorrent
         Uploading,
         StalledUploading,
 
-        CheckingResumeData,
         QueuedDownloading,
         QueuedUploading,
 

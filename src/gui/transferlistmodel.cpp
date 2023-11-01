@@ -57,6 +57,7 @@ namespace
 
         const TorrentStateColorDescriptor colorDescriptors[] =
         {
+            {BitTorrent::TorrentState::Initializing, u"TransferList.Initializing"_s},
             {BitTorrent::TorrentState::Downloading, u"TransferList.Downloading"_s},
             {BitTorrent::TorrentState::StalledDownloading, u"TransferList.StalledDownloading"_s},
             {BitTorrent::TorrentState::DownloadingMetadata, u"TransferList.DownloadingMetadata"_s},
@@ -91,8 +92,8 @@ namespace
 
 TransferListModel::TransferListModel(QObject *parent)
     : QAbstractListModel {parent}
-    , m_statusStrings
-    {
+    , m_statusStrings {
+        {BitTorrent::TorrentState::Initializing, tr("Initializing", "Used when (re)initializing the torrent in order to perform some service jobs.")},
           {BitTorrent::TorrentState::Downloading, tr("Downloading")},
           {BitTorrent::TorrentState::StalledDownloading, tr("Stalled", "Torrent is waiting for download to begin")},
           {BitTorrent::TorrentState::DownloadingMetadata, tr("Downloading metadata", "Used when loading a magnet link")},
@@ -105,7 +106,7 @@ TransferListModel::TransferListModel(QObject *parent)
           {BitTorrent::TorrentState::QueuedUploading, tr("Queued", "Torrent is queued")},
           {BitTorrent::TorrentState::CheckingDownloading, tr("Checking", "Torrent local data is being checked")},
           {BitTorrent::TorrentState::CheckingUploading, tr("Checking", "Torrent local data is being checked")},
-          {BitTorrent::TorrentState::CheckingResumeData, tr("Checking resume data", "Used when loading the torrents from disk after qbt is launched. It checks the correctness of the .fastresume file. Normally it is completed in a fraction of a second, unless loading many many torrents.")},
+          {BitTorrent::TorrentState::CheckingResumeData, tr("Checking resume data", "It checks the correctness of the \"fastresume\" data. Normally it is completed in a fraction of a second, unless the session is very busy.")},
           {BitTorrent::TorrentState::PausedDownloading, tr("Paused")},
           {BitTorrent::TorrentState::PausedUploading, tr("Completed")},
           {BitTorrent::TorrentState::Moving, tr("Moving", "Torrent local data are being moved/relocated")},
@@ -724,6 +725,7 @@ QIcon TransferListModel::getIconByState(const BitTorrent::TorrentState state) co
     case BitTorrent::TorrentState::CheckingDownloading:
     case BitTorrent::TorrentState::CheckingUploading:
     case BitTorrent::TorrentState::CheckingResumeData:
+    case BitTorrent::TorrentState::Initializing:
     case BitTorrent::TorrentState::Moving:
         return m_checkingIcon;
     case BitTorrent::TorrentState::Unknown:

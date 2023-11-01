@@ -1097,7 +1097,11 @@ TorrentState TorrentImpl::state() const
 
 void TorrentImpl::updateState()
 {
-    if (m_nativeStatus.state == lt::torrent_status::checking_resume_data)
+    if (!m_nativeHandle.is_valid())
+    {
+        m_state = TorrentState::Initializing;
+    }
+    else if (m_nativeStatus.state == lt::torrent_status::checking_resume_data)
     {
         m_state = TorrentState::CheckingResumeData;
     }

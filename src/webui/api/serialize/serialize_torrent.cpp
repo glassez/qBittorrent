@@ -78,6 +78,8 @@ namespace
             return u"forcedDL"_s;
         case BitTorrent::TorrentState::CheckingResumeData:
             return u"checkingResumeData"_s;
+        case BitTorrent::TorrentState::Initializing:
+            return u"initializing"_s;
         case BitTorrent::TorrentState::Moving:
             return u"moving"_s;
         default:
