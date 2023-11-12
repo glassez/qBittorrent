@@ -445,6 +445,7 @@ namespace BitTorrent
         void handleTorrentResumeDataReady(TorrentImpl *torrent, const LoadTorrentParams &data);
         void handleTorrentInfoHashChanged(TorrentImpl *torrent, const InfoHash &prevInfoHash);
         void handleTorrentStorageMovingStateChanged(TorrentImpl *torrent);
+        void handleTorrentUnavailable(TorrentImpl *torrent);
 
         bool addMoveTorrentStorageJob(TorrentImpl *torrent, const Path &newPath, MoveStorageMode mode, MoveStorageContext context);
 

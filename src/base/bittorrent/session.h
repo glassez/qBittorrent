@@ -483,6 +483,7 @@ namespace BitTorrent
         void torrentsUpdated(const QVector<Torrent *> &torrents);
         void torrentTagAdded(Torrent *torrent, const QString &tag);
         void torrentTagRemoved(Torrent *torrent, const QString &tag);
+        void torrentUnavailable(Torrent *torrent);
         void trackerError(Torrent *torrent, const QString &tracker);
         void trackersAdded(Torrent *torrent, const QVector<TrackerEntry> &trackers);
         void trackersChanged(Torrent *torrent);

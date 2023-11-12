@@ -97,7 +97,7 @@ namespace BitTorrent
                           , const lt::torrent_handle &nativeHandle, const LoadTorrentParams &params);
         ~TorrentImpl() override;
 
-        bool isValid() const;
+        bool isAvailable() const;
 
         Session *session() const override;
 

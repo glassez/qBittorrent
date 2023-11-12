@@ -3013,7 +3013,7 @@ void SessionImpl::generateResumeData()
 {
     for (TorrentImpl *const torrent : asConst(m_torrents))
     {
-        if (!torrent->isValid()) continue;
+        if (!torrent->isAvailable()) continue;
 
         if (torrent->needSaveResumeData())
         {
@@ -4927,6 +4927,11 @@ void SessionImpl::handleTorrentInfoHashChanged(TorrentImpl *torrent, const InfoH
 void SessionImpl::handleTorrentStorageMovingStateChanged(TorrentImpl *torrent)
 {
     emit torrentsUpdated({torrent});
+}
+
+void SessionImpl::handleTorrentUnavailable(TorrentImpl *torrent)
+{
+    emit torrentUnavailable(torrent);
 }
 
 bool SessionImpl::addMoveTorrentStorageJob(TorrentImpl *torrent, const Path &newPath, const MoveStorageMode mode, const MoveStorageContext context)

@@ -282,31 +282,31 @@ namespace
 TorrentImpl::TorrentImpl(SessionImpl *session, lt::session *nativeSession
                                      , const lt::torrent_handle &nativeHandle, const LoadTorrentParams &params)
     : Torrent(session)
-    , m_session(session)
-    , m_nativeSession(nativeSession)
-    , m_nativeHandle(nativeHandle)
+    , m_session {session}
+    , m_nativeSession {nativeSession}
+    , m_nativeHandle {nativeHandle}
 #ifdef QBT_USES_LIBTORRENT2
-    , m_infoHash(m_nativeHandle.info_hashes())
+    , m_infoHash {m_nativeHandle.info_hashes()}
 #else
-    , m_infoHash(m_nativeHandle.info_hash())
+    , m_infoHash {m_nativeHandle.info_hash()}
 #endif
-    , m_name(params.name)
-    , m_savePath(params.savePath)
-    , m_downloadPath(params.downloadPath)
-    , m_category(params.category)
-    , m_tags(params.tags)
-    , m_ratioLimit(params.ratioLimit)
-    , m_seedingTimeLimit(params.seedingTimeLimit)
-    , m_inactiveSeedingTimeLimit(params.inactiveSeedingTimeLimit)
-    , m_operatingMode(params.operatingMode)
-    , m_contentLayout(params.contentLayout)
-    , m_hasFinishedStatus(params.hasFinishedStatus)
-    , m_hasFirstLastPiecePriority(params.firstLastPiecePriority)
-    , m_useAutoTMM(params.useAutoTMM)
-    , m_isStopped(params.stopped)
-    , m_ltAddTorrentParams(params.ltAddTorrentParams)
-    , m_downloadLimit(cleanLimitValue(m_ltAddTorrentParams.download_limit))
-    , m_uploadLimit(cleanLimitValue(m_ltAddTorrentParams.upload_limit))
+    , m_name {params.name}
+    , m_savePath {params.savePath}
+    , m_downloadPath {params.downloadPath}
+    , m_category {params.category}
+    , m_tags {params.tags}
+    , m_ratioLimit {params.ratioLimit}
+    , m_seedingTimeLimit {params.seedingTimeLimit}
+    , m_inactiveSeedingTimeLimit {params.inactiveSeedingTimeLimit}
+    , m_operatingMode {params.operatingMode}
+    , m_contentLayout {params.contentLayout}
+    , m_hasFinishedStatus {params.hasFinishedStatus}
+    , m_hasFirstLastPiecePriority {params.firstLastPiecePriority}
+    , m_useAutoTMM {params.useAutoTMM}
+    , m_isStopped {params.stopped}
+    , m_ltAddTorrentParams {params.ltAddTorrentParams}
+    , m_downloadLimit {cleanLimitValue(m_ltAddTorrentParams.download_limit)}
+    , m_uploadLimit {cleanLimitValue(m_ltAddTorrentParams.upload_limit)}
 {
     if (m_ltAddTorrentParams.ti)
     {
@@ -364,7 +364,7 @@ TorrentImpl::TorrentImpl(SessionImpl *session, lt::session *nativeSession
 
 TorrentImpl::~TorrentImpl() = default;
 
-bool TorrentImpl::isValid() const
+bool TorrentImpl::isAvailable() const
 {
     return m_nativeHandle.is_valid();
 }
@@ -557,6 +557,10 @@ Path TorrentImpl::actualStorageLocation() const
 
 void TorrentImpl::setAutoManaged(const bool enable)
 {
+    Q_ASSERT(isAvailable());
+    if (!isAvailable()) [[unlikely]]
+        return;
+
     if (enable)
         m_nativeHandle.set_flags(lt::torrent_flags::auto_managed);
     else
@@ -605,6 +609,12 @@ QVector<TrackerEntry> TorrentImpl::trackers() const
 
 void TorrentImpl::addTrackers(QVector<TrackerEntry> trackers)
 {
+    if (!isAvailable())
+    {
+        m_session->handleTorrentUnavailable(this);
+        return;
+    }
+
     trackers.removeIf([](const TrackerEntry &entry) { return entry.url.isEmpty(); });
 
     const auto newTrackers = QSet<TrackerEntry>(trackers.cbegin(), trackers.cend())
@@ -626,6 +636,12 @@ void TorrentImpl::addTrackers(QVector<TrackerEntry> trackers)
 
 void TorrentImpl::removeTrackers(const QStringList &trackers)
 {
+    if (!isAvailable())
+    {
+        m_session->handleTorrentUnavailable(this);
+        return;
+    }
+
     QStringList removedTrackers = trackers;
     for (const QString &tracker : trackers)
     {
@@ -724,9 +740,15 @@ void TorrentImpl::addUrlSeeds(const QVector<QUrl> &urlSeeds)
 
 void TorrentImpl::removeUrlSeeds(const QVector<QUrl> &urlSeeds)
 {
+    if (!isAvailable())
+    {
+        m_session->handleTorrentUnavailable(this);
+        return;
+    }
+
     m_session->invokeAsync([urlSeeds, session = m_session
-                           , nativeHandle = m_nativeHandle
-                           , thisTorrent = QPointer<TorrentImpl>(this)]
+            , nativeHandle = m_nativeHandle
+            , thisTorrent = QPointer<TorrentImpl>(this)]
     {
         try
         {
@@ -768,14 +790,27 @@ void TorrentImpl::removeUrlSeeds(const QVector<QUrl> &urlSeeds)
 
 void TorrentImpl::clearPeers()
 {
+    if (!isAvailable())
+    {
+        m_session->handleTorrentUnavailable(this);
+        return;
+    }
+
     m_nativeHandle.clear_peers();
 }
 
 bool TorrentImpl::connectPeer(const PeerAddress &peerAddress)
 {
+    if (!isAvailable())
+    {
+        m_session->handleTorrentUnavailable(this);
+        return;
+    }
+
     lt::error_code ec;
     const lt::address addr = lt::make_address(peerAddress.ip.toString().toStdString(), ec);
-    if (ec) return false;
+    if (ec)
+        return false;
 
     const lt::tcp::endpoint endpoint(addr, peerAddress.port);
     try
@@ -800,6 +835,12 @@ bool TorrentImpl::needSaveResumeData() const
 
 void TorrentImpl::saveResumeData(lt::resume_data_flags_t flags)
 {
+    if (!isAvailable())
+    {
+        m_session->handleTorrentUnavailable(this);
+        return;
+    }
+
     m_nativeHandle.save_resume_data(flags);
     m_session->handleTorrentSaveResumeDataRequested(this);
 }
@@ -1395,6 +1436,12 @@ bool TorrentImpl::isLSDDisabled() const
 
 QVector<PeerInfo> TorrentImpl::peers() const
 {
+    if (!isAvailable())
+    {
+        m_session->handleTorrentUnavailable(this);
+        return {};
+    }
+
     std::vector<lt::peer_info> nativePeers;
     m_nativeHandle.get_peer_info(nativePeers);
 
@@ -1414,6 +1461,12 @@ QBitArray TorrentImpl::pieces() const
 
 QBitArray TorrentImpl::downloadingPieces() const
 {
+    if (!isAvailable())
+    {
+        m_session->handleTorrentUnavailable(this);
+        return {};
+    }
+
     QBitArray result(piecesCount());
 
     std::vector<lt::partial_piece_info> queue;
@@ -1427,6 +1480,12 @@ QBitArray TorrentImpl::downloadingPieces() const
 
 QVector<int> TorrentImpl::pieceAvailability() const
 {
+    if (!isAvailable())
+    {
+        m_session->handleTorrentUnavailable(this);
+        return {};
+    }
+
     std::vector<int> avail;
     m_nativeHandle.piece_availability(avail);
 
@@ -1551,16 +1610,34 @@ bool TorrentImpl::setCategory(const QString &category)
 
 void TorrentImpl::forceReannounce(const int index)
 {
+    if (!isAvailable())
+    {
+        m_session->handleTorrentUnavailable(this);
+        return;
+    }
+
     m_nativeHandle.force_reannounce(0, index);
 }
 
 void TorrentImpl::forceDHTAnnounce()
 {
+    if (!isAvailable())
+    {
+        m_session->handleTorrentUnavailable(this);
+        return;
+    }
+
     m_nativeHandle.force_dht_announce();
 }
 
 void TorrentImpl::forceRecheck()
 {
+    if (!isAvailable())
+    {
+        m_session->handleTorrentUnavailable(this);
+        return;
+    }
+
     if (!hasMetadata())
         return;
 
@@ -1588,6 +1665,12 @@ void TorrentImpl::forceRecheck()
 
 void TorrentImpl::setSequentialDownload(const bool enable)
 {
+    if (!isAvailable())
+    {
+        m_session->handleTorrentUnavailable(this);
+        return;
+    }
+
     if (enable)
     {
         m_nativeHandle.set_flags(lt::torrent_flags::sequential_download);
@@ -1604,6 +1687,12 @@ void TorrentImpl::setSequentialDownload(const bool enable)
 
 void TorrentImpl::setFirstLastPiecePriority(const bool enabled)
 {
+    if (!isAvailable())
+    {
+        m_session->handleTorrentUnavailable(this);
+        return;
+    }
+
     if (m_hasFirstLastPiecePriority == enabled)
         return;
 
@@ -1619,7 +1708,13 @@ void TorrentImpl::setFirstLastPiecePriority(const bool enabled)
 
 void TorrentImpl::applyFirstLastPiecePriority(const bool enabled)
 {
+    Q_ASSERT(isAvailable());
+    if (!isAvailable()) [[unlikely]]
+        return;
+
     Q_ASSERT(hasMetadata());
+    if (!hasMetadata()) [[unlikely]]
+        return;
 
     // Download first and last pieces first for every file in the torrent
 
@@ -1766,8 +1861,11 @@ void TorrentImpl::endReceivedMetadataHandling(const Path &savePath, const PathLi
 }
 
 void TorrentImpl::reload()
-try
 {
+    Q_ASSERT(isAvailable());
+    if (!isAvailable()) [[unlikely]]
+        return;
+
     m_completedFiles.fill(false);
     m_filesProgress.fill(0);
     m_pieces.fill(false);
@@ -1809,14 +1907,15 @@ try
 
     updateState();
 }
-catch (const lt::system_error &err)
-{
-    throw RuntimeError(tr("Failed to reload torrent. Torrent: %1. Reason: %2")
-            .arg(id().toString(), QString::fromLocal8Bit(err.what())));
-}
 
 void TorrentImpl::pause()
 {
+    if (!isAvailable())
+    {
+        m_session->handleTorrentUnavailable(this);
+        return;
+    }
+
     if (!m_isStopped)
     {
         m_stopCondition = StopCondition::None;
@@ -1836,6 +1935,12 @@ void TorrentImpl::pause()
 
 void TorrentImpl::resume(const TorrentOperatingMode mode)
 {
+    if (!isAvailable())
+    {
+        m_session->handleTorrentUnavailable(this);
+        return;
+    }
+
     if (hasError())
     {
         m_nativeHandle.clear_error();
@@ -1892,6 +1997,12 @@ void TorrentImpl::moveStorage(const Path &newPath, const MoveStorageContext cont
 
 void TorrentImpl::renameFile(const int index, const Path &path)
 {
+    if (!isAvailable())
+    {
+        m_session->handleTorrentUnavailable(this);
+        return;
+    }
+
     Q_ASSERT((index >= 0) && (index < filesCount()));
     if ((index < 0) || (index >= filesCount())) [[unlikely]]
         return;
@@ -2391,6 +2502,10 @@ void TorrentImpl::adjustStorageLocation()
 
 void TorrentImpl::doRenameFile(const int index, const Path &path)
 {
+    Q_ASSERT(isAvailable());
+    if (!isAvailable()) [[unlikely]]
+        return;
+
     const QVector<lt::file_index_t> nativeIndexes = m_torrentInfo.nativeIndexes();
 
     Q_ASSERT(index >= 0);
@@ -2409,6 +2524,12 @@ lt::torrent_handle TorrentImpl::nativeHandle() const
 
 void TorrentImpl::setMetadata(const TorrentInfo &torrentInfo)
 {
+    if (!isAvailable())
+    {
+        m_session->handleTorrentUnavailable(this);
+        return;
+    }
+
     if (hasMetadata())
         return;
 
@@ -2565,6 +2686,12 @@ void TorrentImpl::setInactiveSeedingTimeLimit(int limit)
 
 void TorrentImpl::setUploadLimit(const int limit)
 {
+    if (!isAvailable())
+    {
+        m_session->handleTorrentUnavailable(this);
+        return;
+    }
+
     const int cleanValue = cleanLimitValue(limit);
     if (cleanValue == uploadLimit())
         return;
@@ -2576,6 +2703,12 @@ void TorrentImpl::setUploadLimit(const int limit)
 
 void TorrentImpl::setDownloadLimit(const int limit)
 {
+    if (!isAvailable())
+    {
+        m_session->handleTorrentUnavailable(this);
+        return;
+    }
+
     const int cleanValue = cleanLimitValue(limit);
     if (cleanValue == downloadLimit())
         return;
@@ -2587,6 +2720,12 @@ void TorrentImpl::setDownloadLimit(const int limit)
 
 void TorrentImpl::setSuperSeeding(const bool enable)
 {
+    if (!isAvailable())
+    {
+        m_session->handleTorrentUnavailable(this);
+        return;
+    }
+
     if (enable == superSeeding())
         return;
 
@@ -2600,6 +2739,12 @@ void TorrentImpl::setSuperSeeding(const bool enable)
 
 void TorrentImpl::setDHTDisabled(const bool disable)
 {
+    if (!isAvailable())
+    {
+        m_session->handleTorrentUnavailable(this);
+        return;
+    }
+
     if (disable == isDHTDisabled())
         return;
 
@@ -2613,6 +2758,12 @@ void TorrentImpl::setDHTDisabled(const bool disable)
 
 void TorrentImpl::setPEXDisabled(const bool disable)
 {
+    if (!isAvailable())
+    {
+        m_session->handleTorrentUnavailable(this);
+        return;
+    }
+
     if (disable == isPEXDisabled())
         return;
 
@@ -2626,6 +2777,12 @@ void TorrentImpl::setPEXDisabled(const bool disable)
 
 void TorrentImpl::setLSDDisabled(const bool disable)
 {
+    if (!isAvailable())
+    {
+        m_session->handleTorrentUnavailable(this);
+        return;
+    }
+
     if (disable == isLSDDisabled())
         return;
 
@@ -2639,6 +2796,12 @@ void TorrentImpl::setLSDDisabled(const bool disable)
 
 void TorrentImpl::flushCache() const
 {
+    if (!isAvailable())
+    {
+        m_session->handleTorrentUnavailable(this);
+        return;
+    }
+
     m_nativeHandle.flush_cache();
 }
 
@@ -2734,6 +2897,12 @@ nonstd::expected<void, QString> TorrentImpl::exportToFile(const Path &path) cons
 
 void TorrentImpl::fetchPeerInfo(std::function<void (QVector<PeerInfo>)> resultHandler) const
 {
+    if (!isAvailable())
+    {
+        m_session->handleTorrentUnavailable(this);
+        return;
+    }
+
     invokeAsync([nativeHandle = m_nativeHandle, allPieces = pieces()]() -> QVector<PeerInfo>
     {
         try
@@ -2755,6 +2924,12 @@ void TorrentImpl::fetchPeerInfo(std::function<void (QVector<PeerInfo>)> resultHa
 
 void TorrentImpl::fetchURLSeeds(std::function<void (QVector<QUrl>)> resultHandler) const
 {
+    if (!isAvailable())
+    {
+        m_session->handleTorrentUnavailable(this);
+        return;
+    }
+
     invokeAsync([nativeHandle = m_nativeHandle]() -> QVector<QUrl>
     {
         try
@@ -2775,6 +2950,12 @@ void TorrentImpl::fetchURLSeeds(std::function<void (QVector<QUrl>)> resultHandle
 
 void TorrentImpl::fetchPieceAvailability(std::function<void (QVector<int>)> resultHandler) const
 {
+    if (!isAvailable())
+    {
+        m_session->handleTorrentUnavailable(this);
+        return;
+    }
+
     invokeAsync([nativeHandle = m_nativeHandle]() -> QVector<int>
     {
         try
@@ -2792,6 +2973,12 @@ void TorrentImpl::fetchPieceAvailability(std::function<void (QVector<int>)> resu
 
 void TorrentImpl::fetchDownloadingPieces(std::function<void (QBitArray)> resultHandler) const
 {
+    if (!isAvailable())
+    {
+        m_session->handleTorrentUnavailable(this);
+        return;
+    }
+
     invokeAsync([nativeHandle = m_nativeHandle, torrentInfo = m_torrentInfo]() -> QBitArray
     {
         try
@@ -2817,6 +3004,12 @@ void TorrentImpl::fetchDownloadingPieces(std::function<void (QBitArray)> resultH
 
 void TorrentImpl::fetchAvailableFileFractions(std::function<void (QVector<qreal>)> resultHandler) const
 {
+    if (!isAvailable())
+    {
+        m_session->handleTorrentUnavailable(this);
+        return;
+    }
+
     invokeAsync([nativeHandle = m_nativeHandle, torrentInfo = m_torrentInfo]() -> QVector<qreal>
     {
         if (!torrentInfo.isValid() || (torrentInfo.filesCount() <= 0))
@@ -2860,10 +3053,16 @@ void TorrentImpl::prioritizeFiles(const QVector<DownloadPriority> &priorities)
     if (!hasMetadata())
         return;
 
+    if (!isAvailable())
+    {
+        m_session->handleTorrentUnavailable(this);
+        return;
+    }
+
     Q_ASSERT(priorities.size() == filesCount());
 
     // Reset 'm_hasSeedStatus' if needed in order to react again to
-    // 'torrent_finished_alert' and eg show tray notifications
+    // 'torrent_finished_alert' and e.g. show tray notifications
     const QVector<DownloadPriority> oldPriorities = filePriorities();
     for (int i = 0; i < oldPriorities.size(); ++i)
     {
@@ -2925,9 +3124,8 @@ template <typename Func, typename Callback>
 void TorrentImpl::invokeAsync(Func func, Callback resultHandler) const
 {
     m_session->invokeAsync([session = m_session
-                           , func = std::move(func)
-                           , resultHandler = std::move(resultHandler)
-                           , thisTorrent = QPointer<const TorrentImpl>(this)]() mutable
+            , func = std::move(func), resultHandler = std::move(resultHandler)
+            , thisTorrent = QPointer<const TorrentImpl>(this)]() mutable
     {
         session->invoke([result = func(), thisTorrent, resultHandler = std::move(resultHandler)]
         {
