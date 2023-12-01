@@ -1,6 +1,6 @@
 /*
  * Bittorrent Client using Qt and libtorrent.
- * Copyright (C) 2015-2025  Vladimir Golovnev <glassez@yandex.ru>
+ * Copyright (C) 2015-2026  Vladimir Golovnev <glassez@yandex.ru>
  * Copyright (C) 2006  Christophe Dumez <chris@qbittorrent.org>
  *
  * This program is free software; you can redistribute it and/or
@@ -60,6 +60,7 @@
 namespace BitTorrent
 {
     class SessionImpl;
+    struct FileStorageCheckResult;
     struct LoadTorrentParams;
 
     enum class MoveStorageMode
@@ -79,7 +80,8 @@ namespace BitTorrent
     enum class MaintenanceJob
     {
         None,
-        HandleMetadata
+        HandleMetadata,
+        CheckingStorage
     };
 
     struct FileErrorInfo
@@ -288,6 +290,7 @@ namespace BitTorrent
         void handleMoveStorageJobFinished(const Path &path, MoveStorageContext context, bool hasOutstandingJob);
         TrackerEntryStatus updateTrackerEntryStatus(const lt::announce_entry &announceEntry, const QHash<lt::tcp::endpoint, QMap<int, int>> &updateInfo);
         void resetTrackerEntryStatuses();
+        void checkingFileStorageFinished(const FileStorageCheckResult &result);
 
     private:
         using EventTrigger = std::function<void ()>;
@@ -355,6 +358,9 @@ namespace BitTorrent
         QList<QUrl> m_urlSeeds;
         FileErrorInfo m_lastFileError;
 
+        bool m_hasCheckedStorage = false;
+        bool m_hasMissingFiles = false;
+
         // Persistent data
         QString m_name;
         Path m_savePath;
@@ -368,7 +374,6 @@ namespace BitTorrent
         TorrentOperatingMode m_operatingMode = TorrentOperatingMode::AutoManaged;
         TorrentContentLayout m_contentLayout = TorrentContentLayout::Original;
         bool m_hasFinishedStatus = false;
-        bool m_hasMissingFiles = false;
         bool m_hasFirstLastPiecePriority = false;
         bool m_useAutoTMM = false;
         bool m_isStopped = false;

@@ -20,6 +20,8 @@ add_library(qbt_base STATIC
     bittorrent/downloadpriority.h
     bittorrent/extensiondata.h
     bittorrent/filesearcher.h
+    bittorrent/filestoragechecker.h
+    bittorrent/filestoragecheckresult.h
     bittorrent/filterparserthread.h
     bittorrent/infohash.h
     bittorrent/loadtorrentparams.h
@@ -138,6 +140,7 @@ add_library(qbt_base STATIC
     bittorrent/downloadpathoption.cpp
     bittorrent/downloadpriority.cpp
     bittorrent/filesearcher.cpp
+    bittorrent/filestoragechecker.cpp
     bittorrent/filterparserthread.cpp
     bittorrent/infohash.cpp
     bittorrent/ltqbitarray.cpp

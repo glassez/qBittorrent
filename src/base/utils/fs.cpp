@@ -1,6 +1,6 @@
 /*
  * Bittorrent Client using Qt and libtorrent.
- * Copyright (C) 2022-2024  Vladimir Golovnev <glassez@yandex.ru>
+ * Copyright (C) 2022-2026  Vladimir Golovnev <glassez@yandex.ru>
  * Copyright (C) 2012  Christophe Dumez <chris@qbittorrent.org>
  *
  * This program is free software; you can redistribute it and/or
@@ -406,6 +406,11 @@ bool Utils::Fs::isReadable(const Path &path)
 bool Utils::Fs::isWritable(const Path &path)
 {
     return QFileInfo(path.data()).isWritable();
+}
+
+qint64 Utils::Fs::fileSize(const Path &path)
+{
+    return QFileInfo(path.data()).size();
 }
 
 QDateTime Utils::Fs::lastModified(const Path &path)

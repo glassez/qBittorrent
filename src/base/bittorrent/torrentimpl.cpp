@@ -1,6 +1,6 @@
 /*
  * Bittorrent Client using Qt and libtorrent.
- * Copyright (C) 2015-2025  Vladimir Golovnev <glassez@yandex.ru>
+ * Copyright (C) 2015-2026  Vladimir Golovnev <glassez@yandex.ru>
  * Copyright (C) 2006  Christophe Dumez <chris@qbittorrent.org>
  *
  * This program is free software; you can redistribute it and/or
@@ -69,6 +69,7 @@
 #include "downloadpriority.h"
 #include "extensiondata.h"
 #include "filesearcher.h"
+#include "filestoragecheckresult.h"
 #include "loadtorrentparams.h"
 #include "ltqbitarray.h"
 #include "lttypecast.h"
@@ -295,6 +296,22 @@ namespace
     {
         return ((value < 0) || (value == std::numeric_limits<int>::max())) ? 0 : value;
     }
+
+    QString fileStorageError(const FileStorageCheckResult &result)
+    {
+        switch (result.status)
+        {
+        case FileStorageCheckResult::MismathingFileSize:
+            return TorrentImpl::tr("File '%1' has mismatching size").arg(result.path.toString());
+        case FileStorageCheckResult::MissingFile:
+            return TorrentImpl::tr("Missing file '%1'").arg(result.path.toString());
+        case FileStorageCheckResult::SavePathDoesntExist:
+            return TorrentImpl::tr("Save path '%1' doesn't exist").arg(result.path.toString());
+        case FileStorageCheckResult::OK:
+        default:
+            return {};
+        }
+    }
 }
 
 // TorrentImpl
@@ -328,6 +345,8 @@ TorrentImpl::TorrentImpl(SessionImpl *session, const lt::torrent_handle &nativeH
     , m_downloadLimit(cleanLimitValue(m_ltAddTorrentParams.download_limit))
     , m_uploadLimit(cleanLimitValue(m_ltAddTorrentParams.upload_limit))
 {
+    PathList actualFilePaths;
+
     if (m_ltAddTorrentParams.ti)
     {
         if (const std::time_t creationDate = m_ltAddTorrentParams.ti->creation_date(); creationDate > 0)
@@ -342,6 +361,7 @@ TorrentImpl::TorrentImpl(SessionImpl *session, const lt::torrent_handle &nativeH
         Q_ASSERT(m_filePaths.isEmpty());
         Q_ASSERT(m_indexMap.isEmpty());
         const int filesCount = m_torrentInfo.filesCount();
+        actualFilePaths.reserve(filesCount);
         m_filePaths.reserve(filesCount);
         m_indexMap.reserve(filesCount);
         m_filePriorities.reserve(filesCount);
@@ -358,9 +378,10 @@ TorrentImpl::TorrentImpl(SessionImpl *session, const lt::torrent_handle &nativeH
             m_indexMap[nativeIndex] = i;
 
             const auto fileIter = m_ltAddTorrentParams.renamed_files.find(nativeIndex);
-            const Path filePath = ((fileIter != m_ltAddTorrentParams.renamed_files.end())
-                    ? makeUserPath(Path(fileIter->second)) : m_torrentInfo.filePath(i));
-            m_filePaths.append(filePath);
+            const Path actualFilePath = ((fileIter != m_ltAddTorrentParams.renamed_files.end())
+                    ? Path(fileIter->second) : m_torrentInfo.filePath(i));
+            actualFilePaths.append(actualFilePath);
+            m_filePaths.append(makeUserPath(actualFilePath));
 
             const auto priority = LT::fromNative(filePriorities[LT::toUnderlyingType(nativeIndex)]);
             m_filePriorities.append(priority);
@@ -389,6 +410,27 @@ TorrentImpl::TorrentImpl(SessionImpl *session, const lt::torrent_handle &nativeH
 
     if (hasMetadata())
         updateProgress();
+
+    if (hasMetadata() && (progress() > 0))
+    {
+        const int filesCount = m_torrentInfo.filesCount();
+        const QVector<qreal> progresses = filesProgress();
+        QHash<Path, qint64> fileDescriptors;
+        fileDescriptors.reserve(filesCount);
+        for (int i = 0; i < filesCount; ++i)
+        {
+            if ((m_filePriorities.at(i) == DownloadPriority::Ignored) || (progresses.at(i) <= 0))
+                continue;
+
+            fileDescriptors.insert(actualFilePaths.at(i), ((progresses.at(i) >= 1) ? m_torrentInfo.fileSize(i) : -1));
+        }
+        m_session->checkFileStorage(id(), actualStorageLocation(), fileDescriptors);
+        m_maintenanceJob = MaintenanceJob::CheckingStorage;
+    }
+    else
+    {
+        m_hasCheckedStorage = true;
+    }
 
     updateState();
 
@@ -1813,6 +1855,32 @@ void TorrentImpl::resetTrackerEntryStatuses()
     m_announceStatus = TorrentAnnounceStatusFlag::HasNoProblem;
 }
 
+void TorrentImpl::checkingFileStorageFinished(const FileStorageCheckResult &result)
+{
+    Q_ASSERT(m_maintenanceJob == MaintenanceJob::CheckingStorage);
+
+    m_maintenanceJob = MaintenanceJob::None;
+    m_hasCheckedStorage = true;
+
+    if (result.status == FileStorageCheckResult::OK)
+    {
+        m_hasMissingFiles = false;
+
+        if (!m_isStopped)
+        {
+            setAutoManaged(m_operatingMode == TorrentOperatingMode::AutoManaged);
+            if (m_operatingMode == TorrentOperatingMode::Forced)
+                m_nativeHandle.resume();
+        }
+    }
+    else
+    {
+        m_hasMissingFiles = true;
+        LogMsg(tr("Failed to start torrent. Torrent: %1. Reason: %2.")
+                .arg(name(), fileStorageError(result)), Log::WARNING);
+    }
+}
+
 std::shared_ptr<const libtorrent::torrent_info> TorrentImpl::nativeTorrentInfo() const
 {
     Q_ASSERT(!m_nativeStatus.torrent_file.expired());
@@ -1963,20 +2031,32 @@ void TorrentImpl::start(const TorrentOperatingMode mode)
 
     m_operatingMode = mode;
 
-    if (m_hasMissingFiles)
-    {
-        m_hasMissingFiles = false;
-        m_isStopped = false;
-        m_ltAddTorrentParams.ti = std::const_pointer_cast<lt::torrent_info>(nativeTorrentInfo());
-        reload();
-        return;
-    }
-
     if (m_isStopped)
     {
         m_isStopped = false;
         deferredRequestResumeData();
         m_session->handleTorrentStarted(this);
+    }
+
+    if (hasMetadata() && (m_hasMissingFiles || !m_hasCheckedStorage))
+    {
+        if (m_maintenanceJob != MaintenanceJob::CheckingStorage)
+        {
+            const int filesCount = m_torrentInfo.filesCount();
+            const QVector<qreal> progresses = filesProgress();
+            QHash<Path, qint64> fileDescriptors;
+            fileDescriptors.reserve(filesCount);
+            for (int i = 0; i < filesCount; ++i)
+            {
+                if ((m_filePriorities.at(i) == DownloadPriority::Ignored) || (progresses.at(i) <= 0))
+                    continue;
+
+                fileDescriptors.insert(actualFilePath(i), ((progresses.at(i) >= 1) ? fileSize(i) : -1));
+            }
+
+            m_session->checkFileStorage(id(), actualStorageLocation(), fileDescriptors);
+            m_maintenanceJob = MaintenanceJob::CheckingStorage;
+        }
     }
 
     if (m_maintenanceJob == MaintenanceJob::None)
@@ -2278,7 +2358,10 @@ void TorrentImpl::prepareResumeData(lt::add_torrent_params params)
 
 void TorrentImpl::handleFastResumeRejected()
 {
-    // Files were probably moved or storage isn't accessible
+    // "Missing files" case should be handled in a different way now
+    // and this alert should never be received (unless we made an incorrect
+    // assumption about the underlying `libtorrent` logic, so the related
+    // legacy code still exists for debugging purposes).
     m_hasMissingFiles = true;
 }
 
@@ -2359,7 +2442,7 @@ void TorrentImpl::handleFileRenameFailed(const lt::file_index_t nativeFileIndex)
 
 void TorrentImpl::handleFileCompleted(const lt::file_index_t nativeFileIndex)
 {
-    if (m_maintenanceJob == MaintenanceJob::HandleMetadata)
+    if (m_maintenanceJob != MaintenanceJob::None)
         return;
 
     const int fileIndex = fileIndexFromNative(nativeFileIndex);
@@ -2576,8 +2659,7 @@ void TorrentImpl::updateStatus(const lt::torrent_status &nativeStatus)
 
     updateState();
 
-    m_payloadRateMonitor.addSample({nativeStatus.download_payload_rate
-                              , nativeStatus.upload_payload_rate});
+    m_payloadRateMonitor.addSample({nativeStatus.download_payload_rate, nativeStatus.upload_payload_rate});
 
     if (hasMetadata())
     {

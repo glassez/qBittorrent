@@ -1,6 +1,6 @@
 /*
  * Bittorrent Client using Qt and libtorrent.
- * Copyright (C) 2015-2025  Vladimir Golovnev <glassez@yandex.ru>
+ * Copyright (C) 2015-2026  Vladimir Golovnev <glassez@yandex.ru>
  * Copyright (C) 2006  Christophe Dumez <chris@qbittorrent.org>
  *
  * This program is free software; you can redistribute it and/or
@@ -77,6 +77,7 @@ namespace BitTorrent
     enum class MoveStorageMode;
     enum class MoveStorageContext;
 
+    class FileStorageChecker;
     class InfoHash;
     class ResumeDataStorage;
     class Torrent;
@@ -85,6 +86,7 @@ namespace BitTorrent
     class TorrentImpl;
     class Tracker;
 
+    struct FileStorageCheckResult;
     struct LoadTorrentParams;
     struct TrackerEntry;
 
@@ -488,6 +490,7 @@ namespace BitTorrent
         lt::torrent_handle reloadTorrent(const lt::torrent_handle &currentHandle, lt::add_torrent_params params);
 
         QFuture<FileSearchResult> findIncompleteFiles(const Path &savePath, const Path &downloadPath, const PathList &filePaths = {}) const;
+        void checkFileStorage(const TorrentID &id, const Path &savePath, const QHash<Path, qint64> &fileDescriptors) const;
 
         void enablePortMapping();
         void disablePortMapping();
@@ -523,6 +526,7 @@ namespace BitTorrent
         void handleIPFilterParsed(int ruleCount);
         void handleIPFilterError();
         void torrentContentRemovingFinished(const QString &torrentName, const QString &errorMessage);
+        void checkingFileStorageFinished(const TorrentID &id, const FileStorageCheckResult &result);
 
     private:
         struct ResumeSessionContext;
@@ -825,6 +829,7 @@ namespace BitTorrent
         Utils::Thread::UniquePtr m_ioThread;
         QThreadPool *m_asyncWorker = nullptr;
         ResumeDataStorage *m_resumeDataStorage = nullptr;
+        FileStorageChecker *m_fileStorageChecker = nullptr;
         FileSearcher *m_fileSearcher = nullptr;
         TorrentContentRemover *m_torrentContentRemover = nullptr;
 
