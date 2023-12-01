@@ -93,6 +93,7 @@
 #include "downloadpriority.h"
 #include "extensiondata.h"
 #include "filesearcher.h"
+#include "filestoragechecker.h"
 #include "filterparserthread.h"
 #include "loadtorrentparams.h"
 #include "lttypecast.h"
@@ -566,6 +567,11 @@ SessionImpl::SessionImpl(QObject *parent)
     connect(Net::ProxyConfigurationManager::instance()
         , &Net::ProxyConfigurationManager::proxyConfigurationChanged
         , this, &SessionImpl::configureDeferred);
+
+    m_fileStorageChecker = new FileStorageChecker;
+    m_fileStorageChecker->moveToThread(m_ioThread.get());
+    connect(m_ioThread.get(), &QThread::finished, m_fileStorageChecker, &QObject::deleteLater);
+    connect(m_fileStorageChecker, &FileStorageChecker::finished, this, &SessionImpl::checkingFileStorageFinished);
 
     m_fileSearcher = new FileSearcher;
     m_fileSearcher->moveToThread(m_ioThread.get());
@@ -1494,6 +1500,11 @@ void SessionImpl::processNextResumeData(ResumeSessionContext *context)
     resumeData.ltAddTorrentParams.storage = customStorageConstructor;
 #endif
 
+    resumeData.ltAddTorrentParams.flags |= lt::torrent_flags::no_verify_files;
+    // Don't actually start until storage is checked
+    resumeData.ltAddTorrentParams.flags |= lt::torrent_flags::paused;
+    resumeData.ltAddTorrentParams.flags &= ~lt::torrent_flags::auto_managed;
+
     qDebug() << "Starting up torrent" << torrentID.toString() << "...";
     m_loadingTorrents.insert(torrentID, resumeData);
 #ifdef QBT_USES_LIBTORRENT2
@@ -2326,10 +2337,15 @@ void SessionImpl::processShareLimits()
     }
 }
 
+void SessionImpl::checkingFileStorageFinished(const TorrentID &id, const FileStorageCheckResult &result)
+{
+    if (TorrentImpl *torrent = m_torrents.value(id))
+        torrent->checkingFileStorageFinished(result);
+}
+
 void SessionImpl::fileSearchFinished(const TorrentID &id, const Path &savePath, const PathList &fileNames)
 {
-    TorrentImpl *torrent = m_torrents.value(id);
-    if (torrent)
+    if (TorrentImpl *torrent = m_torrents.value(id))
     {
         torrent->fileSearchFinished(savePath, fileNames);
         return;
@@ -2856,21 +2872,31 @@ bool SessionImpl::addTorrent_impl(const TorrentDescriptor &source, const AddTorr
     else
         p.flags &= ~lt::torrent_flags::sequential_download;
 
-    // Seeding mode
-    // Skip checking and directly start seeding
     if (addTorrentParams.skipChecking)
+    {
+        // Seeding mode
+        // Skip hash checking (just check that the files exist)
         p.flags |= lt::torrent_flags::seed_mode;
-    else
-        p.flags &= ~lt::torrent_flags::seed_mode;
-
-    if (loadTorrentParams.stopped || (loadTorrentParams.operatingMode == TorrentOperatingMode::AutoManaged))
+        p.flags |= lt::torrent_flags::no_verify_files;
+        // Don't actually start until storage is checked
         p.flags |= lt::torrent_flags::paused;
-    else
-        p.flags &= ~lt::torrent_flags::paused;
-    if (loadTorrentParams.stopped || (loadTorrentParams.operatingMode == TorrentOperatingMode::Forced))
         p.flags &= ~lt::torrent_flags::auto_managed;
+    }
     else
-        p.flags |= lt::torrent_flags::auto_managed;
+    {
+        p.flags &= ~lt::torrent_flags::seed_mode;
+        p.flags &= ~lt::torrent_flags::no_verify_files;
+
+        if (loadTorrentParams.stopped || (loadTorrentParams.operatingMode == TorrentOperatingMode::AutoManaged))
+            p.flags |= lt::torrent_flags::paused;
+        else
+            p.flags &= ~lt::torrent_flags::paused;
+
+        if (loadTorrentParams.stopped || (loadTorrentParams.operatingMode == TorrentOperatingMode::Forced))
+            p.flags &= ~lt::torrent_flags::auto_managed;
+        else
+            p.flags |= lt::torrent_flags::auto_managed;
+    }
 
     p.flags |= lt::torrent_flags::duplicate_is_error;
 
@@ -2892,6 +2918,14 @@ bool SessionImpl::addTorrent_impl(const TorrentDescriptor &source, const AddTorr
         m_nativeSession->async_add_torrent(p);
 
     return true;
+}
+
+void SessionImpl::checkFileStorage(const TorrentID &id, const Path &savePath, const QHash<Path, qint64> &fileDescriptors) const
+{
+    QMetaObject::invokeMethod(m_fileStorageChecker, [=, this]
+    {
+        m_fileStorageChecker->check(id, savePath, fileDescriptors);
+    });
 }
 
 void SessionImpl::findIncompleteFiles(const TorrentInfo &torrentInfo, const Path &savePath

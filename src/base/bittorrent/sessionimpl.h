@@ -69,12 +69,14 @@ class NativeSessionExtension;
 
 namespace BitTorrent
 {
+    class FileStorageChecker;
     class InfoHash;
     class ResumeDataStorage;
     class Torrent;
     class TorrentDescriptor;
     class TorrentImpl;
     class Tracker;
+    struct FileStorageCheckResult;
     struct LoadTorrentParams;
 
     enum class MoveStorageMode;
@@ -452,8 +454,9 @@ namespace BitTorrent
 
         bool addMoveTorrentStorageJob(TorrentImpl *torrent, const Path &newPath, MoveStorageMode mode, MoveStorageContext context);
 
+        void checkFileStorage(const TorrentID &id, const Path &savePath, const QHash<Path, qint64> &fileDescriptors) const;
         void findIncompleteFiles(const TorrentInfo &torrentInfo, const Path &savePath
-                                 , const Path &downloadPath, const PathList &filePaths = {}) const;
+                , const Path &downloadPath, const PathList &filePaths = {}) const;
 
         void enablePortMapping();
         void disablePortMapping();
@@ -476,6 +479,7 @@ namespace BitTorrent
         void generateResumeData();
         void handleIPFilterParsed(int ruleCount);
         void handleIPFilterError();
+        void checkingFileStorageFinished(const TorrentID &id, const FileStorageCheckResult &result);
         void fileSearchFinished(const TorrentID &id, const Path &savePath, const PathList &fileNames);
 
     private:
@@ -744,6 +748,7 @@ namespace BitTorrent
         Utils::Thread::UniquePtr m_ioThread;
         QThreadPool *m_asyncWorker = nullptr;
         ResumeDataStorage *m_resumeDataStorage = nullptr;
+        FileStorageChecker *m_fileStorageChecker = nullptr;
         FileSearcher *m_fileSearcher = nullptr;
 
         QHash<TorrentID, lt::torrent_handle> m_downloadedMetadata;

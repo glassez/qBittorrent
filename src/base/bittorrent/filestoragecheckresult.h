@@ -1,7 +1,6 @@
 /*
  * Bittorrent Client using Qt and libtorrent.
- * Copyright (C) 2022-2023  Vladimir Golovnev <glassez@yandex.ru>
- * Copyright (C) 2012  Christophe Dumez <chris@qbittorrent.org>
+ * Copyright (C) 2023  Vladimir Golovnev <glassez@yandex.ru>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -29,45 +28,25 @@
 
 #pragma once
 
-/**
- * Utility functions related to file system.
- */
+#include <QMetaType>
 
-#include <QString>
+#include "base/path.h"
 
-#include "base/global.h"
-#include "base/pathfwd.h"
-
-class QDateTime;
-
-namespace Utils::Fs
+namespace BitTorrent
 {
-    qint64 computePathSize(const Path &path);
-    qint64 freeDiskSpaceOnPath(const Path &path);
+    struct FileStorageCheckResult
+    {
+        enum Status
+        {
+            OK,
+            SavePathDoesntExist,
+            MissingFile,
+            MismathingFileSize
+        };
 
-    qint64 fileSize(const Path &path);
-    bool isRegularFile(const Path &path);
-    bool isDir(const Path &path);
-    bool isReadable(const Path &path);
-    bool isWritable(const Path &path);
-    bool isNetworkFileSystem(const Path &path);
-    QDateTime lastModified(const Path &path);
-    bool sameFiles(const Path &path1, const Path &path2);
-
-    QString toValidFileName(const QString &name, const QString &pad = u" "_s);
-    Path toValidPath(const QString &name, const QString &pad = u" "_s);
-    Path toAbsolutePath(const Path &path);
-    Path toCanonicalPath(const Path &path);
-
-    bool copyFile(const Path &from, const Path &to);
-    bool renameFile(const Path &from, const Path &to);
-    bool removeFile(const Path &path);
-    bool mkdir(const Path &dirPath);
-    bool mkpath(const Path &dirPath);
-    bool rmdir(const Path &dirPath);
-    void removeDirRecursively(const Path &path);
-    bool smartRemoveEmptyFolderTree(const Path &path);
-
-    Path homePath();
-    Path tempPath();
+        Status status = OK;
+        Path path {};
+    };
 }
+
+Q_DECLARE_METATYPE(BitTorrent::FileStorageCheckResult)

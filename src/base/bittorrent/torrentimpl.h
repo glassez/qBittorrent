@@ -59,6 +59,7 @@
 namespace BitTorrent
 {
     class SessionImpl;
+    struct FileStorageCheckResult;
     struct LoadTorrentParams;
 
     enum class MoveStorageMode
@@ -78,7 +79,8 @@ namespace BitTorrent
     enum class MaintenanceJob
     {
         None,
-        HandleMetadata
+        HandleMetadata,
+        CheckingStorage
     };
 
     struct FileErrorInfo
@@ -266,6 +268,7 @@ namespace BitTorrent
         void handleUnwantedFolderToggled();
         void saveResumeData(lt::resume_data_flags_t flags = {});
         void handleMoveStorageJobFinished(const Path &path, MoveStorageContext context, bool hasOutstandingJob);
+        void checkingFileStorageFinished(const FileStorageCheckResult &result);
         void fileSearchFinished(const Path &savePath, const PathList &fileNames);
         TrackerEntry updateTrackerEntry(const lt::announce_entry &announceEntry, const QHash<lt::tcp::endpoint, QMap<int, int>> &updateInfo);
         void resetTrackerEntries();
@@ -345,6 +348,9 @@ namespace BitTorrent
         QVector<QUrl> m_urlSeeds;
         FileErrorInfo m_lastFileError;
 
+        bool m_hasCheckedStorage = false;
+        bool m_hasMissingFiles = false;
+
         // Persistent data
         QString m_name;
         Path m_savePath;
@@ -357,7 +363,6 @@ namespace BitTorrent
         TorrentOperatingMode m_operatingMode;
         TorrentContentLayout m_contentLayout;
         bool m_hasFinishedStatus;
-        bool m_hasMissingFiles = false;
         bool m_hasFirstLastPiecePriority = false;
         bool m_useAutoTMM;
         bool m_isStopped;
