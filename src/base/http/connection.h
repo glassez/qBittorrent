@@ -37,7 +37,7 @@ class QTcpSocket;
 
 namespace Http
 {
-    class IRequestHandler;
+    class RequestHandler;
     struct Response;
 
     class Connection : public QObject
@@ -46,7 +46,7 @@ namespace Http
         Q_DISABLE_COPY_MOVE(Connection)
 
     public:
-        Connection(QTcpSocket *socket, IRequestHandler *requestHandler, QObject *parent = nullptr);
+        Connection(QTcpSocket *socket, RequestHandler *requestHandler, QObject *parent = nullptr);
         ~Connection();
 
         bool hasExpired(qint64 timeout) const;
@@ -58,7 +58,7 @@ namespace Http
         void sendResponse(const Response &response) const;
 
         QTcpSocket *m_socket = nullptr;
-        IRequestHandler *m_requestHandler = nullptr;
+        RequestHandler *m_requestHandler = nullptr;
         QByteArray m_receivedData;
         QElapsedTimer m_idleTimer;
     };

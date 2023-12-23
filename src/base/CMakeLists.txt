@@ -49,7 +49,7 @@ add_library(qbt_base STATIC
     global.h
     http/connection.h
     http/httperror.h
-    http/irequesthandler.h
+    http/requesthandler.h
     http/requestparser.h
     http/responsebuilder.h
     http/responsegenerator.h
@@ -145,6 +145,7 @@ add_library(qbt_base STATIC
     exceptions.cpp
     http/connection.cpp
     http/httperror.cpp
+    http/requesthandler.cpp
     http/requestparser.cpp
     http/responsebuilder.cpp
     http/responsegenerator.cpp

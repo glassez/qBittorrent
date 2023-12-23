@@ -90,7 +90,7 @@ private:
 };
 
 class WebApplication final : public ApplicationComponent<QObject>
-        , public Http::IRequestHandler, public ISessionManager
+        , public Http::RequestHandler, public ISessionManager
         , private Http::ResponseBuilder
 {
     Q_OBJECT

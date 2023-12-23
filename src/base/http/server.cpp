@@ -94,7 +94,7 @@ namespace
 
 using namespace Http;
 
-Server::Server(IRequestHandler *requestHandler, QObject *parent)
+Server::Server(RequestHandler *requestHandler, QObject *parent)
     : QTcpServer(parent)
     , m_requestHandler(requestHandler)
 {

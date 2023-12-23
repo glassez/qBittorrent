@@ -69,7 +69,7 @@ namespace BitTorrent
     // *Basic* Bittorrent tracker implementation
     // [BEP-3] The BitTorrent Protocol Specification
     // also see: https://wiki.theory.org/index.php/BitTorrentSpecification#Tracker_HTTP.2FHTTPS_Protocol
-    class Tracker final : public QObject, public Http::IRequestHandler, private Http::ResponseBuilder
+    class Tracker final : public QObject, public Http::RequestHandler, private Http::ResponseBuilder
     {
         Q_OBJECT
         Q_DISABLE_COPY_MOVE(Tracker)

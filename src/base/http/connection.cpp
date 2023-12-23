@@ -1,7 +1,7 @@
 /*
  * Bittorrent Client using Qt and libtorrent.
  * Copyright (C) 2018  Mike Tzou (Chocobo1)
- * Copyright (C) 2014  Vladimir Golovnev <glassez@yandex.ru>
+ * Copyright (C) 2014, 2023  Vladimir Golovnev <glassez@yandex.ru>
  * Copyright (C) 2006  Ishan Arora and Christophe Dumez <chris@qbittorrent.org>
  *
  * This program is free software; you can redistribute it and/or
@@ -32,16 +32,16 @@
 
 #include <QTcpSocket>
 
-#include "irequesthandler.h"
+#include "requesthandler.h"
 #include "requestparser.h"
 #include "responsegenerator.h"
 
 using namespace Http;
 
-Connection::Connection(QTcpSocket *socket, IRequestHandler *requestHandler, QObject *parent)
+Connection::Connection(QTcpSocket *socket, RequestHandler *requestHandler, QObject *parent)
     : QObject(parent)
-    , m_socket(socket)
-    , m_requestHandler(requestHandler)
+    , m_socket {socket}
+    , m_requestHandler {requestHandler}
 {
     m_socket->setParent(this);
 

@@ -1,7 +1,6 @@
 /*
  * Bittorrent Client using Qt and libtorrent.
- * Copyright (C) 2014  Vladimir Golovnev <glassez@yandex.ru>
- * Copyright (C) 2006  Ishan Arora and Christophe Dumez <chris@qbittorrent.org>
+ * Copyright (C) 2023  Vladimir Golovnev <glassez@yandex.ru>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -27,43 +26,38 @@
  * exception statement from your version.
  */
 
-
 #pragma once
 
-#include <QSet>
-#include <QSslCertificate>
-#include <QSslKey>
-#include <QTcpServer>
+#include <QObject>
+#include <QQueue>
 
 namespace Http
 {
-    class RequestHandler;
-    class Connection;
+    struct Environment;
+    struct Request;
+    struct Response;
 
-    class Server final : public QTcpServer
+    class RequestHandler : public QObject
     {
         Q_OBJECT
-        Q_DISABLE_COPY_MOVE(Server)
+        Q_DISABLE_COPY_MOVE(RequestHandler)
 
     public:
-        explicit Server(RequestHandler *requestHandler, QObject *parent = nullptr);
+        using QObject::QObject;
 
-        bool setupHttps(const QByteArray &certificates, const QByteArray &privateKey);
-        void disableHttps();
-        bool isHttps() const;
+        qint64 processRequest(const Request &request, const Environment &env);
 
-    private slots:
-        void dropTimedOutConnection();
+    signals:
+        void requestProcessingDone(qint64 id, const Response &response);
+
+    protected:
+        virtual void doProcessRequest(const Request &request, const Environment &env) = 0;
+        void onRequestProcessingDone(const Response &response);
 
     private:
-        void incomingConnection(qintptr socketDescriptor) override;
-        void removeConnection(Connection *connection);
+        struct RequestItem;
 
-        RequestHandler *m_requestHandler = nullptr;
-        QSet<Connection *> m_connections;  // for tracking persistent connections
-
-        bool m_https = false;
-        QList<QSslCertificate> m_certificates;
-        QSslKey m_key;
+        qint64 m_nextID = 0;
+        QQueue<RequestItem> m_queuedRequests;
     };
 }

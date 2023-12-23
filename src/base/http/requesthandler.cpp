@@ -1,6 +1,6 @@
 /*
  * Bittorrent Client using Qt and libtorrent.
- * Copyright (C) 2015  Vladimir Golovnev <glassez@yandex.ru>
+ * Copyright (C) 2023  Vladimir Golovnev <glassez@yandex.ru>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -26,18 +26,44 @@
  * exception statement from your version.
  */
 
-#pragma once
+#include "requesthandler.h"
+
+#include "base/http/types.h"
 
 namespace Http
 {
-    struct Environment;
-    struct Request;
-    struct Response;
-
-    class IRequestHandler
+    struct RequestHandler::RequestItem
     {
-    public:
-        virtual ~IRequestHandler() = default;
-        virtual Response processRequest(const Request &request, const Environment &env) = 0;
+        qint64 id;
+        Request request;
+        Environment env;
     };
+}
+
+qint64 Http::RequestHandler::processRequest(const Request &request, const Environment &env)
+{
+    const qint64 id = m_nextID;
+    m_nextID = (m_nextID < std::numeric_limits<qint64>::max()) ? ++m_nextID : 0;
+
+    m_queuedRequests.enqueue({id, request, env});
+    if (m_queuedRequests.size() == 1)
+        doProcessRequest(request, env);
+
+    return id;
+}
+
+void Http::RequestHandler::onRequestProcessingDone(const Response &response)
+{
+    Q_ASSERT(!m_queuedRequests.isEmpty());
+    if (m_queuedRequests.isEmpty()) [[unlikely]]
+        return;
+
+    const auto item = m_queuedRequests.dequeue();
+    emit requestProcessingDone(item.id, response);
+
+    if (!m_queuedRequests.isEmpty())
+    {
+        const auto &item = m_queuedRequests.head();
+        doProcessRequest(item.request, item.env);
+    }
 }
