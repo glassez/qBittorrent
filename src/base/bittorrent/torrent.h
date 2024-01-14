@@ -31,6 +31,7 @@
 
 #include <QtContainerFwd>
 #include <QtTypes>
+#include <QFuture>
 #include <QMetaType>
 #include <QString>
 
@@ -274,10 +275,7 @@ namespace BitTorrent
         virtual bool isDHTDisabled() const = 0;
         virtual bool isPEXDisabled() const = 0;
         virtual bool isLSDDisabled() const = 0;
-        virtual QList<PeerInfo> peers() const = 0;
         virtual QBitArray pieces() const = 0;
-        virtual QBitArray downloadingPieces() const = 0;
-        virtual QList<int> pieceAvailability() const = 0;
         virtual qreal distributedCopies() const = 0;
         virtual qreal maxRatio() const = 0;
         virtual int maxSeedingTime() const = 0;
@@ -321,13 +319,17 @@ namespace BitTorrent
         virtual void setSSLParameters(const SSLParameters &sslParams) = 0;
 
         virtual QString createMagnetURI() const = 0;
-        virtual nonstd::expected<QByteArray, QString> exportToBuffer() const = 0;
-        virtual nonstd::expected<void, QString> exportToFile(const Path &path) const = 0;
+        using ExportToBufferResult = nonstd::expected<QByteArray, QString>;
+        virtual QFuture<ExportToBufferResult> exportToBuffer() const = 0;
+        using ExportToFileResult = nonstd::expected<void, QString>;
+        virtual QFuture<ExportToFileResult> exportToFile(const Path &path) const = 0;
 
-        virtual void fetchPeerInfo(std::function<void (QList<PeerInfo>)> resultHandler) const = 0;
-        virtual void fetchURLSeeds(std::function<void (QList<QUrl>)> resultHandler) const = 0;
-        virtual void fetchPieceAvailability(std::function<void (QList<int>)> resultHandler) const = 0;
-        virtual void fetchDownloadingPieces(std::function<void (QBitArray)> resultHandler) const = 0;
+        virtual QFuture<QList<PeerInfo>> fetchPeerInfo() const = 0;
+        virtual QFuture<QList<QUrl>> fetchURLSeeds() const = 0;
+        virtual QFuture<QBitArray> fetchDownloadingPieces() const = 0;
+        virtual QFuture<QList<int>> fetchPieceAvailability() const = 0;
+
+        virtual qreal peerRelevance(const PeerInfo &peerInfo) const = 0;
 
         TorrentID id() const;
         bool isRunning() const;
