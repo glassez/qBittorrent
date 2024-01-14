@@ -1,6 +1,6 @@
 /*
  * Bittorrent Client using Qt and libtorrent.
- * Copyright (C) 2015-2023  Vladimir Golovnev <glassez@yandex.ru>
+ * Copyright (C) 2015-2024  Vladimir Golovnev <glassez@yandex.ru>
  * Copyright (C) 2006  Christophe Dumez <chris@qbittorrent.org>
  *
  * This program is free software; you can redistribute it and/or
@@ -34,7 +34,6 @@
 
 #include <libtorrent/add_torrent_params.hpp>
 #include <libtorrent/fwd.hpp>
-#include <libtorrent/torrent_handle.hpp>
 #include <libtorrent/torrent_info.hpp>
 #include <libtorrent/torrent_status.hpp>
 
@@ -60,6 +59,7 @@
 namespace BitTorrent
 {
     class SessionImpl;
+    class TorrentBackend;
     struct LoadTorrentParams;
 
     enum class MoveStorageMode
@@ -94,11 +94,7 @@ namespace BitTorrent
         Q_DISABLE_COPY_MOVE(TorrentImpl)
 
     public:
-        TorrentImpl(SessionImpl *session, lt::session *nativeSession
-                          , const lt::torrent_handle &nativeHandle, const LoadTorrentParams &params);
-        ~TorrentImpl() override;
-
-        bool isValid() const;
+        TorrentImpl(SessionImpl *session, TorrentBackend *backend, const LoadTorrentParams &params);
 
         Session *session() const override;
 
@@ -202,10 +198,7 @@ namespace BitTorrent
         bool isDHTDisabled() const override;
         bool isPEXDisabled() const override;
         bool isLSDDisabled() const override;
-        QList<PeerInfo> peers() const override;
         QBitArray pieces() const override;
-        QBitArray downloadingPieces() const override;
-        QList<int> pieceAvailability() const override;
         qreal distributedCopies() const override;
         qreal maxRatio() const override;
         int maxSeedingTime() const override;
@@ -219,7 +212,6 @@ namespace BitTorrent
         int connectionsCount() const override;
         int connectionsLimit() const override;
         qlonglong nextAnnounce() const override;
-        QList<qreal> availableFileFractions() const override;
 
         void setName(const QString &name) override;
         void setSequentialDownload(bool enable) override;
@@ -254,19 +246,22 @@ namespace BitTorrent
         bool applySSLParameters();
 
         QString createMagnetURI() const override;
-        nonstd::expected<QByteArray, QString> exportToBuffer() const override;
-        nonstd::expected<void, QString> exportToFile(const Path &path) const override;
+        QFuture<ExportToBufferResult> exportToBuffer() const override;
+        QFuture<ExportToFileResult> exportToFile(const Path &path) const override;
 
-        void fetchPeerInfo(std::function<void (QList<PeerInfo>)> resultHandler) const override;
-        void fetchURLSeeds(std::function<void (QList<QUrl>)> resultHandler) const override;
-        void fetchPieceAvailability(std::function<void (QList<int>)> resultHandler) const override;
-        void fetchDownloadingPieces(std::function<void (QBitArray)> resultHandler) const override;
-        void fetchAvailableFileFractions(std::function<void (QList<qreal>)> resultHandler) const override;
+        QFuture<QList<PeerInfo>> fetchPeerInfo() const override;
+        QFuture<QList<QUrl>> fetchURLSeeds() const override;
+        QFuture<QBitArray> fetchDownloadingPieces() const override;
+        QFuture<QList<int>> fetchPieceAvailability() const override;
+        QFuture<QList<qreal>> fetchAvailableFileFractions() const override;
+        QFuture<std::vector<lt::announce_entry>> fetchAnnounceEntries() const;
+
+        qreal peerRelevance(const PeerInfo &peerInfo) const override;
 
         bool needSaveResumeData() const;
 
         // Session interface
-        lt::torrent_handle nativeHandle() const;
+        TorrentBackend *backend() const;
 
         void handleAlert(const lt::alert *a);
         void handleStateUpdate(const lt::torrent_status &nativeStatus);
@@ -309,8 +304,6 @@ namespace BitTorrent
 
         bool isMoveInProgress() const;
 
-        void setAutoManaged(bool enable);
-
         Path makeActualPath(int index, const Path &path) const;
         Path makeUserPath(const Path &path) const;
         void adjustStorageLocation();
@@ -322,15 +315,16 @@ namespace BitTorrent
         void prepareResumeData(const lt::add_torrent_params &params);
         void endReceivedMetadataHandling(const Path &savePath, const PathList &fileNames);
         void reload();
+        void onBackendReloaded(const lt::torrent_status &torrentStatus);
 
-        nonstd::expected<lt::entry, QString> exportTorrent() const;
+        using ExportTorrentResult = nonstd::expected<lt::entry, QString>;
+        QFuture<ExportTorrentResult> exportTorrent() const;
 
-        template <typename Func, typename Callback>
-        void invokeAsync(Func func, Callback resultHandler) const;
+        template <typename Func, typename... Args>
+        void backendInvoke(Func &&function, Args &&...args) const;
 
         SessionImpl *const m_session = nullptr;
-        lt::session *m_nativeSession = nullptr;
-        lt::torrent_handle m_nativeHandle;
+        TorrentBackend *m_backend = nullptr;
         mutable lt::torrent_status m_nativeStatus;
         TorrentState m_state = TorrentState::Unknown;
         TorrentInfo m_torrentInfo;

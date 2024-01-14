@@ -405,7 +405,7 @@ void PeerListWidget::loadPeers(const BitTorrent::Torrent *torrent)
         return;
 
     using TorrentPtr = QPointer<const BitTorrent::Torrent>;
-    torrent->fetchPeerInfo([this, torrent = TorrentPtr(torrent)](const QList<BitTorrent::PeerInfo> &peers)
+    torrent->fetchPeerInfo().then(this, [this, torrent = TorrentPtr(torrent)](const QList<BitTorrent::PeerInfo> &peers)
     {
         if (torrent != m_properties->getCurrentTorrent())
             return;
@@ -510,8 +510,10 @@ void PeerListWidget::updatePeer(const int row, const BitTorrent::Torrent *torren
     setModelData(m_listModel, row, PeerListColumns::FLAGS, peer.flags(), peer.flags(), {}, peer.flagsDescription());
     setModelData(m_listModel, row, PeerListColumns::PROGRESS, (Utils::String::fromDouble(peer.progress() * 100, 1) + u'%')
             , peer.progress(), intDataTextAlignment);
-    setModelData(m_listModel, row, PeerListColumns::RELEVANCE, (Utils::String::fromDouble(peer.relevance() * 100, 1) + u'%')
-            , peer.relevance(), intDataTextAlignment);
+
+    const qreal relevance = torrent->peerRelevance(peer);
+    setModelData(m_listModel, row, PeerListColumns::RELEVANCE, (Utils::String::fromDouble(relevance * 100, 1) + u'%')
+            , relevance, intDataTextAlignment);
 
     const PathList filePaths = torrent->info().filesForPiece(peer.downloadingPieceIndex());
     QStringList downloadingFiles;

@@ -30,10 +30,8 @@
 #pragma once
 
 #include <utility>
-#include <vector>
 
 #include <libtorrent/fwd.hpp>
-#include <libtorrent/portmap.hpp>
 #include <libtorrent/torrent_handle.hpp>
 
 #include <QtContainerFwd>
@@ -44,7 +42,6 @@
 #include <QMap>
 #include <QPointer>
 #include <QSet>
-#include <QThreadPool>
 
 #include "base/path.h"
 #include "base/settingvalue.h"
@@ -55,7 +52,6 @@
 #include "session.h"
 #include "sessionstatus.h"
 #include "torrentinfo.h"
-#include "trackerentrystatus.h"
 
 class QString;
 class QTimer;
@@ -64,7 +60,6 @@ class QUrl;
 class BandwidthScheduler;
 class FileSearcher;
 class FilterParserThread;
-class NativeSessionExtension;
 
 namespace BitTorrent
 {
@@ -73,6 +68,7 @@ namespace BitTorrent
 
     class InfoHash;
     class ResumeDataStorage;
+    class SessionBackend;
     class Torrent;
     class TorrentContentRemover;
     class TorrentDescriptor;
@@ -482,12 +478,6 @@ namespace BitTorrent
             QMetaObject::invokeMethod(this, std::forward<Func>(func), Qt::QueuedConnection);
         }
 
-        template <typename Func>
-        void invokeAsync(Func &&func)
-        {
-            m_asyncWorker->start(std::forward<Func>(func));
-        }
-
     signals:
         void addTorrentAlertsReceived(qsizetype count);
 
@@ -530,7 +520,7 @@ namespace BitTorrent
         // Session configuration
         Q_INVOKABLE void configure();
         void configureComponents();
-        void initializeNativeSession();
+        SessionBackend *initializeSessionBackend();
         lt::settings_pack loadLTSettings() const;
         void applyNetworkInterfacesSettings(lt::settings_pack &settingsPack) const;
         void configurePeerClasses();
@@ -594,8 +584,6 @@ namespace BitTorrent
         void saveTorrentsQueue();
         void removeTorrentsQueue();
 
-        std::vector<lt::alert *> getPendingAlerts(lt::time_duration time = lt::time_duration::zero()) const;
-
         void moveTorrentStorage(const MoveStorageJob &job) const;
         void handleMoveTorrentStorageJobFinished(const Path &newPath);
         void processPendingFinishedTorrents();
@@ -608,9 +596,12 @@ namespace BitTorrent
         void saveStatistics() const;
         void loadStatistics();
 
-        void updateTrackerEntryStatuses(lt::torrent_handle torrentHandle, QHash<std::string, QHash<lt::tcp::endpoint, QMap<int, int>>> updatedTrackers);
+        void updateTrackerEntryStatuses(TorrentImpl *torrent, QHash<std::string, QHash<lt::tcp::endpoint, QMap<int, int>>> updatedTrackers);
 
         void handleRemovedTorrent(const TorrentID &torrentID, const QString &partfileRemoveError = {});
+
+        template <typename Func, typename... Args>
+        void backendInvoke(Func &&function, Args &&...args) const;
 
         CachedSettingValue<QString> m_DHTBootstrapNodes;
         CachedSettingValue<bool> m_isDHTEnabled;
@@ -740,8 +731,7 @@ namespace BitTorrent
         CachedSettingValue<TorrentContentRemoveOption> m_torrentContentRemoveOption;
         SettingValue<bool> m_startPaused;
 
-        lt::session *m_nativeSession = nullptr;
-        NativeSessionExtension *m_nativeSessionExtension = nullptr;
+        SessionBackend *m_backend;
 
         bool m_deferredConfigureScheduled = false;
         bool m_IPFilteringConfigured = false;
@@ -776,8 +766,8 @@ namespace BitTorrent
         // Tracker
         QPointer<Tracker> m_tracker;
 
+        Utils::Thread::UniquePtr m_backendThread;
         Utils::Thread::UniquePtr m_ioThread;
-        QThreadPool *m_asyncWorker = nullptr;
         ResumeDataStorage *m_resumeDataStorage = nullptr;
         FileSearcher *m_fileSearcher = nullptr;
         TorrentContentRemover *m_torrentContentRemover = nullptr;
@@ -815,11 +805,7 @@ namespace BitTorrent
 
         bool m_needUpgradeDownloadPath = false;
 
-        // All port mapping related routines are invoked from working thread
-        // so there are no synchronization used. If multithreaded access is
-        // ever required, synchronization should also be provided.
         bool m_isPortMappingEnabled = false;
-        QHash<quint16, std::vector<lt::port_mapping_t>> m_mappedPorts;
 
         QTimer *m_wakeupCheckTimer = nullptr;
         QDateTime m_wakeupCheckTimestamp;

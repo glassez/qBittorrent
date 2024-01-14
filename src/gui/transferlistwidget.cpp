@@ -832,7 +832,8 @@ void TransferListWidget::exportTorrent()
                 continue;
             }
 
-            const nonstd::expected<void, QString> result = torrent->exportToFile(filePath);
+            // TODO: Try to perform it asynchronously.
+            const nonstd::expected<void, QString> result = torrent->exportToFile(filePath).result();
             if (!result)
             {
                 LogMsg(errorMsg.arg(torrent->name(), filePath.toString(), result.error()) , Log::WARNING);

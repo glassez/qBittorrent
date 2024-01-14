@@ -28,6 +28,7 @@
 
 #pragma once
 
+#include <QFuture>
 #include <QObject>
 
 #include "base/pathfwd.h"
@@ -52,8 +53,7 @@ namespace BitTorrent
          * This is not the same as torrrent availability, it is just a fraction of pieces
          * that can be downloaded right now. It varies between 0 to 1.
          */
-        virtual QList<qreal> availableFileFractions() const = 0;
-        virtual void fetchAvailableFileFractions(std::function<void (QList<qreal>)> resultHandler) const = 0;
+        virtual QFuture<QList<qreal>> fetchAvailableFileFractions() const = 0;
 
         virtual void prioritizeFiles(const QList<DownloadPriority> &priorities) = 0;
         virtual void flushCache() const = 0;

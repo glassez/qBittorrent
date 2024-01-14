@@ -1,6 +1,6 @@
 /*
  * Bittorrent Client using Qt and libtorrent.
- * Copyright (C) 2015-2023  Vladimir Golovnev <glassez@yandex.ru>
+ * Copyright (C) 2015-2024  Vladimir Golovnev <glassez@yandex.ru>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -33,14 +33,16 @@
 #include "base/bittorrent/ltqbitarray.h"
 #include "base/net/geoipmanager.h"
 #include "base/unicodestrings.h"
-#include "base/utils/bytearray.h"
 #include "peeraddress.h"
+
+#ifdef QBT_USES_LIBTORRENT2
+#include "base/utils/bytearray.h"
+#endif
 
 using namespace BitTorrent;
 
-PeerInfo::PeerInfo(const lt::peer_info &nativeInfo, const QBitArray &allPieces)
+PeerInfo::PeerInfo(const lt::peer_info &nativeInfo)
     : m_nativeInfo(nativeInfo)
-    , m_relevance(calcRelevance(allPieces))
 {
     determineFlags();
 }
@@ -269,22 +271,6 @@ QString PeerInfo::connectionType() const
     return (m_nativeInfo.connection_type == lt::peer_info::standard_bittorrent)
         ? u"BT"_s
         : u"Web"_s;
-}
-
-qreal PeerInfo::calcRelevance(const QBitArray &allPieces) const
-{
-    const int localMissing = allPieces.count(false);
-    if (localMissing <= 0)
-        return 0;
-
-    const QBitArray peerPieces = pieces();
-    const int remoteHaves = (peerPieces & (~allPieces)).count(true);
-    return static_cast<qreal>(remoteHaves) / localMissing;
-}
-
-qreal PeerInfo::relevance() const
-{
-    return m_relevance;
 }
 
 void PeerInfo::determineFlags()
