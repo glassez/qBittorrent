@@ -1,6 +1,6 @@
 /*
  * Bittorrent Client using Qt and libtorrent.
- * Copyright (C) 2022-2023  Vladimir Golovnev <glassez@yandex.ru>
+ * Copyright (C) 2024  Vladimir Golovnev <glassez@yandex.ru>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -28,34 +28,45 @@
 
 #pragma once
 
-#include <QFuture>
-#include <QObject>
+#include <vector>
 
-#include "base/pathfwd.h"
-#include "abstractfilestorage.h"
-#include "downloadpriority.h"
+#include <libtorrent/address.hpp>
+#include <libtorrent/fwd.hpp>
+#include <libtorrent/portmap.hpp>
+#include <libtorrent/torrent_handle.hpp>
+
+#include <QHash>
+#include <QObject>
+#include <QPromise>
+#include <QSet>
 
 namespace BitTorrent
 {
-    class TorrentContentHandler : public QObject, public AbstractFileStorage
+    class SessionBackend final : public QObject
     {
+        Q_OBJECT
+        Q_DISABLE_COPY_MOVE(SessionBackend)
+
     public:
-        using QObject::QObject;
+        SessionBackend(lt::session *ltSession, QObject *parent = nullptr);
 
-        virtual bool hasMetadata() const = 0;
-        virtual Path actualStorageLocation() const = 0;
-        virtual Path actualFilePath(int fileIndex) const = 0;
-        virtual QList<DownloadPriority> filePriorities() const = 0;
-        virtual QList<qreal> filesProgress() const = 0;
-        /**
-         * @brief fraction of file pieces that are available at least from one peer
-         *
-         * This is not the same as torrrent availability, it is just a fraction of pieces
-         * that can be downloaded right now. It varies between 0 to 1.
-         */
-        virtual QFuture<QList<qreal>> fetchAvailableFileFractions() const = 0;
+        void pause();
+        void resume();
+        void addTorrentAsync(lt::add_torrent_params ltAddTorrentParams);
+        void removeTorrent(const lt::torrent_handle &ltTorrentHandle);
+        void blockIP(const lt::address &addr);
+        void setIPFilter(const lt::ip_filter &ipFilter);
+        void setPortMappingEnabled(bool enabled);
+        void addMappedPorts(const QSet<quint16> &ports);
+        void removeMappedPorts(const QSet<quint16> &ports);
+        void applySettings(lt::settings_pack settingsPack);
+        void postTorrentUpdates(lt::status_flags_t flags = lt::status_flags_t::all());
+        void postSessionStats();
 
-        virtual void prioritizeFiles(const QList<DownloadPriority> &priorities) = 0;
-        virtual void flushCache() const = 0;
+    private:
+        lt::session *m_ltSession;
+
+        bool m_isPortMappingEnabled = false;
+        QHash<quint16, std::vector<lt::port_mapping_t>> m_mappedPorts;
     };
 }

@@ -239,14 +239,9 @@ public:
         return QList<qreal>(filesCount(), 0);
     }
 
-    QList<qreal> availableFileFractions() const override
+    QFuture<QList<qreal>> fetchAvailableFileFractions() const override
     {
-        return QList<qreal>(filesCount(), 0);
-    }
-
-    void fetchAvailableFileFractions(std::function<void (QList<qreal>)> resultHandler) const override
-    {
-        resultHandler(availableFileFractions());
+        return {};
     }
 
     void prioritizeFiles(const QList<BitTorrent::DownloadPriority> &priorities) override
