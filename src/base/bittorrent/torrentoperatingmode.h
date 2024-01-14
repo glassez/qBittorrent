@@ -1,6 +1,7 @@
 /*
  * Bittorrent Client using Qt and libtorrent.
- * Copyright (C) 2022-2025  Vladimir Golovnev <glassez@yandex.ru>
+ * Copyright (C) 2015-2024  Vladimir Golovnev <glassez@yandex.ru>
+ * Copyright (C) 2006  Christophe Dumez <chris@qbittorrent.org>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -28,36 +29,23 @@
 
 #pragma once
 
-#include <QFuture>
-#include <QObject>
-
-#include "base/pathfwd.h"
-#include "abstractfilestorage.h"
-#include "downloadpriority.h"
-
-template <typename T> class QFuture;
+#include <QMetaEnum>
 
 namespace BitTorrent
 {
-    class TorrentContentHandler : public QObject, public AbstractFileStorage
+    // Using `Q_ENUM_NS()` without a wrapper namespace in our case is not advised
+    // since `Q_NAMESPACE` cannot be used when the same namespace resides at different files.
+    // https://www.kdab.com/new-qt-5-8-meta-object-support-namespaces/#comment-143779
+    inline namespace TorrentOperatingModeNS
     {
-    public:
-        using QObject::QObject;
+        Q_NAMESPACE
 
-        virtual bool hasMetadata() const = 0;
-        virtual Path actualStorageLocation() const = 0;
-        virtual Path actualFilePath(int fileIndex) const = 0;
-        virtual QList<DownloadPriority> filePriorities() const = 0;
-        virtual QList<qreal> filesProgress() const = 0;
-        /**
-         * @brief fraction of file pieces that are available at least from one peer
-         *
-         * This is not the same as torrrent availability, it is just a fraction of pieces
-         * that can be downloaded right now. It varies between 0 to 1.
-         */
-        virtual QFuture<QList<qreal>> fetchAvailableFileFractions() const = 0;
+        enum class TorrentOperatingMode
+        {
+            AutoManaged = 0,
+            Forced = 1
+        };
 
-        virtual void prioritizeFiles(const QList<DownloadPriority> &priorities) = 0;
-        virtual void flushCache() const = 0;
-    };
+        Q_ENUM_NS(TorrentOperatingMode)
+    }
 }

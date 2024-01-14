@@ -1,6 +1,6 @@
 /*
  * Bittorrent Client using Qt and libtorrent.
- * Copyright (C) 2022-2025  Vladimir Golovnev <glassez@yandex.ru>
+ * Copyright (C) 2025  Vladimir Golovnev <glassez@yandex.ru>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -26,38 +26,47 @@
  * exception statement from your version.
  */
 
-#pragma once
+#include "executor.h"
 
-#include <QFuture>
-#include <QObject>
-
-#include "base/pathfwd.h"
-#include "abstractfilestorage.h"
-#include "downloadpriority.h"
-
-template <typename T> class QFuture;
-
-namespace BitTorrent
+Executor::Executor(QObject *parent)
+    : QThread(parent)
 {
-    class TorrentContentHandler : public QObject, public AbstractFileStorage
+}
+
+void Executor::addJob(Job job)
+{
+    m_jobsMutex.lock();
+    m_jobs.push(std::move(job));
+    m_jobsMutex.unlock();
+
+    m_waitCondition.wakeAll();
+}
+
+void Executor::requestInterruption()
+{
+    QThread::requestInterruption();
+    m_waitCondition.wakeAll();
+}
+
+void Executor::run()
+{
+    while (true)
     {
-    public:
-        using QObject::QObject;
+        m_jobsMutex.lock();
+        if (m_jobs.empty())
+        {
+            m_waitCondition.wait(&m_jobsMutex);
+            if (isInterruptionRequested())
+            {
+                m_jobsMutex.unlock();
+                break;
+            }
+        }
 
-        virtual bool hasMetadata() const = 0;
-        virtual Path actualStorageLocation() const = 0;
-        virtual Path actualFilePath(int fileIndex) const = 0;
-        virtual QList<DownloadPriority> filePriorities() const = 0;
-        virtual QList<qreal> filesProgress() const = 0;
-        /**
-         * @brief fraction of file pieces that are available at least from one peer
-         *
-         * This is not the same as torrrent availability, it is just a fraction of pieces
-         * that can be downloaded right now. It varies between 0 to 1.
-         */
-        virtual QFuture<QList<qreal>> fetchAvailableFileFractions() const = 0;
+        Job job = std::move(m_jobs.front());
+        m_jobs.pop();
+        m_jobsMutex.unlock();
 
-        virtual void prioritizeFiles(const QList<DownloadPriority> &priorities) = 0;
-        virtual void flushCache() const = 0;
-    };
+        std::invoke(job);
+    }
 }

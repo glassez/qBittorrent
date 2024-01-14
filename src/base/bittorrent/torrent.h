@@ -31,6 +31,7 @@
 
 #include <QtContainerFwd>
 #include <QtTypes>
+#include <QFuture>
 #include <QMetaType>
 #include <QString>
 
@@ -39,6 +40,7 @@
 #include "base/tagset.h"
 #include "sharelimitaction.h"
 #include "torrentcontenthandler.h"
+#include "torrentoperatingmode.h"
 
 class QBitArray;
 class QByteArray;
@@ -61,22 +63,6 @@ namespace BitTorrent
     struct SSLParameters;
     struct TrackerEntry;
     struct TrackerEntryStatus;
-
-    // Using `Q_ENUM_NS()` without a wrapper namespace in our case is not advised
-    // since `Q_NAMESPACE` cannot be used when the same namespace resides at different files.
-    // https://www.kdab.com/new-qt-5-8-meta-object-support-namespaces/#comment-143779
-    inline namespace TorrentOperatingModeNS
-    {
-        Q_NAMESPACE
-
-        enum class TorrentOperatingMode
-        {
-            AutoManaged = 0,
-            Forced = 1
-        };
-
-        Q_ENUM_NS(TorrentOperatingMode)
-    }
 
     enum class TorrentState
     {
@@ -296,7 +282,7 @@ namespace BitTorrent
         virtual void setFirstLastPiecePriority(bool enabled) = 0;
         virtual void stop() = 0;
         virtual void start(TorrentOperatingMode mode = TorrentOperatingMode::AutoManaged) = 0;
-        virtual void forceReannounce(int index = -1) = 0;
+        virtual void forceAnnounce(int index = -1) = 0;
         virtual void forceDHTAnnounce() = 0;
         virtual void forceRecheck() = 0;
         virtual void setUploadLimit(int limit) = 0;
@@ -320,13 +306,17 @@ namespace BitTorrent
         virtual void setSSLParameters(const SSLParameters &sslParams) = 0;
 
         virtual QString createMagnetURI() const = 0;
-        virtual nonstd::expected<QByteArray, QString> exportToBuffer() const = 0;
-        virtual nonstd::expected<void, QString> exportToFile(const Path &path) const = 0;
+        using ExportToBufferResult = nonstd::expected<QByteArray, QString>;
+        virtual QFuture<ExportToBufferResult> exportToBuffer() const = 0;
+        using ExportToFileResult = nonstd::expected<void, QString>;
+        virtual QFuture<ExportToFileResult> exportToFile(const Path &path) const = 0;
 
         virtual QFuture<QList<PeerInfo>> fetchPeerInfo() const = 0;
         virtual QFuture<QList<QUrl>> fetchURLSeeds() const = 0;
         virtual QFuture<QList<int>> fetchPieceAvailability() const = 0;
         virtual QFuture<QBitArray> fetchDownloadingPieces() const = 0;
+
+        virtual qreal peerRelevance(const PeerInfo &peerInfo) const = 0;
 
         TorrentID id() const;
         bool isRunning() const;

@@ -1,6 +1,6 @@
 /*
  * Bittorrent Client using Qt and libtorrent.
- * Copyright (C) 2022-2025  Vladimir Golovnev <glassez@yandex.ru>
+ * Copyright (C) 2025  Vladimir Golovnev <glassez@yandex.ru>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -28,36 +28,29 @@
 
 #pragma once
 
-#include <QFuture>
-#include <QObject>
+#include <functional>
+#include <queue>
 
-#include "base/pathfwd.h"
-#include "abstractfilestorage.h"
-#include "downloadpriority.h"
+#include <QMutex>
+#include <QThread>
+#include <QWaitCondition>
 
-template <typename T> class QFuture;
-
-namespace BitTorrent
+class Executor final : public QThread
 {
-    class TorrentContentHandler : public QObject, public AbstractFileStorage
-    {
-    public:
-        using QObject::QObject;
+    Q_DISABLE_COPY_MOVE(Executor)
 
-        virtual bool hasMetadata() const = 0;
-        virtual Path actualStorageLocation() const = 0;
-        virtual Path actualFilePath(int fileIndex) const = 0;
-        virtual QList<DownloadPriority> filePriorities() const = 0;
-        virtual QList<qreal> filesProgress() const = 0;
-        /**
-         * @brief fraction of file pieces that are available at least from one peer
-         *
-         * This is not the same as torrrent availability, it is just a fraction of pieces
-         * that can be downloaded right now. It varies between 0 to 1.
-         */
-        virtual QFuture<QList<qreal>> fetchAvailableFileFractions() const = 0;
+public:
+    using Job = std::function<void ()>;
 
-        virtual void prioritizeFiles(const QList<DownloadPriority> &priorities) = 0;
-        virtual void flushCache() const = 0;
-    };
-}
+    explicit Executor(QObject *parent = nullptr);
+
+    void addJob(Job job);
+    void requestInterruption();
+
+    void run() override;
+
+private:
+    std::queue<Job> m_jobs;
+    QMutex m_jobsMutex;
+    QWaitCondition m_waitCondition;
+};

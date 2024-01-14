@@ -349,7 +349,7 @@ void TrackerListWidget::reannounceSelected()
     {
         const BitTorrent::TrackerEntryStatus &status = trackers.at(i);
         if (trackerURLs.contains(status.url))
-            torrent()->forceReannounce(i);
+            torrent()->forceAnnounce(i);
     }
 }
 
@@ -386,7 +386,7 @@ void TrackerListWidget::showTrackerListMenu()
         menu->addAction(UIThemeManager::instance()->getIcon(u"reannounce"_s, u"view-refresh"_s), tr("Force reannounce to all trackers")
                 , this, [this]()
         {
-            torrent()->forceReannounce();
+            torrent()->forceAnnounce();
             torrent()->forceDHTAnnounce();
         });
     }

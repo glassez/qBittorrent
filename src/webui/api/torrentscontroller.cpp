@@ -1171,7 +1171,7 @@ void TorrentsController::editTrackerAction()
         throw APIError(APIErrorType::Conflict, u"Tracker not found"_s);
 
     torrent->replaceTrackers(entries);
-    torrent->forceReannounce();
+    torrent->forceAnnounce();
 
     setResult(QString());
 }
@@ -1645,7 +1645,7 @@ void TorrentsController::reannounceAction()
     {
         if (urls.isEmpty())
         {
-            torrent->forceReannounce();
+            torrent->forceAnnounce();
             torrent->forceDHTAnnounce();
         }
         else
@@ -1655,7 +1655,7 @@ void TorrentsController::reannounceAction()
             {
                 const BitTorrent::TrackerEntryStatus &status = trackers.at(i);
                 if (urls.contains(status.url))
-                    torrent->forceReannounce(i);
+                    torrent->forceAnnounce(i);
             }
         }
     });
@@ -1913,7 +1913,7 @@ void TorrentsController::exportAction()
     if (!torrent)
         throw APIError(APIErrorType::NotFound);
 
-    const nonstd::expected<QByteArray, QString> result = torrent->exportToBuffer();
+    const BitTorrent::Torrent::ExportToBufferResult result = torrent->exportToBuffer().result();
     if (!result)
         throw APIError(APIErrorType::Conflict, tr("Unable to export torrent file. Error: %1").arg(result.error()));
 

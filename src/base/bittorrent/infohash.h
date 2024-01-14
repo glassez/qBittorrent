@@ -76,6 +76,8 @@ namespace BitTorrent
 #endif
 
         bool isValid() const;
+        bool hasV1() const;
+        bool hasV2() const;
         bool isHybrid() const;
         SHA1Hash v1() const;
         SHA256Hash v2() const;

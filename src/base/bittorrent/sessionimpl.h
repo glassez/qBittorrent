@@ -32,10 +32,8 @@
 #include <chrono>
 #include <functional>
 #include <utility>
-#include <vector>
 
 #include <libtorrent/fwd.hpp>
-#include <libtorrent/portmap.hpp>
 #include <libtorrent/torrent_handle.hpp>
 
 #include <QtContainerFwd>
@@ -46,7 +44,6 @@
 #include <QMutex>
 #include <QPointer>
 #include <QSet>
-#include <QThreadPool>
 
 #include "base/path.h"
 #include "base/settingvalue.h"
@@ -65,10 +62,10 @@ class QUrl;
 template <typename T> class QFuture;
 
 class BandwidthScheduler;
+class Executor;
 class FileSearcher;
 class FilterParserThread;
 class FreeDiskSpaceChecker;
-class NativeSessionExtension;
 
 struct FileSearchResult;
 
@@ -79,6 +76,7 @@ namespace BitTorrent
 
     class InfoHash;
     class ResumeDataStorage;
+    class SessionBackend;
     class Torrent;
     class TorrentContentRemover;
     class TorrentDescriptor;
@@ -483,8 +481,6 @@ namespace BitTorrent
 
         bool addMoveTorrentStorageJob(TorrentImpl *torrent, const Path &newPath, MoveStorageMode mode, MoveStorageContext context);
 
-        lt::torrent_handle reloadTorrent(const lt::torrent_handle &currentHandle, lt::add_torrent_params params);
-
         QFuture<FileSearchResult> findIncompleteFiles(const Path &savePath, const Path &downloadPath, const PathList &filePaths = {}) const;
 
         void enablePortMapping();
@@ -496,12 +492,6 @@ namespace BitTorrent
         void invoke(Func &&func)
         {
             QMetaObject::invokeMethod(this, std::forward<Func>(func), Qt::QueuedConnection);
-        }
-
-        template <typename Func>
-        void invokeAsync(Func &&func)
-        {
-            m_asyncWorker->start(std::forward<Func>(func));
         }
 
         bool isAddTrackersFromURLEnabled() const override;
@@ -551,7 +541,7 @@ namespace BitTorrent
         // Session configuration
         Q_INVOKABLE void configure();
         void configureComponents();
-        void initializeNativeSession();
+        SessionBackend *initializeSessionBackend();
         lt::settings_pack loadLTSettings() const;
         void applyNetworkInterfacesSettings(lt::settings_pack &settingsPack) const;
         void configurePeerClasses();
@@ -640,7 +630,7 @@ namespace BitTorrent
         void saveStatistics() const;
         void loadStatistics();
 
-        void updateTrackerEntryStatuses(lt::torrent_handle torrentHandle);
+        void updateTrackerEntryStatuses(TorrentImpl *torrent);
 
         void handleRemovedTorrent(const TorrentID &torrentID, const QString &partfileRemoveError = {});
 
@@ -779,8 +769,7 @@ namespace BitTorrent
         CachedSettingValue<TorrentContentRemoveOption> m_torrentContentRemoveOption;
         SettingValue<bool> m_startPaused;
 
-        lt::session *m_nativeSession = nullptr;
-        NativeSessionExtension *m_nativeSessionExtension = nullptr;
+        SessionBackend *m_backend;
 
         bool m_deferredConfigureScheduled = false;
         bool m_IPFilteringConfigured = false;
@@ -819,8 +808,8 @@ namespace BitTorrent
         // Tracker
         QPointer<Tracker> m_tracker;
 
+        Executor *m_backendExecutor = nullptr;
         Utils::Thread::UniquePtr m_ioThread;
-        QThreadPool *m_asyncWorker = nullptr;
         ResumeDataStorage *m_resumeDataStorage = nullptr;
         FileSearcher *m_fileSearcher = nullptr;
         TorrentContentRemover *m_torrentContentRemover = nullptr;
@@ -843,7 +832,7 @@ namespace BitTorrent
 
         // This field holds amounts of peers reported by trackers in their responses to announces
         // (torrent.tracker_name.tracker_local_endpoint.protocol_version.num_peers)
-        QHash<lt::torrent_handle, QHash<std::string, QHash<lt::tcp::endpoint, QMap<int, int>>>> m_updatedTrackerStatuses;
+        QHash<TorrentImpl *, QHash<std::string, QHash<lt::tcp::endpoint, QMap<int, int>>>> m_updatedTrackerStatuses;
         QMutex m_updatedTrackerStatusesMutex;
 
         // I/O errored torrents
@@ -863,11 +852,7 @@ namespace BitTorrent
 
         bool m_needUpgradeDownloadPath = false;
 
-        // All port mapping related routines are invoked from working thread
-        // so there are no synchronization used. If multithreaded access is
-        // ever required, synchronization should also be provided.
         bool m_isPortMappingEnabled = false;
-        QHash<quint16, std::vector<lt::port_mapping_t>> m_mappedPorts;
 
         QElapsedTimer m_wakeupCheckTimestamp;
 

@@ -1,6 +1,6 @@
 /*
  * Bittorrent Client using Qt and libtorrent.
- * Copyright (C) 2015-2023  Vladimir Golovnev <glassez@yandex.ru>
+ * Copyright (C) 2015-2024  Vladimir Golovnev <glassez@yandex.ru>
  * Copyright (C) 2006  Christophe Dumez <chris@qbittorrent.org>
  *
  * This program is free software; you can redistribute it and/or
@@ -34,7 +34,6 @@
 
 #include <libtorrent/add_torrent_params.hpp>
 #include <libtorrent/fwd.hpp>
-#include <libtorrent/torrent_handle.hpp>
 #include <libtorrent/torrent_info.hpp>
 #include <libtorrent/torrent_status.hpp>
 
@@ -60,6 +59,7 @@
 namespace BitTorrent
 {
     class SessionImpl;
+    class TorrentBackend;
     struct LoadTorrentParams;
 
     enum class MoveStorageMode
@@ -94,10 +94,7 @@ namespace BitTorrent
         Q_DISABLE_COPY_MOVE(TorrentImpl)
 
     public:
-        TorrentImpl(SessionImpl *session, const lt::torrent_handle &nativeHandle, LoadTorrentParams params);
-        ~TorrentImpl() override;
-
-        bool isValid() const;
+        TorrentImpl(SessionImpl *session, std::shared_ptr<TorrentBackend> backend, LoadTorrentParams params);
 
         Session *session() const override;
 
@@ -223,7 +220,7 @@ namespace BitTorrent
         void setFirstLastPiecePriority(bool enabled) override;
         void stop() override;
         void start(TorrentOperatingMode mode = TorrentOperatingMode::AutoManaged) override;
-        void forceReannounce(int index = -1) override;
+        void forceAnnounce(int index = -1) override;
         void forceDHTAnnounce() override;
         void forceRecheck() override;
         void renameFile(int index, const Path &path) override;
@@ -251,19 +248,25 @@ namespace BitTorrent
         bool applySSLParameters();
 
         QString createMagnetURI() const override;
-        nonstd::expected<QByteArray, QString> exportToBuffer() const override;
-        nonstd::expected<void, QString> exportToFile(const Path &path) const override;
+        QFuture<ExportToBufferResult> exportToBuffer() const override;
+        QFuture<ExportToFileResult> exportToFile(const Path &path) const override;
 
         QFuture<QList<PeerInfo>> fetchPeerInfo() const override;
         QFuture<QList<QUrl>> fetchURLSeeds() const override;
         QFuture<QList<int>> fetchPieceAvailability() const override;
         QFuture<QBitArray> fetchDownloadingPieces() const override;
         QFuture<QList<qreal>> fetchAvailableFileFractions() const override;
+        QFuture<std::vector<lt::announce_entry>> fetchAnnounceEntries() const;
+
+        qreal peerRelevance(const PeerInfo &peerInfo) const override;
 
         bool needSaveResumeData() const;
 
         // Session interface
-        lt::torrent_handle nativeHandle() const;
+        TorrentBackend *backend() const;
+
+        void setMaxConnections(int max);
+        void setMaxUploads(int max);
 
         int fileIndexFromNative(lt::file_index_t nativeFileIndex) const;
 
@@ -298,8 +301,6 @@ namespace BitTorrent
 
         bool isMoveInProgress() const;
 
-        void setAutoManaged(bool enable);
-
         Path makeActualPath(int index, const Path &path) const;
         Path makeUserPath(const Path &path) const;
         void adjustStorageLocation();
@@ -311,14 +312,13 @@ namespace BitTorrent
         void prepareResumeData(lt::add_torrent_params resumeData);
         void endReceivedMetadataHandling(const Path &savePath, const PathList &fileNames);
         void reload();
+        void onBackendReloaded(const lt::torrent_status &torrentStatus);
 
-        nonstd::expected<lt::entry, QString> exportTorrent() const;
-
-        template <typename Func>
-        QFuture<std::invoke_result_t<Func>> invokeAsync(Func &&func) const;
+        using ExportTorrentResult = nonstd::expected<lt::entry, QString>;
+        QFuture<ExportTorrentResult> exportTorrent() const;
 
         SessionImpl *const m_session = nullptr;
-        lt::torrent_handle m_nativeHandle;
+        std::shared_ptr<TorrentBackend> m_backend;
         mutable lt::torrent_status m_nativeStatus;
         TorrentState m_state = TorrentState::Unknown;
         TorrentInfo m_torrentInfo;

@@ -32,12 +32,14 @@ add_library(qbt_base STATIC
     bittorrent/portforwarderimpl.h
     bittorrent/resumedatastorage.h
     bittorrent/session.h
+    bittorrent/sessionbackend.h
     bittorrent/sessionimpl.h
     bittorrent/sessionstatus.h
     bittorrent/sharelimitaction.h
     bittorrent/speedmonitor.h
     bittorrent/sslparameters.h
     bittorrent/torrent.h
+    bittorrent/torrentbackend.h
     bittorrent/torrentcontenthandler.h
     bittorrent/torrentcontentlayout.h
     bittorrent/torrentcontentremoveoption.h
@@ -48,6 +50,7 @@ add_library(qbt_base STATIC
     bittorrent/torrentdescriptor.h
     bittorrent/torrentimpl.h
     bittorrent/torrentinfo.h
+    bittorrent/torrentoperatingmode.h
     bittorrent/tracker.h
     bittorrent/trackerentry.h
     bittorrent/trackerentrystatus.h
@@ -55,6 +58,7 @@ add_library(qbt_base STATIC
     concepts/stringable.h
     digest32.h
     exceptions.h
+    executor.h
     freediskspacechecker.h
     global.h
     http/connection.h
@@ -145,10 +149,12 @@ add_library(qbt_base STATIC
     bittorrent/peerinfo.cpp
     bittorrent/portforwarderimpl.cpp
     bittorrent/resumedatastorage.cpp
+    bittorrent/sessionbackend.cpp
     bittorrent/sessionimpl.cpp
     bittorrent/speedmonitor.cpp
     bittorrent/sslparameters.cpp
     bittorrent/torrent.cpp
+    bittorrent/torrentbackend.cpp
     bittorrent/torrentcontenthandler.cpp
     bittorrent/torrentcontentremover.cpp
     bittorrent/torrentcreationmanager.cpp
@@ -161,6 +167,7 @@ add_library(qbt_base STATIC
     bittorrent/trackerentry.cpp
     bittorrent/trackerentrystatus.cpp
     exceptions.cpp
+    executor.cpp
     freediskspacechecker.cpp
     http/connection.cpp
     http/httperror.cpp

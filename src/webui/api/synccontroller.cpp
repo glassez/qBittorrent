@@ -847,7 +847,8 @@ void SyncController::torrentPeersAction()
 
     for (const BitTorrent::PeerInfo &pi : peersList)
     {
-        if (pi.address().ip.isNull()) continue;
+        if (pi.address().ip.isNull())
+            continue;
 
         QVariantMap peer =
         {
@@ -863,7 +864,7 @@ void SyncController::torrentPeersAction()
             {KEY_PEER_CONNECTION_TYPE, pi.connectionType()},
             {KEY_PEER_FLAGS, pi.flags()},
             {KEY_PEER_FLAGS_DESCRIPTION, pi.flagsDescription()},
-            {KEY_PEER_RELEVANCE, pi.relevance()}
+            {KEY_PEER_RELEVANCE, torrent->peerRelevance(pi)}
         };
 
         if (torrent->hasMetadata())
