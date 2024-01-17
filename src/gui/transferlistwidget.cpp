@@ -123,16 +123,16 @@ namespace
 }
 
 TransferListWidget::TransferListWidget(QWidget *parent, MainWindow *mainWindow)
-    : QTreeView {parent}
-    , m_listModel {new TransferListModel {this}}
-    , m_sortFilterModel {new TransferListSortModel {this}}
+    : QTreeView(parent)
+    , m_listModel {new TransferListModel(this)}
+    , m_sortFilterModel {new TransferListSortModel(this)}
     , m_mainWindow {mainWindow}
 {
     // Load settings
     const bool columnLoaded = loadSettings();
 
     // Create and apply delegate
-    setItemDelegate(new TransferListDelegate {this});
+    setItemDelegate(new TransferListDelegate(this));
 
     m_sortFilterModel->setDynamicSortFilter(true);
     m_sortFilterModel->setSourceModel(m_listModel);
@@ -155,6 +155,7 @@ TransferListWidget::TransferListWidget(QWidget *parent, MainWindow *mainWindow)
     setAttribute(Qt::WA_MacShowFocusRect, false);
 #endif
     header()->setFirstSectionMovable(true);
+    header()->setAutoScroll(false);
     header()->setStretchLastSection(false);
     header()->setTextElideMode(Qt::ElideRight);
 
