@@ -5493,6 +5493,9 @@ void SessionImpl::handleAlert(const lt::alert *a)
             handleTorrentConflictAlert(static_cast<const lt::torrent_conflict_alert *>(a));
             break;
 #endif
+        case lt::cache_flushed_alert::alert_type:
+            handleCacheFlushedAlert(static_cast<const lt::cache_flushed_alert *>(a));
+            break;
         }
     }
     catch (const std::exception &exc)
@@ -6079,6 +6082,11 @@ void SessionImpl::handleTorrentConflictAlert(const lt::torrent_conflict_alert *a
         emit metadataDownloaded(TorrentInfo(*a->metadata));
 }
 #endif
+
+void SessionImpl::handleCacheFlushedAlert(const lt::cache_flushed_alert *a)
+{
+    LogMsg(tr("Cache flushed for torrent %1").arg(TorrentID(a->handle.info_hash()).toString()));
+}
 
 void SessionImpl::processTrackerStatuses()
 {

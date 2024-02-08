@@ -562,6 +562,7 @@ namespace BitTorrent
 #ifdef QBT_USES_LIBTORRENT2
         void handleTorrentConflictAlert(const lt::torrent_conflict_alert *a);
 #endif
+        void handleCacheFlushedAlert(const lt::cache_flushed_alert *a);
 
         TorrentImpl *createTorrent(const lt::torrent_handle &nativeHandle, const LoadTorrentParams &params);
 
