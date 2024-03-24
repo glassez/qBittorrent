@@ -121,23 +121,21 @@ namespace
 
 TrackersFilterWidget::TrackersFilterWidget(QWidget *parent, TransferListWidget *transferList, const bool downloadFavicon)
     : BaseFilterWidget(parent, transferList)
-    , m_downloadTrackerFavicon(downloadFavicon)
+    , m_downloadTrackerFavicon {downloadFavicon}
 {
     auto *allTrackersItem = new QListWidgetItem(this);
     allTrackersItem->setData(Qt::DisplayRole, formatItemText(ALL_ROW, 0));
-    allTrackersItem->setData(Qt::DecorationRole, UIThemeManager::instance()->getIcon(u"trackers"_s, u"network-server"_s));
     auto *trackerlessItem = new QListWidgetItem(this);
     trackerlessItem->setData(Qt::DisplayRole, formatItemText(TRACKERLESS_ROW, 0));
-    trackerlessItem->setData(Qt::DecorationRole, UIThemeManager::instance()->getIcon(u"trackerless"_s, u"network-server"_s));
     auto *trackerErrorItem = new QListWidgetItem(this);
     trackerErrorItem->setData(Qt::DisplayRole, formatItemText(TRACKERERROR_ROW, 0));
-    trackerErrorItem->setData(Qt::DecorationRole, UIThemeManager::instance()->getIcon(u"tracker-error"_s, u"dialog-error"_s));
     auto *otherErrorItem = new QListWidgetItem(this);
     otherErrorItem->setData(Qt::DisplayRole, formatItemText(OTHERERROR_ROW, 0));
-    otherErrorItem->setData(Qt::DecorationRole, UIThemeManager::instance()->getIcon(u"tracker-error"_s, u"dialog-error"_s));
     auto *warningItem = new QListWidgetItem(this);
     warningItem->setData(Qt::DisplayRole, formatItemText(WARNING_ROW, 0));
-    warningItem->setData(Qt::DecorationRole, UIThemeManager::instance()->getIcon(u"tracker-warning"_s, u"dialog-warning"_s));
+
+    applyUITheme();
+    connect(UIThemeManager::instance(), &UIThemeManager::themeChanged, this, &TrackersFilterWidget::applyUITheme);
 
     m_trackers[NULL_HOST] = {{}, trackerlessItem};
 
@@ -491,6 +489,15 @@ void TrackersFilterWidget::removeTracker(const QString &tracker)
     }
 
     updateGeometry();
+}
+
+void TrackersFilterWidget::applyUITheme()
+{
+    item(ALL_ROW)->setData(Qt::DecorationRole, UIThemeManager::instance()->getIcon(u"trackers"_s, u"network-server"_s));
+    item(TRACKERLESS_ROW)->setData(Qt::DecorationRole, UIThemeManager::instance()->getIcon(u"trackerless"_s, u"network-server"_s));
+    item(TRACKERERROR_ROW)->setData(Qt::DecorationRole, UIThemeManager::instance()->getIcon(u"tracker-error"_s, u"dialog-error"_s));
+    item(OTHERERROR_ROW)->setData(Qt::DecorationRole, UIThemeManager::instance()->getIcon(u"tracker-error"_s, u"dialog-error"_s));
+    item(WARNING_ROW)->setData(Qt::DecorationRole, UIThemeManager::instance()->getIcon(u"tracker-warning"_s, u"dialog-warning"_s));
 }
 
 void TrackersFilterWidget::handleFavicoDownloadFinished(const Net::DownloadResult &result)

@@ -80,6 +80,8 @@ private:
     void downloadFavicon(const QString &trackerHost, const QString &faviconURL);
     void removeTracker(const QString &tracker);
 
+    void applyUITheme();
+
     struct TrackerData
     {
         QSet<BitTorrent::TorrentID> torrents;

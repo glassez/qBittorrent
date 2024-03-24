@@ -56,6 +56,16 @@ public:
 
     QColor getColor(const QString &id) const;
 
+    template <typename T>
+    void bindIcon(T *t, const QString &iconId, const QString &fallback = {})
+    {
+        t->setIcon(getIcon(iconId, fallback));
+        connect(this, &UIThemeManager::themeChanged, t, [this, t, iconId, fallback]
+        {
+            t->setIcon(getIcon(iconId, fallback));
+        });
+    }
+
 signals:
     void themeChanged();
 
