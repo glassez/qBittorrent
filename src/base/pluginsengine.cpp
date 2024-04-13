@@ -50,12 +50,13 @@ namespace luabridge
     template <>
     struct Stack<QString>
     {
-        static void push(lua_State *luaState, const QString &str)
+        static Result push(lua_State *luaState, const QString &str)
         {
             lua_pushlstring(luaState, str.toUtf8().constData(), str.size());
+            return {};
         }
 
-        static QString get(lua_State *luaState, int index)
+        static TypeResult<QString> get(lua_State *luaState, int index)
         {
             size_t len;
             if (lua_type(luaState, index) == LUA_TSTRING)
@@ -85,14 +86,15 @@ namespace luabridge
     template <>
     struct Stack<Path>
     {
-        static void push(lua_State *luaState, const Path &path)
+        static Result push(lua_State *luaState, const Path &path)
         {
             Stack<QString>::push(luaState, path.toString());
+            return {};
         }
 
-        static Path get(lua_State *luaState, int index)
+        static TypeResult<Path> get(lua_State *luaState, int index)
         {
-            return Path(Stack<QString>::get(luaState, index));
+            return Path(Stack<QString>::get(luaState, index).valueOr(QString()));
         }
 
         static bool isInstance(lua_State *luaState, int index)
@@ -112,51 +114,29 @@ namespace
         }
     }
 
-    QString getTorrentID(const BitTorrent::Torrent *torrent)
-    {
-        return torrent->id().toString();
-    }
-
-    QString getTorrentInfoHashV1(const BitTorrent::Torrent *torrent)
-    {
-        return torrent->infoHash().v1().toString();
-    }
-
-    QString getTorrentInfoHashV2(const BitTorrent::Torrent *torrent)
-    {
-        return torrent->infoHash().v2().toString();
-    }
-
-    int getTorrentFilesCount(const BitTorrent::Torrent *torrent)
-    {
-        return torrent->filesCount();
-    }
-
-    std::vector<QString> getTorrentTags(const BitTorrent::Torrent *torrent)
-    {
-        const auto tags = torrent->tags();
-        return {tags.cbegin(), tags.cend()};
-    }
-
     void registerClassTorrent(lua_State *luaState)
     {
         using Torrent = BitTorrent::Torrent;
 
         auto cls = luabridge::getGlobalNamespace(luaState).beginNamespace("qBittorrent").beginClass<Torrent>("Torrent");
-        cls.addProperty("id", &getTorrentID);
-        cls.addProperty("infoHashV1", &getTorrentInfoHashV1);
-        cls.addProperty("infoHashV2", &getTorrentInfoHashV2);
-        cls.addProperty("filesCount", &getTorrentFilesCount);
-        cls.addProperty("totalSize", &BitTorrent::Torrent::totalSize);
-        cls.addProperty("name", &BitTorrent::Torrent::name);
-        cls.addProperty("savePath", &BitTorrent::Torrent::savePath);
-        cls.addProperty("downloadPath", &BitTorrent::Torrent::downloadPath);
-        cls.addProperty("rootPath", &BitTorrent::Torrent::rootPath);
-        cls.addProperty("contentPath", &BitTorrent::Torrent::contentPath);
-        cls.addProperty("category", &BitTorrent::Torrent::category);
-        cls.addProperty("tags", &getTorrentTags);
-        cls.addProperty("currentTracker", &BitTorrent::Torrent::currentTracker);
-        cls.addFunction("stop", &BitTorrent::Torrent::stop);
+        cls.addProperty("id", +[](const Torrent *torrent) { return torrent->id().toString(); });
+        cls.addProperty("infoHashV1", +[](const Torrent *torrent) { return torrent->infoHash().v1().toString(); });
+        cls.addProperty("infoHashV2", +[](const Torrent *torrent) { return torrent->infoHash().v2().toString(); });
+        cls.addProperty("filesCount", +[](const Torrent *torrent) { return torrent->filesCount(); });
+        cls.addProperty("totalSize", &Torrent::totalSize);
+        cls.addProperty("name", &Torrent::name);
+        cls.addProperty("savePath", &Torrent::savePath);
+        cls.addProperty("downloadPath", &Torrent::downloadPath);
+        cls.addProperty("rootPath", &Torrent::rootPath);
+        cls.addProperty("contentPath", &Torrent::contentPath);
+        cls.addProperty("category", &Torrent::category);
+        cls.addProperty("tags", +[](const Torrent *torrent) -> std::vector<QString>
+        {
+            const auto tags = torrent->tags();
+            return {tags.cbegin(), tags.cend()};
+        });
+        cls.addProperty("currentTracker", &Torrent::currentTracker);
+        cls.addFunction("stop", &Torrent::stop);
     }
 
     nonstd::expected<LuaStatePrt, QString> loadPlugin(const Path &path)
