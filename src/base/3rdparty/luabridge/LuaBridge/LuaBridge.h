@@ -1,4 +1,5 @@
-// https://github.com/vinniefalco/LuaBridge
+// https://github.com/kunitoki/LuaBridge3
+// Copyright 2020, Lucio Asnaghi
 // Copyright 2020, Dmitry Tarakanov
 // Copyright 2012, Vinnie Falco <vinnie.falco@gmail.com>
 // Copyright 2007, Nathan Reed
@@ -8,27 +9,31 @@
 
 // All #include dependencies are listed here
 // instead of in the individual header files.
-//
 
-#define LUABRIDGE_MAJOR_VERSION 2
-#define LUABRIDGE_MINOR_VERSION 7
-#define LUABRIDGE_VERSION 207
+#define LUABRIDGE_MAJOR_VERSION 3
+#define LUABRIDGE_MINOR_VERSION 1
+#define LUABRIDGE_VERSION 301
 
-#ifndef LUA_VERSION_NUM
-#error "Lua headers must be included prior to LuaBridge ones"
-#endif
+#include "detail/Config.h"
 
-#include <LuaBridge/detail/CFunctions.h>
-#include <LuaBridge/detail/ClassInfo.h>
-#include <LuaBridge/detail/Constructor.h>
-#include <LuaBridge/detail/FuncTraits.h>
-#include <LuaBridge/detail/Iterator.h>
-#include <LuaBridge/detail/LuaException.h>
-#include <LuaBridge/detail/LuaHelpers.h>
-#include <LuaBridge/detail/LuaRef.h>
-#include <LuaBridge/detail/Namespace.h>
-#include <LuaBridge/detail/Security.h>
-#include <LuaBridge/detail/Stack.h>
-#include <LuaBridge/detail/TypeList.h>
-#include <LuaBridge/detail/TypeTraits.h>
-#include <LuaBridge/detail/Userdata.h>
+#include "detail/CFunctions.h"
+#include "detail/ClassInfo.h"
+#include "detail/Enum.h"
+#include "detail/Errors.h"
+#include "detail/Expected.h"
+#include "detail/FlagSet.h"
+#include "detail/FuncTraits.h"
+#include "detail/Globals.h"
+#include "detail/Invoke.h"
+#include "detail/Iterator.h"
+#include "detail/LuaException.h"
+#include "detail/LuaHelpers.h"
+#include "detail/LuaRef.h"
+#include "detail/Namespace.h"
+#include "detail/Options.h"
+#include "detail/Overload.h"
+#include "detail/Result.h"
+#include "detail/ScopeGuard.h"
+#include "detail/Stack.h"
+#include "detail/TypeTraits.h"
+#include "detail/Userdata.h"

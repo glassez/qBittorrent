@@ -1,140 +1,211 @@
-// https://github.com/vinniefalco/LuaBridge
+// https://github.com/kunitoki/LuaBridge3
+// Copyright 2020, Lucio Asnaghi
 // Copyright 2020, Dmitry Tarakanov
 // Copyright 2012, Vinnie Falco <vinnie.falco@gmail.com>
 // SPDX-License-Identifier: MIT
 
 #pragma once
 
-namespace luabridge {
+#include "Config.h"
 
+#include <cstdint>
+#include <memory>
+#include <string_view>
+
+#if defined __clang__ || defined __GNUC__
+#define LUABRIDGE_PRETTY_FUNCTION __PRETTY_FUNCTION__
+#define LUABRIDGE_PRETTY_FUNCTION_PREFIX '='
+#define LUABRIDGE_PRETTY_FUNCTION_SUFFIX ']'
+#elif defined _MSC_VER
+#define LUABRIDGE_PRETTY_FUNCTION __FUNCSIG__
+#define LUABRIDGE_PRETTY_FUNCTION_PREFIX '<'
+#define LUABRIDGE_PRETTY_FUNCTION_SUFFIX '>'
+#endif
+
+namespace luabridge {
 namespace detail {
 
-/**
- * A unique key for a type name in a metatable.
- */
-inline const void* getTypeKey()
+[[nodiscard]] constexpr auto fnv1a(const char* s, std::size_t count) noexcept
 {
-#ifdef _NDEBUG
-    static char value;
-    return &value;
-#else
+    uint32_t seed = 2166136261u;
+
+    for (std::size_t i = 0; i < count; ++i)
+        seed = static_cast<uint32_t>(static_cast<uint32_t>(seed ^ static_cast<uint8_t>(*s++)) * 16777619u);
+
+    if constexpr (sizeof(void*) == 8)
+        return static_cast<uint64_t>(seed);
+    else
+        return seed;
+}
+
+template <class T>
+[[nodiscard]] static constexpr auto typeName(T* = nullptr) noexcept
+{
+    constexpr std::string_view prettyName{ LUABRIDGE_PRETTY_FUNCTION };
+
+    constexpr auto first = prettyName.find_first_not_of(' ', prettyName.find_first_of(LUABRIDGE_PRETTY_FUNCTION_PREFIX) + 1);
+
+    return prettyName.substr(first, prettyName.find_last_of(LUABRIDGE_PRETTY_FUNCTION_SUFFIX) - first);
+}
+
+template <class T, auto = typeName<T>().find_first_of('.')>
+[[nodiscard]] static constexpr auto typeHash(T* = nullptr) noexcept
+{
+    constexpr auto stripped = typeName<T>();
+
+    return fnv1a(stripped.data(), stripped.size());
+}
+
+//=================================================================================================
+/**
+ * @brief A unique key for the exceptions in the registry.
+ */
+[[nodiscard]] inline void* getExceptionsKey() noexcept
+{
+    return reinterpret_cast<void*>(0xc7);
+}
+
+//=================================================================================================
+/**
+ * @brief A unique key for a type name in a metatable.
+ */
+[[nodiscard]] inline const void* getTypeKey() noexcept
+{
     return reinterpret_cast<void*>(0x71);
-#endif
 }
 
+//=================================================================================================
 /**
- * The key of a const table in another metatable.
+ * @brief The key of a const table in another metatable.
  */
-inline const void* getConstKey()
+[[nodiscard]] inline const void* getConstKey() noexcept
 {
-#ifdef _NDEBUG
-    static char value;
-    return &value;
-#else
     return reinterpret_cast<void*>(0xc07);
-#endif
 }
 
+//=================================================================================================
 /**
- * The key of a class table in another metatable.
+ * @brief The key of a class table in another metatable.
  */
-inline const void* getClassKey()
+[[nodiscard]] inline const void* getClassKey() noexcept
 {
-#ifdef _NDEBUG
-    static char value;
-    return &value;
-#else
     return reinterpret_cast<void*>(0xc1a);
-#endif
 }
 
+//=================================================================================================
 /**
- * The key of a propget table in another metatable.
+ * @brief The key of a class options table in another metatable.
  */
-inline const void* getPropgetKey()
+[[nodiscard]] inline const void* getClassOptionsKey() noexcept
 {
-#ifdef _NDEBUG
-    static char value;
-    return &value;
-#else
+    return reinterpret_cast<void*>(0xc2b);
+}
+
+//=================================================================================================
+/**
+ * @brief The key of a propget table in another metatable.
+ */
+[[nodiscard]] inline const void* getPropgetKey() noexcept
+{
     return reinterpret_cast<void*>(0x6e7);
-#endif
 }
 
+//=================================================================================================
 /**
- * The key of a propset table in another metatable.
+ * @brief The key of a propset table in another metatable.
  */
-inline const void* getPropsetKey()
+[[nodiscard]] inline const void* getPropsetKey() noexcept
 {
-#ifdef _NDEBUG
-    static char value;
-    return &value;
-#else
     return reinterpret_cast<void*>(0x5e7);
-#endif
 }
 
+//=================================================================================================
 /**
- * The key of a static table in another metatable.
+ * @brief The key of a static table in another metatable.
  */
-inline const void* getStaticKey()
+[[nodiscard]] inline const void* getStaticKey() noexcept
 {
-#ifdef _NDEBUG
-    static char value;
-    return &value;
-#else
     return reinterpret_cast<void*>(0x57a);
-#endif
 }
 
+//=================================================================================================
 /**
- * The key of a parent table in another metatable.
+ * @brief The key of a parent table in another metatable.
  */
-inline const void* getParentKey()
+[[nodiscard]] inline const void* getParentKey() noexcept
 {
-#ifdef _NDEBUG
-    static char value;
-    return &value;
-#else
     return reinterpret_cast<void*>(0xdad);
-#endif
 }
 
+//=================================================================================================
 /**
-    Get the key for the static table in the Lua registry.
-    The static table holds the static data members, static properties, and
-    static member functions for a class.
-*/
-template<class T>
-void const* getStaticRegistryKey()
+ * The key of the index fall back in another metatable.
+ */
+[[nodiscard]] inline const void* getIndexFallbackKey()
 {
-    static char value;
-    return &value;
+    return reinterpret_cast<void*>(0x81ca);
 }
 
-/** Get the key for the class table in the Lua registry.
-    The class table holds the data members, properties, and member functions
-    of a class. Read-only data and properties, and const member functions are
-    also placed here (to save a lookup in the const table).
-*/
-template<class T>
-void const* getClassRegistryKey()
+[[nodiscard]] inline const void* getIndexExtensibleKey()
 {
-    static char value;
-    return &value;
+    return reinterpret_cast<void*>(0x81cb);
 }
 
-/** Get the key for the const table in the Lua registry.
-    The const table holds read-only data members and properties, and const
-    member functions of a class.
-*/
-template<class T>
-void const* getConstRegistryKey()
+//=================================================================================================
+/**
+ * The key of the new index fall back in another metatable.
+ */
+[[nodiscard]] inline const void* getNewIndexFallbackKey()
 {
-    static char value;
-    return &value;
+    return reinterpret_cast<void*>(0x8107);
 }
 
+[[nodiscard]] inline const void* getNewIndexExtensibleKey()
+{
+    return reinterpret_cast<void*>(0x8108);
+}
+
+//=================================================================================================
+/**
+ * @brief Get the key for the static table in the Lua registry.
+ *
+ * The static table holds the static data members, static properties, and static member functions for a class.
+ */
+template <class T>
+[[nodiscard]] const void* getStaticRegistryKey() noexcept
+{
+    static auto value = typeHash<T>();
+
+    return reinterpret_cast<void*>(value);
+}
+
+//=================================================================================================
+/**
+ * @brief Get the key for the class table in the Lua registry.
+ *
+ * The class table holds the data members, properties, and member functions of a class. Read-only data and properties, and const
+ * member functions are also placed here (to save a lookup in the const table).
+ */
+template <class T>
+[[nodiscard]] const void* getClassRegistryKey() noexcept
+{
+    static auto value = typeHash<T>() ^ 1;
+
+    return reinterpret_cast<void*>(value);
+}
+
+//=================================================================================================
+/**
+ * @brief Get the key for the const table in the Lua registry.
+ *
+ * The const table holds read-only data members and properties, and const member functions of a class.
+ */
+template <class T>
+[[nodiscard]] const void* getConstRegistryKey() noexcept
+{
+    static auto value = typeHash<T>() ^ 2;
+
+    return reinterpret_cast<void*>(value);
+}
 } // namespace detail
-
 } // namespace luabridge

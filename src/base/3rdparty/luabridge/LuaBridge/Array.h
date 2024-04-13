@@ -1,61 +1,83 @@
-// https://github.com/vinniefalco/LuaBridge
-//
+// https://github.com/kunitoki/LuaBridge3
+// Copyright 2020, Lucio Asnaghi
 // Copyright 2020, Dmitry Tarakanov
 // SPDX-License-Identifier: MIT
 
 #pragma once
 
-#include <LuaBridge/detail/Stack.h>
+#include "detail/Stack.h"
 
 #include <array>
 
 namespace luabridge {
 
-template<class T, std::size_t s>
-struct Stack<std::array<T, s>>
+//=================================================================================================
+/**
+ * @brief Stack specialization for `std::array`.
+ */
+template <class T, std::size_t Size>
+struct Stack<std::array<T, Size>>
 {
-    static void push(lua_State* L, std::array<T, s> const& array)
+    using Type = std::array<T, Size>;
+
+    [[nodiscard]] static Result push(lua_State* L, const Type& array)
     {
-        lua_createtable(L, static_cast<int>(s), 0);
-        for (std::size_t i = 0; i < s; ++i)
+#if LUABRIDGE_SAFE_STACK_CHECKS
+        if (! lua_checkstack(L, 3))
+            return makeErrorCode(ErrorCode::LuaStackOverflow);
+#endif
+
+        StackRestore stackRestore(L);
+
+        lua_createtable(L, static_cast<int>(Size), 0);
+
+        for (std::size_t i = 0; i < Size; ++i)
         {
             lua_pushinteger(L, static_cast<lua_Integer>(i + 1));
-            Stack<T>::push(L, array[i]);
+
+            auto result = Stack<T>::push(L, array[i]);
+            if (! result)
+                return result;
+
             lua_settable(L, -3);
         }
+
+        stackRestore.reset();
+        return {};
     }
 
-    static std::array<T, s> get(lua_State* L, int index)
+    [[nodiscard]] static TypeResult<Type> get(lua_State* L, int index)
     {
         if (!lua_istable(L, index))
-        {
-            luaL_error(L, "#%d argument must be table", index);
-        }
+            return makeErrorCode(ErrorCode::InvalidTypeCast);
 
-        std::size_t const tableSize = static_cast<std::size_t>(get_length(L, index));
+        if (get_length(L, index) != Size)
+            return makeErrorCode(ErrorCode::InvalidTableSizeInCast);
 
-        if (tableSize != s)
-        {
-            luaL_error(L, "array size must be %d ", s);
-        }
+        const StackRestore stackRestore(L);
 
-        std::array<T, s> array;
+        Type array;
 
-        int const absindex = lua_absindex(L, index);
+        int absIndex = lua_absindex(L, index);
         lua_pushnil(L);
+
         int arrayIndex = 0;
-        while (lua_next(L, absindex) != 0)
+        while (lua_next(L, absIndex) != 0)
         {
-            array[arrayIndex] = Stack<T>::get(L, -1);
+            auto item = Stack<T>::get(L, -1);
+            if (!item)
+                return makeErrorCode(ErrorCode::InvalidTypeCast);
+
+            array[arrayIndex++] = *item;
             lua_pop(L, 1);
-            ++arrayIndex;
         }
+
         return array;
     }
 
-    static bool isInstance(lua_State* L, int index)
+    [[nodiscard]] static bool isInstance(lua_State* L, int index)
     {
-        return lua_istable(L, index) && get_length(L, index) == s;
+        return lua_istable(L, index) && get_length(L, index) == Size;
     }
 };
 

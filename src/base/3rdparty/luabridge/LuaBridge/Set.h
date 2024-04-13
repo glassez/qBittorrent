@@ -1,26 +1,25 @@
 // https://github.com/kunitoki/LuaBridge3
 // Copyright 2020, Lucio Asnaghi
-// Copyright 2020, Dmitry Tarakanov
 // SPDX-License-Identifier: MIT
 
 #pragma once
 
 #include "detail/Stack.h"
 
-#include <list>
+#include <set>
 
 namespace luabridge {
 
 //=================================================================================================
 /**
- * @brief Stack specialization for `std::array`.
+ * @brief Stack specialization for `std::set`.
  */
-template <class T>
-struct Stack<std::list<T>>
+template <class K>
+struct Stack<std::set<K>>
 {
-    using Type = std::list<T>;
+    using Type = std::set<K>;
 
-    [[nodiscard]] static Result push(lua_State* L, const Type& list)
+    [[nodiscard]] static Result push(lua_State* L, const Type& set)
     {
 #if LUABRIDGE_SAFE_STACK_CHECKS
         if (! lua_checkstack(L, 3))
@@ -29,14 +28,14 @@ struct Stack<std::list<T>>
 
         StackRestore stackRestore(L);
 
-        lua_createtable(L, static_cast<int>(list.size()), 0);
+        lua_createtable(L, 0, static_cast<int>(set.size()));
 
-        auto it = list.cbegin();
-        for (lua_Integer tableIndex = 1; it != list.cend(); ++tableIndex, ++it)
+        auto it = set.cbegin();
+        for (lua_Integer tableIndex = 1; it != set.cend(); ++tableIndex, ++it)
         {
             lua_pushinteger(L, tableIndex);
 
-            auto result = Stack<T>::push(L, *it);
+            auto result = Stack<K>::push(L, *it);
             if (! result)
                 return result;
 
@@ -54,22 +53,22 @@ struct Stack<std::list<T>>
 
         const StackRestore stackRestore(L);
 
-        Type list;
+        Type set;
 
         int absIndex = lua_absindex(L, index);
         lua_pushnil(L);
 
         while (lua_next(L, absIndex) != 0)
         {
-            auto item = Stack<T>::get(L, -1);
+            auto item = Stack<K>::get(L, -1);
             if (! item)
                 return makeErrorCode(ErrorCode::InvalidTypeCast);
 
-            list.emplace_back(*item);
+            set.emplace(*item);
             lua_pop(L, 1);
         }
 
-        return list;
+        return set;
     }
 
     [[nodiscard]] static bool isInstance(lua_State* L, int index)
