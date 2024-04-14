@@ -1,6 +1,6 @@
 /*
  * Bittorrent Client using Qt and libtorrent.
- * Copyright (C) 2023  Vladimir Golovnev <glassez@yandex.ru>
+ * Copyright (C) 2024  Vladimir Golovnev <glassez@yandex.ru>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -32,7 +32,17 @@
 #include <LuaBridge/LuaBridge.h>
 #include <LuaBridge/Vector.h>
 
+#include <QtSystemDetection>
+#if defined(Q_OS_WIN)
+// #include <memory>
+#include <windows.h>
+#include <shellapi.h>
+#elif defined(Q_OS_UNIX)
+// #include <sys/resource.h>
+#endif
+
 #include <QDir>
+#include <QProcess>
 
 #include "base/3rdparty/expected.hpp"
 #include "base/bittorrent/infohash.h"
@@ -43,6 +53,7 @@
 #include "base/path.h"
 #include "base/profile.h"
 #include "base/utils/io.h"
+#include "base/utils/string.h"
 
 namespace luabridge
 {
@@ -112,6 +123,79 @@ namespace
         {
             LogMsg(message);
         }
+
+        bool exec(const QString &command)
+        {
+            // const QString logMsg = tr("Running external program. Torrent: \"%1\". Command: `%2`");
+            // const QString logMsgError = tr("Failed to run external program. Torrent: \"%1\". Command: `%2`");
+
+        // The processing sequenece is different for Windows and other OS, this is intentional
+#if defined(Q_OS_WIN)
+            const std::wstring programWStr = command.toStdWString();
+
+            // Need to split arguments manually because QProcess::startDetached(QString)
+            // will strip off empty parameters.
+            // E.g. `python.exe "1" "" "3"` will become `python.exe "1" "3"`
+            int argCount = 0;
+            std::unique_ptr<LPWSTR[], decltype(&::LocalFree)> args {::CommandLineToArgvW(programWStr.c_str(), &argCount), ::LocalFree};
+
+            if (argCount <= 0)
+                return false;
+
+            QStringList argList;
+            for (int i = 1; i < argCount; ++i)
+                argList += QString::fromWCharArray(args[i]);
+
+            QProcess proc;
+            proc.setProgram(QString::fromWCharArray(args[0]));
+            proc.setArguments(argList);
+            proc.setCreateProcessArgumentsModifier([](QProcess::CreateProcessArguments *args)
+            {
+                if (true/*Preferences::instance()->isAutoRunConsoleEnabled()*/)
+                {
+                    args->flags |= CREATE_NEW_CONSOLE;
+                    args->flags &= ~(CREATE_NO_WINDOW | DETACHED_PROCESS);
+                }
+                else
+                {
+                    args->flags |= CREATE_NO_WINDOW;
+                    args->flags &= ~(CREATE_NEW_CONSOLE | DETACHED_PROCESS);
+                }
+                args->inheritHandles = false;
+                args->startupInfo->dwFlags &= ~STARTF_USESTDHANDLES;
+                ::CloseHandle(args->startupInfo->hStdInput);
+                ::CloseHandle(args->startupInfo->hStdOutput);
+                ::CloseHandle(args->startupInfo->hStdError);
+                args->startupInfo->hStdInput = nullptr;
+                args->startupInfo->hStdOutput = nullptr;
+                args->startupInfo->hStdError = nullptr;
+            });
+
+            if (proc.startDetached())
+                return true;
+#else // Q_OS_WIN
+            QStringList args = Utils::String::splitCommand(command);
+
+            if (args.isEmpty())
+                return false;
+
+            for (QString &arg : args)
+            {
+                // strip redundant quotes
+                if (arg.startsWith(u'"') && arg.endsWith(u'"'))
+                    arg = arg.mid(1, (arg.size() - 2));
+            }
+
+            const QString exe = args.takeFirst();
+            QProcess proc;
+            proc.setProgram(exe);
+            proc.setArguments(args);
+
+            if (proc.startDetached())
+                return true;
+#endif
+            return false;
+        }
     }
 
     void registerClassTorrent(lua_State *luaState)
@@ -167,7 +251,8 @@ namespace
 
         getGlobalNamespace(luaState.get())
             .beginNamespace("qBittorrent")
-                .addFunction("log", LuaFunctions::log);
+                .addFunction("log", LuaFunctions::log)
+                .addFunction("exec", LuaFunctions::exec);
 
         registerClassTorrent(luaState.get());
 
