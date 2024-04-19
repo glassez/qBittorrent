@@ -281,8 +281,8 @@ AddNewTorrentDialog::AddNewTorrentDialog(const BitTorrent::TorrentDescriptor &to
     , m_storeDialogSize {SETTINGS_KEY(u"DialogSize"_s)}
     , m_storeDefaultCategory {SETTINGS_KEY(u"DefaultCategory"_s)}
     , m_storeRememberLastSavePath {SETTINGS_KEY(u"RememberLastSavePath"_s)}
-    , m_storeTreeHeaderState {u"GUI/Qt6/" SETTINGS_KEY(u"TreeHeaderState"_s)}
-    , m_storeSplitterState {u"GUI/Qt6/" SETTINGS_KEY(u"SplitterState"_s)}
+    , m_storeTreeHeaderState {SETTINGS_KEY(u"TreeHeaderState_Qt6"_s)}
+    , m_storeSplitterState {SETTINGS_KEY(u"SplitterState_Qt6"_s)}
 {
     // TODO: set dialog file properties using m_torrentParams.filePriorities
     m_ui->setupUi(this);

@@ -268,6 +268,10 @@ Application::Application(int &argc, char **argv)
     SettingsStorage::initInstance();
     Preferences::initInstance();
 
+#ifndef DISABLE_GUI
+    SettingsStorage::initInstance(u"gui"_s);
+#endif
+
     const bool firstTimeUser = SettingsStorage::instance()->isEmpty();
     if (firstTimeUser)
     {
@@ -1363,6 +1367,9 @@ void Application::cleanup()
     Net::GeoIPManager::freeInstance();
     Net::DownloadManager::freeInstance();
     Net::ProxyConfigurationManager::freeInstance();
+#ifndef DISABLE_GUI
+    SettingsStorage::freeInstance(u"gui"_s);
+#endif
     Preferences::freeInstance();
     SettingsStorage::freeInstance();
     SearchPluginManager::freeInstance();

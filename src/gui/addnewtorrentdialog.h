@@ -1,6 +1,6 @@
 /*
  * Bittorrent Client using Qt and libtorrent.
- * Copyright (C) 2022-2023  Vladimir Golovnev <glassez@yandex.ru>
+ * Copyright (C) 2022-2024  Vladimir Golovnev <glassez@yandex.ru>
  * Copyright (C) 2012  Christophe Dumez <chris@qbittorrent.org>
  *
  * This program is free software; you can redistribute it and/or
@@ -36,7 +36,7 @@
 #include "base/bittorrent/addtorrentparams.h"
 #include "base/bittorrent/torrentdescriptor.h"
 #include "base/path.h"
-#include "base/settingvalue.h"
+#include "settingvalue.h"
 
 class LineEdit;
 
@@ -95,9 +95,9 @@ private:
     bool m_useDownloadPath = false;
     LineEdit *m_filterLine = nullptr;
 
-    SettingValue<QSize> m_storeDialogSize;
-    SettingValue<QString> m_storeDefaultCategory;
-    SettingValue<bool> m_storeRememberLastSavePath;
-    SettingValue<QByteArray> m_storeTreeHeaderState;
-    SettingValue<QByteArray> m_storeSplitterState;
+    GUISettingValue<QSize> m_storeDialogSize;
+    GUISettingValue<QString> m_storeDefaultCategory;
+    GUISettingValue<bool> m_storeRememberLastSavePath;
+    GUISettingValue<QByteArray> m_storeTreeHeaderState;
+    GUISettingValue<QByteArray> m_storeSplitterState;
 };

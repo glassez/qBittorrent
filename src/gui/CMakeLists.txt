@@ -91,6 +91,7 @@ add_library(qbt_gui STATIC
     search/searchjobwidget.h
     search/searchsortmodel.h
     search/searchwidget.h
+    settingvalue.h
     shutdownconfirmdialog.h
     speedlimitdialog.h
     statsdialog.h

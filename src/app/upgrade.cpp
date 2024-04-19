@@ -478,6 +478,36 @@ namespace
         settingsStorage->storeValue(newKey, settingsStorage->loadValue<bool>(oldKey));
         settingsStorage->removeValue(oldKey);
     }
+
+    void migrateGUISettings()
+    {
+        auto *oldStorage = SettingsStorage::instance();
+        auto *newStorage = SettingsStorage::instance(u"gui"_s);
+
+        struct KeyMapping
+        {
+            QString newKey;
+            QString oldKey;
+        };
+
+        const KeyMapping mappings[] =
+        {
+            {u"AddNewTorrentDialog/DialogSize"_s, u"AddNewTorrentDialog/DialogSize"_s},
+            {u"AddNewTorrentDialog/TreeHeaderState_Qt6"_s, u"GUI/Qt6/AddNewTorrentDialog/TreeHeaderState"_s},
+            {u"AddNewTorrentDialog/SplitterState_Qt6"_s, u"GUI/Qt6/AddNewTorrentDialog/SplitterState"_s},
+            {u"AddNewTorrentDialog/DefaultCategory"_s, u"AddNewTorrentDialog/DefaultCategory"_s},
+            {u"AddNewTorrentDialog/RememberLastSavePath"_s, u"AddNewTorrentDialog/RememberLastSavePath"_s},
+        };
+
+        for (const auto &[newKey, oldKey] : mappings)
+        {
+            if (oldStorage->hasKey(oldKey))
+            {
+                newStorage->storeValue(newKey, oldStorage->loadValue<QVariant>(oldKey));
+                oldStorage->removeValue(oldKey);
+            }
+        }
+    }
 }
 
 bool upgrade()
@@ -521,6 +551,9 @@ bool upgrade()
 
         if (version < 8)
             migrateAddPausedSetting();
+
+        if (version < 9)
+            migrateGUISettings();
 
         version = MIGRATION_VERSION;
     }
