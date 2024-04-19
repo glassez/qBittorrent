@@ -1,7 +1,7 @@
 /*
  * Bittorrent Client using Qt and libtorrent.
+ * Copyright (C) 2016-2024  Vladimir Golovnev <glassez@yandex.ru>
  * Copyright (C) 2023  Mike Tzou (Chocobo1)
- * Copyright (C) 2016  Vladimir Golovnev <glassez@yandex.ru>
  * Copyright (C) 2014  sledgehammer999 <hammered999@gmail.com>
  *
  * This program is free software; you can redistribute it and/or
@@ -32,6 +32,7 @@
 
 #include <type_traits>
 
+#include <QHash>
 #include <QObject>
 #include <QReadWriteLock>
 #include <QTimer>
@@ -53,13 +54,13 @@ class SettingsStorage final : public QObject
     Q_OBJECT
     Q_DISABLE_COPY_MOVE(SettingsStorage)
 
-    SettingsStorage();
-    ~SettingsStorage();
+    explicit SettingsStorage(const QString &name, QObject *parent = nullptr);
+    ~SettingsStorage() override;
 
 public:
-    static void initInstance();
-    static void freeInstance();
-    static SettingsStorage *instance();
+    static void initInstance(const QString &name = {});
+    static void freeInstance(const QString &name = {});
+    static SettingsStorage *instance(const QString &name = {});
 
     template <typename T>
     T loadValue(const QString &key, const T &defaultValue = {}) const
@@ -120,7 +121,7 @@ private:
     void readNativeSettings();
     bool writeNativeSettings() const;
 
-    static SettingsStorage *m_instance;
+    static QHash<QString, SettingsStorage *> m_instances;
 
     const QString m_nativeSettingsName;
     bool m_dirty = false;

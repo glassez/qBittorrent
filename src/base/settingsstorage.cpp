@@ -1,6 +1,6 @@
 /*
  * Bittorrent Client using Qt and libtorrent.
- * Copyright (C) 2016  Vladimir Golovnev <glassez@yandex.ru>
+ * Copyright (C) 2016-2024  Vladimir Golovnev <glassez@yandex.ru>
  * Copyright (C) 2014  sledgehammer999 <hammered999@gmail.com>
  *
  * This program is free software; you can redistribute it and/or
@@ -33,7 +33,6 @@
 #include <memory>
 
 #include <QFile>
-#include <QHash>
 
 #include "global.h"
 #include "logger.h"
@@ -43,10 +42,32 @@
 
 using namespace std::chrono_literals;
 
-SettingsStorage *SettingsStorage::m_instance = nullptr;
+QHash<QString, SettingsStorage *> SettingsStorage::m_instances;
 
-SettingsStorage::SettingsStorage()
-    : m_nativeSettingsName {u"qBittorrent"_s}
+void SettingsStorage::initInstance(const QString &name)
+{
+    SettingsStorage *&instance = m_instances[name];
+    Q_ASSERT(!instance);
+    if (!instance) [[likely]]
+    {
+        const QString suffix = name.isEmpty() ? QString() : (u"_" + name);
+        instance = new SettingsStorage(u"qBittorrent" + suffix);
+    }
+}
+
+void SettingsStorage::freeInstance(const QString &name)
+{
+    delete m_instances.take(name);
+}
+
+SettingsStorage *SettingsStorage::instance(const QString &name)
+{
+    return m_instances.value(name);
+}
+
+SettingsStorage::SettingsStorage(const QString &name, QObject *parent)
+    : QObject(parent)
+    , m_nativeSettingsName {name}
 {
     readNativeSettings();
 
@@ -60,29 +81,13 @@ SettingsStorage::~SettingsStorage()
     save();
 }
 
-void SettingsStorage::initInstance()
-{
-    if (!m_instance)
-        m_instance = new SettingsStorage;
-}
-
-void SettingsStorage::freeInstance()
-{
-    delete m_instance;
-    m_instance = nullptr;
-}
-
-SettingsStorage *SettingsStorage::instance()
-{
-    return m_instance;
-}
-
 bool SettingsStorage::save()
 {
     // return `true` only when settings is different AND is saved successfully
 
-    const QWriteLocker locker(&m_lock);  // guard for `m_dirty` too
-    if (!m_dirty) return false;
+    const QWriteLocker locker {&m_lock};  // guard for `m_dirty` too
+    if (!m_dirty)
+        return false;
 
     if (!writeNativeSettings())
     {
@@ -96,13 +101,13 @@ bool SettingsStorage::save()
 
 QVariant SettingsStorage::loadValueImpl(const QString &key, const QVariant &defaultValue) const
 {
-    const QReadLocker locker(&m_lock);
+    const QReadLocker locker {&m_lock};
     return m_data.value(key, defaultValue);
 }
 
 void SettingsStorage::storeValueImpl(const QString &key, const QVariant &value)
 {
-    const QWriteLocker locker(&m_lock);
+    const QWriteLocker locker {&m_lock};
     QVariant &currentValue = m_data[key];
     if (currentValue != value)
     {
@@ -211,7 +216,7 @@ bool SettingsStorage::writeNativeSettings() const
 
 void SettingsStorage::removeValue(const QString &key)
 {
-    const QWriteLocker locker(&m_lock);
+    const QWriteLocker locker {&m_lock};
     if (m_data.remove(key))
     {
         m_dirty = true;
