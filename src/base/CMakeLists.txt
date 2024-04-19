@@ -91,6 +91,7 @@ add_library(qbt_base STATIC
     search/searchhandler.h
     search/searchpluginmanager.h
     settingsstorage.h
+    settingvalue.h
     tag.h
     tagset.h
     torrentfileguard.h
