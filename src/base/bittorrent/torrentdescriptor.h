@@ -1,6 +1,6 @@
 /*
  * Bittorrent Client using Qt and libtorrent.
- * Copyright (C) 2015-2023  Vladimir Golovnev <glassez@yandex.ru>
+ * Copyright (C) 2015-2024  Vladimir Golovnev <glassez@yandex.ru>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -53,7 +53,17 @@ namespace BitTorrent
     class TorrentDescriptor
     {
     public:
+        enum SourceType
+        {
+            MagnetURI,
+            TorrentFile,
+            Data
+        };
+
         TorrentDescriptor() = default;
+
+        SourceType sourceType() const;
+        QString source() const;
 
         InfoHash infoHash() const;
         QString name() const;
@@ -74,8 +84,11 @@ namespace BitTorrent
         const lt::add_torrent_params &ltAddTorrentParams() const;
 
     private:
-        explicit TorrentDescriptor(lt::add_torrent_params ltAddTorrentParams);
+        explicit TorrentDescriptor(lt::add_torrent_params ltAddTorrentParams
+                , SourceType sourceType, const QString &source = {});
 
+        SourceType m_sourceType = MagnetURI;
+        QString m_source;
         lt::add_torrent_params m_ltAddTorrentParams;
         std::optional<TorrentInfo> m_info;
     };

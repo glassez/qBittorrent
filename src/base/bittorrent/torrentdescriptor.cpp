@@ -93,7 +93,7 @@ nonstd::expected<BitTorrent::TorrentDescriptor, QString>
 BitTorrent::TorrentDescriptor::load(const QByteArray &data) noexcept
 try
 {
-    return TorrentDescriptor(lt::load_torrent_buffer(lt::span<const char>(data.data(), data.size()), loadTorrentLimits()));
+    return TorrentDescriptor(lt::load_torrent_buffer(lt::span<const char>(data.data(), data.size()), loadTorrentLimits()), Data);
 }
 catch (const lt::system_error &err)
 {
@@ -104,7 +104,8 @@ nonstd::expected<BitTorrent::TorrentDescriptor, QString>
 BitTorrent::TorrentDescriptor::loadFromFile(const Path &path) noexcept
 try
 {
-    return TorrentDescriptor(lt::load_torrent_file(path.toString().toStdString(), loadTorrentLimits()));
+    return TorrentDescriptor(lt::load_torrent_file(path.toString().toStdString(), loadTorrentLimits())
+            , TorrentFile, path.toString());
 }
 catch (const lt::system_error &err)
 {
@@ -121,7 +122,7 @@ try
     else if (isV1Hash(str))
         magnetURI = u"magnet:?xt=urn:btih:" + str;
 
-    return TorrentDescriptor(lt::parse_magnet_uri(magnetURI.toStdString()));
+    return TorrentDescriptor(lt::parse_magnet_uri(magnetURI.toStdString()), MagnetURI, magnetURI);
 }
 catch (const lt::system_error &err)
 {
@@ -143,11 +144,24 @@ catch (const lt::system_error &err)
     return nonstd::make_unexpected(QString::fromLocal8Bit(err.what()));
 }
 
-BitTorrent::TorrentDescriptor::TorrentDescriptor(lt::add_torrent_params ltAddTorrentParams)
-    : m_ltAddTorrentParams {std::move(ltAddTorrentParams)}
+BitTorrent::TorrentDescriptor::TorrentDescriptor(lt::add_torrent_params ltAddTorrentParams
+        , const SourceType sourceType, const QString &source)
+    : m_sourceType {sourceType}
+    , m_source {source}
+    , m_ltAddTorrentParams {std::move(ltAddTorrentParams)}
 {
     if (m_ltAddTorrentParams.ti && m_ltAddTorrentParams.ti->is_valid())
         m_info.emplace(*m_ltAddTorrentParams.ti);
+}
+
+BitTorrent::TorrentDescriptor::SourceType BitTorrent::TorrentDescriptor::sourceType() const\
+{
+    return m_sourceType;
+}
+
+QString BitTorrent::TorrentDescriptor::source() const
+{
+    return m_source;
 }
 
 BitTorrent::InfoHash BitTorrent::TorrentDescriptor::infoHash() const
