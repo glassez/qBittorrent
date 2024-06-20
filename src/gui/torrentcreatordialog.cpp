@@ -59,8 +59,8 @@ namespace
 #endif
 }
 
-TorrentCreatorDialog::TorrentCreatorDialog(QWidget *parent, const Path &defaultPath)
-    : QDialog(parent)
+TorrentCreatorDialog::TorrentCreatorDialog(IGUIApplication *app, QWidget *parent, const Path &defaultPath)
+    : GUIApplicationComponent(app, parent)
     , m_ui(new Ui::TorrentCreatorDialog)
     , m_threadPool(this)
     , m_storeDialogSize(SETTINGS_KEY(u"Size"_s))

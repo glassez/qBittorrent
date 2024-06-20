@@ -50,12 +50,10 @@ BitTorrent::Session *AddTorrentManager::btSession() const
     return m_btSession;
 }
 
-bool AddTorrentManager::addTorrent(const QString &source, const BitTorrent::AddTorrentParams &params)
+AddTorrentResult AddTorrentManager::addTorrent(const QString &source, const BitTorrent::AddTorrentParams &params)
 {
     // `source`: .torrent file path,  magnet URI or URL
-
-    if (source.isEmpty())
-        return false;
+    Q_ASSERT(!source.isEmpty());
 
     if (Net::DownloadManager::hasSupportedScheme(source))
     {
@@ -65,7 +63,7 @@ bool AddTorrentManager::addTorrent(const QString &source, const BitTorrent::AddT
         Net::DownloadManager::instance()->download(Net::DownloadRequest(source).limit(pref->getTorrentFileSizeLimit())
                 , pref->useProxyForGeneralPurposes(), this, &AddTorrentManager::onDownloadFinished);
         m_downloadedTorrents[source] = params;
-        return true;
+        return {};
     }
 
     if (const auto parseResult = BitTorrent::TorrentDescriptor::parse(source))
@@ -75,34 +73,34 @@ bool AddTorrentManager::addTorrent(const QString &source, const BitTorrent::AddT
     else if (source.startsWith(u"magnet:", Qt::CaseInsensitive))
     {
         handleAddTorrentFailed(source, parseResult.error());
-        return false;
+        return nonstd::make_unexpected<AddTorrentError>({parseResult.error()});
     }
 
     const Path decodedPath {source.startsWith(u"file://", Qt::CaseInsensitive)
             ? QUrl::fromEncoded(source.toLocal8Bit()).toLocalFile() : source};
     auto torrentFileGuard = std::make_shared<TorrentFileGuard>(decodedPath);
-    if (const auto loadResult = BitTorrent::TorrentDescriptor::loadFromFile(decodedPath))
+    const auto loadResult = BitTorrent::TorrentDescriptor::loadFromFile(decodedPath);
+    if (loadResult)
     {
         setTorrentFileGuard(source, torrentFileGuard);
         return processTorrent(source, loadResult.value(), params);
     }
-    else
-    {
-       handleAddTorrentFailed(source, loadResult.error());
-       return false;
-    }
 
-    return false;
+    handleAddTorrentFailed(source, loadResult.error());
+    return nonstd::make_unexpected<AddTorrentError>({loadResult.error()});
 }
 
-bool AddTorrentManager::addTorrentToSession(const QString &source, const BitTorrent::TorrentDescriptor &torrentDescr
+AddTorrentResult AddTorrentManager::addTorrentToSession(const QString &source, const BitTorrent::TorrentDescriptor &torrentDescr
         , const BitTorrent::AddTorrentParams &addTorrentParams)
 {
     const bool result = btSession()->addTorrent(torrentDescr, addTorrentParams);
     if (result)
-       m_sourcesByInfoHash[torrentDescr.infoHash()] = source;
+    {
+        m_sourcesByInfoHash[torrentDescr.infoHash()] = source;
+        return {};
+    }
 
-    return result;
+    return nonstd::make_unexpected<AddTorrentError>({});
 }
 
 void AddTorrentManager::onDownloadFinished(const Net::DownloadResult &result)
@@ -176,7 +174,7 @@ void AddTorrentManager::releaseTorrentFileGuard(const QString &source)
         torrentFileGuard->setAutoRemove(false);
 }
 
-bool AddTorrentManager::processTorrent(const QString &source, const BitTorrent::TorrentDescriptor &torrentDescr
+AddTorrentResult AddTorrentManager::processTorrent(const QString &source, const BitTorrent::TorrentDescriptor &torrentDescr
         , const BitTorrent::AddTorrentParams &addTorrentParams)
 {
     const BitTorrent::InfoHash infoHash = torrentDescr.infoHash();
@@ -194,23 +192,26 @@ bool AddTorrentManager::processTorrent(const QString &source, const BitTorrent::
 
         if (!btSession()->isMergeTrackersEnabled())
         {
-            handleDuplicateTorrent(source, torrent, tr("Merging of trackers is disabled"));
-            return false;
+            const QString message = tr("Merging of trackers is disabled");
+            handleDuplicateTorrent(source, torrent, message);
+            return nonstd::make_unexpected<AddTorrentError>({message, AddTorrentError::Duplicate});
         }
 
         const bool isPrivate = torrent->isPrivate() || (hasMetadata && torrentDescr.info()->isPrivate());
         if (isPrivate)
         {
-            handleDuplicateTorrent(source, torrent, tr("Trackers cannot be merged because it is a private torrent"));
-            return false;
+            const QString message = tr("Trackers cannot be merged because it is a private torrent");
+            handleDuplicateTorrent(source, torrent, message);
+            return nonstd::make_unexpected<AddTorrentError>({message, AddTorrentError::Duplicate});
         }
 
         // merge trackers and web seeds
         torrent->addTrackers(torrentDescr.trackers());
         torrent->addUrlSeeds(torrentDescr.urlSeeds());
 
-        handleDuplicateTorrent(source, torrent, tr("Trackers are merged from new source"));
-        return false;
+        const QString message = tr("Trackers are merged from new source");
+        handleDuplicateTorrent(source, torrent, message);
+        return nonstd::make_unexpected<AddTorrentError>({message, AddTorrentError::Duplicate});
     }
 
     return addTorrentToSession(source, torrentDescr, addTorrentParams);

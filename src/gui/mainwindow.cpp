@@ -1225,7 +1225,7 @@ void MainWindow::createTorrentTriggered(const Path &path)
     }
     else
     {
-        m_createTorrentDlg = new TorrentCreatorDialog(this, path);
+        m_createTorrentDlg = new TorrentCreatorDialog(app(), this, path);
         m_createTorrentDlg->setAttribute(Qt::WA_DeleteOnClose);
         m_createTorrentDlg->show();
     }

@@ -1,6 +1,6 @@
 /*
  * Bittorrent Client using Qt and libtorrent.
- * Copyright (C) 2015-2023  Vladimir Golovnev <glassez@yandex.ru>
+ * Copyright (C) 2015-2024  Vladimir Golovnev <glassez@yandex.ru>
  * Copyright (C) 2006  Christophe Dumez <chris@qbittorrent.org>
  *
  * This program is free software; you can redistribute it and/or
@@ -34,6 +34,7 @@
 #include <QHash>
 #include <QObject>
 
+#include "base/3rdparty/expected.hpp"
 #include "base/applicationcomponent.h"
 #include "base/bittorrent/addtorrentparams.h"
 #include "base/torrentfileguard.h"
@@ -53,6 +54,20 @@ namespace Net
 
 class QString;
 
+struct AddTorrentError
+{
+    enum Reason
+    {
+        Other,
+        Duplicate
+    };
+
+    QString message = {};
+    Reason reason = Other;
+};
+
+using AddTorrentResult = nonstd::expected<void, AddTorrentError>;
+
 class AddTorrentManager : public ApplicationComponent<QObject>
 {
     Q_OBJECT
@@ -62,14 +77,14 @@ public:
     AddTorrentManager(IApplication *app, BitTorrent::Session *btSession, QObject *parent = nullptr);
 
     BitTorrent::Session *btSession() const;
-    bool addTorrent(const QString &source, const BitTorrent::AddTorrentParams &params = {});
+    AddTorrentResult addTorrent(const QString &source, const BitTorrent::AddTorrentParams &params = {});
 
 signals:
     void torrentAdded(const QString &source, BitTorrent::Torrent *torrent);
     void addTorrentFailed(const QString &source, const QString &reason);
 
 protected:
-    bool addTorrentToSession(const QString &source, const BitTorrent::TorrentDescriptor &torrentDescr
+    AddTorrentResult addTorrentToSession(const QString &source, const BitTorrent::TorrentDescriptor &torrentDescr
             , const BitTorrent::AddTorrentParams &addTorrentParams);
     void handleAddTorrentFailed(const QString &source, const QString &reason);
     void handleDuplicateTorrent(const QString &source, BitTorrent::Torrent *torrent, const QString &message);
@@ -80,7 +95,7 @@ private:
     void onDownloadFinished(const Net::DownloadResult &result);
     void onSessionTorrentAdded(BitTorrent::Torrent *torrent);
     void onSessionAddTorrentFailed(const BitTorrent::InfoHash &infoHash, const QString &reason);
-    bool processTorrent(const QString &source, const BitTorrent::TorrentDescriptor &torrentDescr
+    AddTorrentResult processTorrent(const QString &source, const BitTorrent::TorrentDescriptor &torrentDescr
             , const BitTorrent::AddTorrentParams &addTorrentParams);
 
     BitTorrent::Session *m_btSession = nullptr;

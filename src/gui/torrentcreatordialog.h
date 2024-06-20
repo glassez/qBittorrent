@@ -36,19 +36,20 @@
 #include "base/bittorrent/torrentcreator.h"
 #include "base/path.h"
 #include "base/settingvalue.h"
+#include "guiapplicationcomponent.h"
 
 namespace Ui
 {
     class TorrentCreatorDialog;
 }
 
-class TorrentCreatorDialog final : public QDialog
+class TorrentCreatorDialog final : public GUIApplicationComponent<QDialog>
 {
     Q_OBJECT
     Q_DISABLE_COPY_MOVE(TorrentCreatorDialog)
 
 public:
-    TorrentCreatorDialog(QWidget *parent = nullptr, const Path &defaultPath = {});
+    TorrentCreatorDialog(IGUIApplication *app, QWidget *parent = nullptr, const Path &defaultPath = {});
     ~TorrentCreatorDialog() override;
     void updateInputPath(const Path &path);
 

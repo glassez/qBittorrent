@@ -62,12 +62,12 @@ class GUIAddTorrentManager : public GUIApplicationComponent<AddTorrentManager>
 public:
     GUIAddTorrentManager(IGUIApplication *app, BitTorrent::Session *session, QObject *parent = nullptr);
 
-    bool addTorrent(const QString &source, const BitTorrent::AddTorrentParams &params = {}, AddTorrentOption option = AddTorrentOption::Default);
+    AddTorrentResult addTorrent(const QString &source, const BitTorrent::AddTorrentParams &params = {}, AddTorrentOption option = AddTorrentOption::Default);
 
 private:
     void onDownloadFinished(const Net::DownloadResult &result);
     void onMetadataDownloaded(const BitTorrent::TorrentInfo &metadata);
-    bool processTorrent(const QString &source, const BitTorrent::TorrentDescriptor &torrentDescr, const BitTorrent::AddTorrentParams &params);
+    AddTorrentResult processTorrent(const QString &source, const BitTorrent::TorrentDescriptor &torrentDescr, const BitTorrent::AddTorrentParams &params);
 
     QHash<QString, BitTorrent::AddTorrentParams> m_downloadedTorrents;
     QHash<BitTorrent::InfoHash, AddNewTorrentDialog *> m_dialogs;

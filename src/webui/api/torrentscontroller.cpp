@@ -773,7 +773,7 @@ void TorrentsController::addAction()
         if (!url.isEmpty())
         {
             Net::DownloadManager::instance()->setCookiesFromUrl(cookies, QUrl::fromEncoded(url.toUtf8()));
-            partialSuccess |= app()->addTorrentManager()->addTorrent(url, addTorrentParams);
+            partialSuccess |= app()->addTorrentManager()->addTorrent(url, addTorrentParams).has_value();
         }
     }
 

@@ -82,12 +82,10 @@ GUIAddTorrentManager::GUIAddTorrentManager(IGUIApplication *app, BitTorrent::Ses
     connect(btSession(), &BitTorrent::Session::metadataDownloaded, this, &GUIAddTorrentManager::onMetadataDownloaded);
 }
 
-bool GUIAddTorrentManager::addTorrent(const QString &source, const BitTorrent::AddTorrentParams &params, const AddTorrentOption option)
+AddTorrentResult GUIAddTorrentManager::addTorrent(const QString &source, const BitTorrent::AddTorrentParams &params, const AddTorrentOption option)
 {
     // `source`: .torrent file path,  magnet URI or URL
-
-    if (source.isEmpty())
-        return false;
+    Q_ASSERT(!source.isEmpty());
 
     const auto *pref = Preferences::instance();
 
@@ -105,7 +103,7 @@ bool GUIAddTorrentManager::addTorrent(const QString &source, const BitTorrent::A
                 , pref->useProxyForGeneralPurposes(), this, &GUIAddTorrentManager::onDownloadFinished);
         m_downloadedTorrents[source] = params;
 
-        return true;
+        return {};
     }
 
     if (const auto parseResult = BitTorrent::TorrentDescriptor::parse(source))
@@ -115,27 +113,24 @@ bool GUIAddTorrentManager::addTorrent(const QString &source, const BitTorrent::A
     else if (source.startsWith(u"magnet:", Qt::CaseInsensitive))
     {
         handleAddTorrentFailed(source, parseResult.error());
-        return false;
+        return nonstd::make_unexpected<AddTorrentError>({parseResult.error()});
     }
 
     const Path decodedPath {source.startsWith(u"file://", Qt::CaseInsensitive)
             ? QUrl::fromEncoded(source.toLocal8Bit()).toLocalFile() : source};
     auto torrentFileGuard = std::make_shared<TorrentFileGuard>(decodedPath);
-    if (const auto loadResult = BitTorrent::TorrentDescriptor::loadFromFile(decodedPath))
+    const auto loadResult = BitTorrent::TorrentDescriptor::loadFromFile(decodedPath);
+    if (loadResult)
     {
         const BitTorrent::TorrentDescriptor &torrentDescriptor = loadResult.value();
-        const bool isProcessing = processTorrent(source, torrentDescriptor, params);
-        if (isProcessing)
+        const AddTorrentResult result = processTorrent(source, torrentDescriptor, params);
+        if (result)
             setTorrentFileGuard(source, torrentFileGuard);
-        return isProcessing;
-    }
-    else
-    {
-        handleAddTorrentFailed(decodedPath.toString(), loadResult.error());
-        return false;
+        return result;
     }
 
-    return false;
+    handleAddTorrentFailed(decodedPath.toString(), loadResult.error());
+    return nonstd::make_unexpected<AddTorrentError>({loadResult.error()});
 }
 
 void GUIAddTorrentManager::onDownloadFinished(const Net::DownloadResult &result)
@@ -175,7 +170,7 @@ void GUIAddTorrentManager::onMetadataDownloaded(const BitTorrent::TorrentInfo &m
     }
 }
 
-bool GUIAddTorrentManager::processTorrent(const QString &source, const BitTorrent::TorrentDescriptor &torrentDescr, const BitTorrent::AddTorrentParams &params)
+AddTorrentResult GUIAddTorrentManager::processTorrent(const QString &source, const BitTorrent::TorrentDescriptor &torrentDescr, const BitTorrent::AddTorrentParams &params)
 {
     const bool hasMetadata = torrentDescr.info().has_value();
     const BitTorrent::InfoHash infoHash = torrentDescr.infoHash();
@@ -191,27 +186,31 @@ bool GUIAddTorrentManager::processTorrent(const QString &source, const BitTorren
 
         if (torrent->isPrivate() || (hasMetadata && torrentDescr.info()->isPrivate()))
         {
-            handleDuplicateTorrent(source, torrent, tr("Trackers cannot be merged because it is a private torrent"));
+            const QString message = tr("Trackers cannot be merged because it is a private torrent");
+            handleDuplicateTorrent(source, torrent, message);
+            return nonstd::make_unexpected<AddTorrentError>({message, AddTorrentError::Duplicate});
         }
-        else
+
+        bool mergeTrackers = btSession()->isMergeTrackersEnabled();
+        if (Preferences::instance()->confirmMergeTrackers())
         {
-            bool mergeTrackers = btSession()->isMergeTrackersEnabled();
-            if (Preferences::instance()->confirmMergeTrackers())
-            {
-                const QMessageBox::StandardButton btn = RaisedMessageBox::question(app()->mainWindow(), tr("Torrent is already present")
-                        , tr("Torrent '%1' is already in the transfer list. Do you want to merge trackers from new source?").arg(torrent->name())
-                        , (QMessageBox::Yes | QMessageBox::No), QMessageBox::Yes);
-                mergeTrackers = (btn == QMessageBox::Yes);
-            }
-
-            if (mergeTrackers)
-            {
-                torrent->addTrackers(torrentDescr.trackers());
-                torrent->addUrlSeeds(torrentDescr.urlSeeds());
-            }
+            const QMessageBox::StandardButton btn = RaisedMessageBox::question(app()->mainWindow(), tr("Torrent is already present")
+                    , tr("Torrent '%1' is already in the transfer list. Do you want to merge trackers from new source?").arg(torrent->name())
+                    , (QMessageBox::Yes | QMessageBox::No), QMessageBox::Yes);
+            mergeTrackers = (btn == QMessageBox::Yes);
         }
 
-        return false;
+        if (!mergeTrackers)
+        {
+            const QString message = tr("Merging of trackers is cancelled");
+            return nonstd::make_unexpected<AddTorrentError>({message, AddTorrentError::Duplicate});
+        }
+
+        torrent->addTrackers(torrentDescr.trackers());
+        torrent->addUrlSeeds(torrentDescr.urlSeeds());
+
+        const QString message = tr("Trackers are merged from new source");
+        return nonstd::make_unexpected<AddTorrentError>({message, AddTorrentError::Duplicate});
     }
 
     if (!hasMetadata)
@@ -242,5 +241,5 @@ bool GUIAddTorrentManager::processTorrent(const QString &source, const BitTorren
     adjustDialogGeometry(dlg, app()->mainWindow());
     dlg->show();
 
-    return true;
+    return {};
 }
