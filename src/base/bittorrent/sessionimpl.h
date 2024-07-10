@@ -54,7 +54,6 @@
 #include "session.h"
 #include "sessionstatus.h"
 #include "torrentinfo.h"
-#include "trackerentrystatus.h"
 
 class QString;
 class QThread;
@@ -434,8 +433,7 @@ namespace BitTorrent
         bool isKnownTorrent(const InfoHash &infoHash) const override;
         bool addTorrent(const TorrentDescriptor &torrentDescr, const AddTorrentParams &params = {}) override;
         bool removeTorrent(const TorrentID &id, TorrentRemoveOption deleteOption = TorrentRemoveOption::KeepContent) override;
-        bool downloadMetadata(const TorrentDescriptor &torrentDescr) override;
-        bool cancelDownloadMetadata(const TorrentID &id) override;
+        QFuture<TorrentInfo> downloadMetadata(const TorrentDescriptor &torrentDescr) override;
 
         void increaseTorrentsQueuePos(const QList<TorrentID> &ids) override;
         void decreaseTorrentsQueuePos(const QList<TorrentID> &ids) override;
@@ -497,6 +495,7 @@ namespace BitTorrent
         void torrentContentRemovingFinished(const QString &torrentName, const QString &errorMessage);
 
     private:
+        struct DownloadingMetadataContext;
         struct ResumeSessionContext;
 
         struct MoveStorageJob
@@ -546,6 +545,7 @@ namespace BitTorrent
         void handleLoadedResumeData(ResumeSessionContext *context);
         void processNextResumeData(ResumeSessionContext *context);
         void endStartup(ResumeSessionContext *context);
+        bool cancelDownloadMetadata(const TorrentID &id);
 
         LoadTorrentParams initLoadTorrentParams(const AddTorrentParams &addTorrentParams);
         bool addTorrent_impl(const TorrentDescriptor &source, const AddTorrentParams &addTorrentParams);
@@ -775,7 +775,7 @@ namespace BitTorrent
         FileSearcher *m_fileSearcher = nullptr;
         TorrentContentRemover *m_torrentContentRemover = nullptr;
 
-        QHash<TorrentID, lt::torrent_handle> m_downloadedMetadata;
+        QHash<TorrentID, DownloadingMetadataContext> m_downloadedMetadata;
 
         QHash<TorrentID, TorrentImpl *> m_torrents;
         QHash<TorrentID, TorrentImpl *> m_hybridTorrentsByAltID;

@@ -30,6 +30,7 @@
 #pragma once
 
 #include <QtContainerFwd>
+#include <QFuture>
 #include <QObject>
 
 #include "base/pathfwd.h"
@@ -457,8 +458,7 @@ namespace BitTorrent
         virtual bool isKnownTorrent(const InfoHash &infoHash) const = 0;
         virtual bool addTorrent(const TorrentDescriptor &torrentDescr, const AddTorrentParams &params = {}) = 0;
         virtual bool removeTorrent(const TorrentID &id, TorrentRemoveOption deleteOption = TorrentRemoveOption::KeepContent) = 0;
-        virtual bool downloadMetadata(const TorrentDescriptor &torrentDescr) = 0;
-        virtual bool cancelDownloadMetadata(const TorrentID &id) = 0;
+        virtual QFuture<TorrentInfo> downloadMetadata(const TorrentDescriptor &torrentDescr) = 0;
 
         virtual void increaseTorrentsQueuePos(const QList<TorrentID> &ids) = 0;
         virtual void decreaseTorrentsQueuePos(const QList<TorrentID> &ids) = 0;

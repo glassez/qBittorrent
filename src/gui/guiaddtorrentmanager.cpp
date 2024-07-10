@@ -1,6 +1,6 @@
 /*
  * Bittorrent Client using Qt and libtorrent.
- * Copyright (C) 2015-2023  Vladimir Golovnev <glassez@yandex.ru>
+ * Copyright (C) 2015-2024  Vladimir Golovnev <glassez@yandex.ru>
  * Copyright (C) 2006  Christophe Dumez <chris@qbittorrent.org>
  *
  * This program is free software; you can redistribute it and/or
@@ -29,6 +29,7 @@
 
 #include "guiaddtorrentmanager.h"
 
+#include <QFutureWatcher>
 #include <QScreen>
 
 #include "base/bittorrent/session.h"
@@ -79,7 +80,7 @@ namespace
 GUIAddTorrentManager::GUIAddTorrentManager(IGUIApplication *app, BitTorrent::Session *session, QObject *parent)
     : GUIApplicationComponent(app, session, parent)
 {
-    connect(btSession(), &BitTorrent::Session::metadataDownloaded, this, &GUIAddTorrentManager::onMetadataDownloaded);
+    // connect(btSession(), &BitTorrent::Session::metadataDownloaded, this, &GUIAddTorrentManager::onMetadataDownloaded);
 }
 
 bool GUIAddTorrentManager::addTorrent(const QString &source, const BitTorrent::AddTorrentParams &params, const AddTorrentOption option)
@@ -162,19 +163,6 @@ void GUIAddTorrentManager::onDownloadFinished(const Net::DownloadResult &result)
     }
 }
 
-void GUIAddTorrentManager::onMetadataDownloaded(const BitTorrent::TorrentInfo &metadata)
-{
-    Q_ASSERT(metadata.isValid());
-    if (!metadata.isValid()) [[unlikely]]
-        return;
-
-    for (const auto &[infoHash, dialog] : m_dialogs.asKeyValueRange())
-    {
-        if (metadata.matchesInfoHash(infoHash))
-            dialog->updateMetadata(metadata);
-    }
-}
-
 bool GUIAddTorrentManager::processTorrent(const QString &source, const BitTorrent::TorrentDescriptor &torrentDescr, const BitTorrent::AddTorrentParams &params)
 {
     const bool hasMetadata = torrentDescr.info().has_value();
@@ -215,7 +203,27 @@ bool GUIAddTorrentManager::processTorrent(const QString &source, const BitTorren
     }
 
     if (!hasMetadata)
-        btSession()->downloadMetadata(torrentDescr);
+    {
+        using FutureWatcher = QFutureWatcher<BitTorrent::TorrentInfo>;
+
+        auto *futureWatcher = new FutureWatcher(this);
+        connect(futureWatcher, &FutureWatcher::finished, this, [this, futureWatcher]
+        {
+            futureWatcher->deleteLater();
+
+            const BitTorrent::TorrentInfo torrentInfo = futureWatcher->result();
+            Q_ASSERT(torrentInfo.isValid());
+            if (!torrentInfo.isValid()) [[unlikely]]
+                return;
+
+            for (const auto &[infoHash, dialog] : m_dialogs.asKeyValueRange())
+            {
+                if (torrentInfo.matchesInfoHash(infoHash))
+                    dialog->updateMetadata(torrentInfo);
+            }
+        });
+        futureWatcher->setFuture(btSession()->downloadMetadata(torrentDescr));
+    }
 
     // By not setting a parent to the "AddNewTorrentDialog", all those dialogs
     // will be displayed on top and will not overlap with the main window.

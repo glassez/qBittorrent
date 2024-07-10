@@ -66,7 +66,6 @@ public:
 
 private:
     void onDownloadFinished(const Net::DownloadResult &result);
-    void onMetadataDownloaded(const BitTorrent::TorrentInfo &metadata);
     bool processTorrent(const QString &source, const BitTorrent::TorrentDescriptor &torrentDescr, const BitTorrent::AddTorrentParams &params);
 
     QHash<QString, BitTorrent::AddTorrentParams> m_downloadedTorrents;
