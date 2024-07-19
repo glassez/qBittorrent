@@ -29,7 +29,7 @@
 
 #include "guiaddtorrentmanager.h"
 
-#include <QFutureWatcher>
+#include <QFuture>
 #include <QScreen>
 
 #include "base/bittorrent/session.h"
@@ -202,16 +202,12 @@ bool GUIAddTorrentManager::processTorrent(const QString &source, const BitTorren
         return false;
     }
 
+    QFuture<BitTorrent::TorrentInfo> downloadMetadataFuture;
     if (!hasMetadata)
     {
-        using FutureWatcher = QFutureWatcher<BitTorrent::TorrentInfo>;
-
-        auto *futureWatcher = new FutureWatcher(this);
-        connect(futureWatcher, &FutureWatcher::finished, this, [this, futureWatcher]
+        (downloadMetadataFuture = btSession()->downloadMetadata(torrentDescr))
+            .then(this, [this](const BitTorrent::TorrentInfo &torrentInfo)
         {
-            futureWatcher->deleteLater();
-
-            const BitTorrent::TorrentInfo torrentInfo = futureWatcher->result();
             Q_ASSERT(torrentInfo.isValid());
             if (!torrentInfo.isValid()) [[unlikely]]
                 return;
@@ -222,7 +218,6 @@ bool GUIAddTorrentManager::processTorrent(const QString &source, const BitTorren
                     dialog->updateMetadata(torrentInfo);
             }
         });
-        futureWatcher->setFuture(btSession()->downloadMetadata(torrentDescr));
     }
 
     // By not setting a parent to the "AddNewTorrentDialog", all those dialogs
@@ -239,12 +234,16 @@ bool GUIAddTorrentManager::processTorrent(const QString &source, const BitTorren
     {
         addTorrentToSession(source, torrentDescr, addTorrentParams);
     });
-    connect(dlg, &QDialog::finished, this, [this, source, infoHash, dlg]
+    connect(dlg, &QDialog::finished, this
+            , [this, source, infoHash, dlg, downloadMetadataFuture](const int result) mutable
     {
         if (dlg->isDoNotDeleteTorrentChecked())
             releaseTorrentFileGuard(source);
 
         m_dialogs.remove(infoHash);
+
+        if ((result == QDialog::Rejected) && !downloadMetadataFuture.isFinished())
+            downloadMetadataFuture.cancel();
     });
 
     adjustDialogGeometry(dlg, app()->mainWindow());
