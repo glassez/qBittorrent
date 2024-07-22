@@ -432,7 +432,7 @@ namespace BitTorrent
         void banIP(const QString &ip) override;
 
         bool isKnownTorrent(const InfoHash &infoHash) const override;
-        bool addTorrent(const TorrentDescriptor &torrentDescr, const AddTorrentParams &params = {}) override;
+        QFuture<AddTorrentResult> addTorrent(const TorrentDescriptor &torrentDescr, const AddTorrentParams &params = {}) override;
         bool removeTorrent(const TorrentID &id, TorrentRemoveOption deleteOption = TorrentRemoveOption::KeepContent) override;
         bool downloadMetadata(const TorrentDescriptor &torrentDescr) override;
         bool cancelDownloadMetadata(const TorrentID &id) override;
@@ -548,7 +548,7 @@ namespace BitTorrent
         void endStartup(ResumeSessionContext *context);
 
         LoadTorrentParams initLoadTorrentParams(const AddTorrentParams &addTorrentParams);
-        bool addTorrent_impl(const TorrentDescriptor &source, const AddTorrentParams &addTorrentParams);
+        QFuture<AddTorrentResult> addTorrent_impl(const TorrentDescriptor &source, const AddTorrentParams &addTorrentParams);
 
         void updateSeedingLimitTimer();
         void exportTorrentFile(const Torrent *torrent, const Path &folderPath);

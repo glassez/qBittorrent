@@ -33,6 +33,7 @@
 #include <chrono>
 #include <cstdint>
 #include <ctime>
+#include <memory>
 #include <queue>
 #include <string>
 
@@ -68,6 +69,7 @@
 #include <QJsonValue>
 #include <QNetworkAddressEntry>
 #include <QNetworkInterface>
+#include <QPromise>
 #include <QRegularExpression>
 #include <QString>
 #include <QThread>
@@ -2622,10 +2624,10 @@ qsizetype SessionImpl::torrentsCount() const
     return m_torrents.size();
 }
 
-bool SessionImpl::addTorrent(const TorrentDescriptor &torrentDescr, const AddTorrentParams &params)
+QFuture<Session::AddTorrentResult> SessionImpl::addTorrent(const TorrentDescriptor &torrentDescr, const AddTorrentParams &params)
 {
     if (!isRestored())
-        return false;
+        return {};
 
     return addTorrent_impl(torrentDescr, params);
 }
@@ -2695,7 +2697,7 @@ LoadTorrentParams SessionImpl::initLoadTorrentParams(const AddTorrentParams &add
 }
 
 // Add a torrent to the BitTorrent session
-bool SessionImpl::addTorrent_impl(const TorrentDescriptor &source, const AddTorrentParams &addTorrentParams)
+QFuture<Session::AddTorrentResult> SessionImpl::addTorrent_impl(const TorrentDescriptor &source, const AddTorrentParams &addTorrentParams)
 {
     Q_ASSERT(isRestored());
 
@@ -2709,10 +2711,10 @@ bool SessionImpl::addTorrent_impl(const TorrentDescriptor &source, const AddTorr
     // We should not add the torrent if it is already
     // processed or is pending to add to session
     if (m_loadingTorrents.contains(id) || (infoHash.isHybrid() && m_loadingTorrents.contains(altID)))
-        return false;
+        return {};
 
     if (findTorrent(infoHash))
-        return false;
+        return {};
 
     // It looks illogical that we don't just use an existing handle,
     // but as previous experience has shown, it actually creates unnecessary
@@ -2883,7 +2885,9 @@ bool SessionImpl::addTorrent_impl(const TorrentDescriptor &source, const AddTorr
     if (!isFindingIncompleteFiles)
         m_nativeSession->async_add_torrent(p);
 
-    return true;
+    auto promise = std::make_shared<QPromise<AddTorrentResult>>();
+
+    return promise->future();
 }
 
 void SessionImpl::findIncompleteFiles(const TorrentInfo &torrentInfo, const Path &savePath
