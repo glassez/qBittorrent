@@ -1046,34 +1046,159 @@
                 </widget>
                </item>
                <item>
-                <widget class="QGroupBox" name="deleteTorrentBox">
-                 <property name="toolTip">
-                  <string>Whether the .torrent file should be deleted after adding it</string>
-                 </property>
-                 <property name="title">
-                  <string>De&amp;lete .torrent files afterwards </string>
-                 </property>
-                 <property name="checkable">
-                  <bool>true</bool>
-                 </property>
-                 <property name="checked">
-                  <bool>false</bool>
-                 </property>
-                 <layout class="QVBoxLayout" name="deleteTorrentBoxLayout">
+                <layout class="QHBoxLayout" name="copyTorrentFileLayout">
+                 <item>
+                  <widget class="QCheckBox" name="copyTorrentFileCheckBox">
+                   <property name="text">
+                    <string>Copy .torrent file to:</string>
+                   </property>
+                  </widget>
+                 </item>
+                 <item>
+                  <widget class="FileSystemPathLineEdit" name="copyTorrentFilePathEdit" native="true"/>
+                 </item>
+                 <item>
+                  <spacer name="copyTorrentFileSpacer">
+                   <property name="orientation">
+                    <enum>Qt::Orientation::Horizontal</enum>
+                   </property>
+                   <property name="sizeHint" stdset="0">
+                    <size>
+                     <width>40</width>
+                     <height>20</height>
+                    </size>
+                   </property>
+                  </spacer>
+                 </item>
+                </layout>
+               </item>
+               <item>
+                <widget class="QWidget" name="copyTorrentFileOptionsWidget" native="true">
+                 <layout class="QVBoxLayout" name="copyTorrentFileOptionsLayout">
+                  <property name="topMargin">
+                   <number>0</number>
+                  </property>
+                  <property name="rightMargin">
+                   <number>0</number>
+                  </property>
                   <item>
-                   <widget class="QCheckBox" name="deleteCancelledTorrentBox">
-                    <property name="toolTip">
-                     <string>Also delete .torrent files whose addition was cancelled</string>
-                    </property>
-                    <property name="text">
-                     <string>Also when addition is cancelled</string>
-                    </property>
-                   </widget>
+                   <layout class="QHBoxLayout" name="createTorrentFileForMagnetLayout">
+                    <item>
+                     <widget class="QCheckBox" name="createTorrentFileForMagnetCheckBox">
+                      <property name="toolTip">
+                       <string>Note that for v2/hybrid torrents, this cannot be done immediately when receiving metadata, because it is also required to obtain the data necessary to create &quot;piece layers&quot;. In this case, the .torrent file will be created when the torrent download is completed.</string>
+                      </property>
+                      <property name="text">
+                       <string>Also create .torrent file for torrent  added using Magnet URI (or info-hash)</string>
+                      </property>
+                     </widget>
+                    </item>
+                    <item>
+                     <spacer name="createTorrentFileForMagnetSpacer">
+                      <property name="orientation">
+                       <enum>Qt::Orientation::Horizontal</enum>
+                      </property>
+                      <property name="sizeHint" stdset="0">
+                       <size>
+                        <width>40</width>
+                        <height>20</height>
+                       </size>
+                      </property>
+                     </spacer>
+                    </item>
+                   </layout>
                   </item>
                   <item>
-                   <layout class="QHBoxLayout" name="deleteTorrentWarningLayout">
+                   <layout class="QHBoxLayout" name="deleteTorrentFileCopyOnRemoveLayout">
                     <item>
-                     <widget class="QLabel" name="deleteTorrentWarningIcon">
+                     <widget class="QCheckBox" name="deleteTorrentFileCopyOnRemoveCheckBox">
+                      <property name="text">
+                       <string>Delete .torrent file on remove</string>
+                      </property>
+                     </widget>
+                    </item>
+                    <item>
+                     <spacer name="deleteTorrentFileCopyOnRemoveSpacer">
+                      <property name="orientation">
+                       <enum>Qt::Orientation::Horizontal</enum>
+                      </property>
+                      <property name="sizeHint" stdset="0">
+                       <size>
+                        <width>40</width>
+                        <height>20</height>
+                       </size>
+                      </property>
+                     </spacer>
+                    </item>
+                   </layout>
+                  </item>
+                 </layout>
+                </widget>
+               </item>
+               <item>
+                <layout class="QHBoxLayout" name="deleteTorrentFileLayout">
+                 <item>
+                  <widget class="QCheckBox" name="deleteTorrentFileCheckBox">
+                   <property name="text">
+                    <string>Delete source .torrent file afterwards</string>
+                   </property>
+                  </widget>
+                 </item>
+                 <item>
+                  <spacer name="deleteTorrentFileSpacer">
+                   <property name="orientation">
+                    <enum>Qt::Orientation::Horizontal</enum>
+                   </property>
+                   <property name="sizeHint" stdset="0">
+                    <size>
+                     <width>40</width>
+                     <height>20</height>
+                    </size>
+                   </property>
+                  </spacer>
+                 </item>
+                </layout>
+               </item>
+               <item>
+                <widget class="QWidget" name="deleteTorrentFileOptionsWidget" native="true">
+                 <layout class="QVBoxLayout" name="deleteTorrentFileOptionsLayout">
+                  <property name="topMargin">
+                   <number>0</number>
+                  </property>
+                  <property name="rightMargin">
+                   <number>0</number>
+                  </property>
+                  <item>
+                   <layout class="QHBoxLayout" name="deleteTorrentFileCancelledLayout">
+                    <item>
+                     <widget class="QCheckBox" name="deleteTorrentFileCancelledCheckBox">
+                      <property name="toolTip">
+                       <string>Also delete .torrent files whose addition was cancelled</string>
+                      </property>
+                      <property name="text">
+                       <string>Also when addition is cancelled</string>
+                      </property>
+                     </widget>
+                    </item>
+                    <item>
+                     <spacer name="deleteTorrentFileCancelledSpacer">
+                      <property name="orientation">
+                       <enum>Qt::Orientation::Horizontal</enum>
+                      </property>
+                      <property name="sizeHint" stdset="0">
+                       <size>
+                        <width>40</width>
+                        <height>20</height>
+                       </size>
+                      </property>
+                     </spacer>
+                    </item>
+                   </layout>
+                  </item>
+                  <item>
+                   <layout class="QHBoxLayout" name="deleteTorrentFileWarningLayout">
+                    <item>
+                     <widget class="QLabel" name="deleteTorrentFileWarningIcon">
                       <property name="sizePolicy">
                        <sizepolicy hsizetype="Fixed" vsizetype="Preferred">
                         <horstretch>0</horstretch>
@@ -1086,7 +1211,7 @@
                      </widget>
                     </item>
                     <item>
-                     <widget class="QLabel" name="deleteTorrentWarningLabel">
+                     <widget class="QLabel" name="deleteTorrentFileWarningLabel">
                       <property name="text">
                        <string>Warning! Data loss possible!</string>
                       </property>
@@ -1347,26 +1472,6 @@ Manual: Various torrent properties (e.g. save path) must be assigned manually</s
                  </item>
                  <item row="1" column="1">
                   <widget class="FileSystemPathLineEdit" name="textDownloadPath" native="true"/>
-                 </item>
-                 <item row="2" column="0">
-                  <widget class="QCheckBox" name="checkExportDir">
-                   <property name="text">
-                    <string>Copy .torrent files to:</string>
-                   </property>
-                  </widget>
-                 </item>
-                 <item row="2" column="1">
-                  <widget class="FileSystemPathLineEdit" name="textExportDir" native="true"/>
-                 </item>
-                 <item row="3" column="0">
-                  <widget class="QCheckBox" name="checkExportDirFin">
-                   <property name="text">
-                    <string>Copy .torrent files for finished downloads to:</string>
-                   </property>
-                  </widget>
-                 </item>
-                 <item row="3" column="1">
-                  <widget class="FileSystemPathLineEdit" name="textExportDirFin" native="true"/>
                  </item>
                 </layout>
                </item>

@@ -269,6 +269,9 @@ namespace BitTorrent
         // Session interface
         lt::torrent_handle nativeHandle() const;
 
+        Path torrentFileCopyPath() const;
+        void setTorrentFileCopyPath(const Path &path);
+
         void handleAlert(const lt::alert *a);
         void handleStateUpdate(const lt::torrent_status &nativeStatus);
         void handleQueueingModeChanged();
@@ -384,6 +387,7 @@ namespace BitTorrent
         bool m_isStopped = false;
         StopCondition m_stopCondition = StopCondition::None;
         SSLParameters m_sslParams;
+        Path m_torrentFileCopyPath;
 
         bool m_unchecked = false;
 

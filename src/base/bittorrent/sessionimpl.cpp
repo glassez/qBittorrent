@@ -310,6 +310,22 @@ namespace
             break;
         }
     }
+
+    Path generateTorrentFilePath(const Path &folderPath, const QString &torrentName)
+    {
+        const QString validName = Utils::Fs::toValidFileName(torrentName);
+        QString torrentFileName = u"%1.torrent"_s.arg(validName);
+        Path torrentFilePath = folderPath / Path(torrentFileName);
+        int counter = 0;
+        while (torrentFilePath.exists())
+        {
+            // Append number to torrent name to make it unique
+            torrentFileName = u"%1 %2.torrent"_s.arg(validName).arg(++counter);
+            torrentFilePath = folderPath / Path(torrentFileName);
+        }
+
+        return torrentFilePath;
+    }
 }
 
 struct BitTorrent::SessionImpl::ResumeSessionContext final : public QObject
@@ -476,6 +492,10 @@ SessionImpl::SessionImpl(QObject *parent)
     , m_isPreallocationEnabled(BITTORRENT_SESSION_KEY(u"Preallocation"_s), false)
     , m_torrentExportDirectory(BITTORRENT_SESSION_KEY(u"TorrentExportDirectory"_s))
     , m_finishedTorrentExportDirectory(BITTORRENT_SESSION_KEY(u"FinishedTorrentExportDirectory"_s))
+    , m_isCopyTorrentFileEnabled(BITTORRENT_SESSION_KEY(u"CopyTorrentFile"_s))
+    , m_isCreateTorrentFileForMagnetEnabled(BITTORRENT_SESSION_KEY(u"CreateTorrentFileForMagnet"_s))
+    , m_isDeleteTorrentFileCopyOnRemoveEnabled(BITTORRENT_SESSION_KEY(u"DeleteTorrentFileCopyOnRemove"_s))
+    , m_torrentFileCopyDirectory(BITTORRENT_SESSION_KEY(u"TorrentFileCopyDirectory"_s))
     , m_globalDownloadSpeedLimit(BITTORRENT_SESSION_KEY(u"GlobalDLSpeedLimit"_s), 0, lowerLimited(0))
     , m_globalUploadSpeedLimit(BITTORRENT_SESSION_KEY(u"GlobalUPSpeedLimit"_s), 0, lowerLimited(0))
     , m_altGlobalDownloadSpeedLimit(BITTORRENT_SESSION_KEY(u"AlternativeGlobalDLSpeedLimit"_s), 10, lowerLimited(0))
@@ -803,26 +823,48 @@ void SessionImpl::setPreallocationEnabled(const bool enabled)
     m_isPreallocationEnabled = enabled;
 }
 
-Path SessionImpl::torrentExportDirectory() const
+bool SessionImpl::isCopyTorrentFileEnabled() const
 {
-    return m_torrentExportDirectory;
+    return m_isCopyTorrentFileEnabled;
 }
 
-void SessionImpl::setTorrentExportDirectory(const Path &path)
+void SessionImpl::setCopyTorrentFileEnabled(const bool enabled)
 {
-    if (path != torrentExportDirectory())
-        m_torrentExportDirectory = path;
+    if (enabled != m_isCopyTorrentFileEnabled)
+        m_isCopyTorrentFileEnabled = enabled;
 }
 
-Path SessionImpl::finishedTorrentExportDirectory() const
+bool SessionImpl::isCreateTorrentFileForMagnetEnabled() const
 {
-    return m_finishedTorrentExportDirectory;
+    return m_isCreateTorrentFileForMagnetEnabled;
 }
 
-void SessionImpl::setFinishedTorrentExportDirectory(const Path &path)
+void SessionImpl::setCreateTorrentFileForMagnetEnabled(const bool enabled)
 {
-    if (path != finishedTorrentExportDirectory())
-        m_finishedTorrentExportDirectory = path;
+    if (enabled != m_isCreateTorrentFileForMagnetEnabled)
+        m_isCreateTorrentFileForMagnetEnabled = enabled;
+}
+
+bool SessionImpl::isDeleteTorrentFileCopyOnRemoveEnabled() const
+{
+    return m_isDeleteTorrentFileCopyOnRemoveEnabled;
+}
+
+void SessionImpl::setDeleteTorrentFileCopyOnRemoveEnabled(const bool enabled)
+{
+    if (enabled != m_isDeleteTorrentFileCopyOnRemoveEnabled)
+        m_isDeleteTorrentFileCopyOnRemoveEnabled = enabled;
+}
+
+Path SessionImpl::torrentFileCopyDirectory() const
+{
+    return m_torrentFileCopyDirectory;
+}
+
+void SessionImpl::setTorrentFileCopyDirectory(const Path &path)
+{
+    if (path != torrentFileCopyDirectory())
+        m_torrentFileCopyDirectory = path;
 }
 
 Path SessionImpl::savePath() const
@@ -2927,6 +2969,7 @@ bool SessionImpl::addTorrent_impl(const TorrentDescriptor &source, const AddTorr
     p.storage = customStorageConstructor;
 #endif
 
+    m_addingTorrents.insert(id, source);
     m_loadingTorrents.insert(id, loadTorrentParams);
     if (infoHash.isHybrid())
         m_hybridTorrentsByAltID.insert(altID, nullptr);
@@ -3088,28 +3131,30 @@ bool SessionImpl::downloadMetadata(const TorrentDescriptor &torrentDescr)
     return true;
 }
 
-void SessionImpl::exportTorrentFile(const Torrent *torrent, const Path &folderPath)
+nonstd::expected<Path, QString> SessionImpl::createTorrentFile(const Torrent *torrent, const Path &folderPath)
 {
     if (!folderPath.exists() && !Utils::Fs::mkpath(folderPath))
-        return;
+        return nonstd::make_unexpected(tr("Unable to create folder. Path: \"%1\".").arg(folderPath.toString()));
 
-    const QString validName = Utils::Fs::toValidFileName(torrent->name());
-    QString torrentExportFilename = u"%1.torrent"_s.arg(validName);
-    Path newTorrentPath = folderPath / Path(torrentExportFilename);
-    int counter = 0;
-    while (newTorrentPath.exists())
-    {
-        // Append number to torrent name to make it unique
-        torrentExportFilename = u"%1 %2.torrent"_s.arg(validName).arg(++counter);
-        newTorrentPath = folderPath / Path(torrentExportFilename);
-    }
+    const Path torrentFilePath = generateTorrentFilePath(folderPath, torrent->name());
+    const auto result = torrent->exportToFile(torrentFilePath);
+    if (result)
+        return torrentFilePath;
 
-    const nonstd::expected<void, QString> result = torrent->exportToFile(newTorrentPath);
-    if (!result)
-    {
-        LogMsg(tr("Failed to export torrent. Torrent: \"%1\". Destination: \"%2\". Reason: \"%3\"")
-               .arg(torrent->name(), newTorrentPath.toString(), result.error()), Log::WARNING);
-    }
+    return nonstd::make_unexpected(result.error());
+}
+
+nonstd::expected<Path, QString> SessionImpl::createTorrentFile(const TorrentDescriptor &torrentDescr, const Path &folderPath)
+{
+    if (!folderPath.exists() && !Utils::Fs::mkpath(folderPath))
+        return nonstd::make_unexpected(tr("Unable to create folder. Path: \"%1\".").arg(folderPath.toString()));
+
+    const Path torrentFilePath = generateTorrentFilePath(folderPath, torrentDescr.name());
+    const auto saveResult = torrentDescr.saveToFile(torrentFilePath);
+    if (saveResult)
+        return torrentFilePath;
+
+    return nonstd::make_unexpected(saveResult.error());
 }
 
 void SessionImpl::generateResumeData()
@@ -5098,8 +5143,22 @@ void SessionImpl::handleTorrentUrlSeedsRemoved(TorrentImpl *const torrent, const
 
 void SessionImpl::handleTorrentMetadataReceived(TorrentImpl *const torrent)
 {
-    if (!torrentExportDirectory().isEmpty())
-        exportTorrentFile(torrent, torrentExportDirectory());
+    if (const Path copyDir = torrentFileCopyDirectory();
+            isCopyTorrentFileEnabled() && isCreateTorrentFileForMagnetEnabled() && !copyDir.isEmpty())
+    {
+        if (const auto result = createTorrentFile(torrent, copyDir))
+        {
+            const Path torrentFilePath = result.value();
+            torrent->setTorrentFileCopyPath(torrentFilePath);
+            LogMsg(tr("Created .torrent file. Torrent: \"%1\". Destination: \"%2\".")
+                   .arg(torrent->name(), torrentFilePath.toString()));
+        }
+        else
+        {
+            LogMsg(tr("Failed to create .torrent file. Torrent: \"%1\". Destination: \"%2\". Reason: \"%3\"")
+                   .arg(torrent->name(), result.value().toString(), result.error()), Log::WARNING);
+        }
+    }
 
     emit torrentMetadataReceived(torrent);
 }
@@ -5271,13 +5330,28 @@ void SessionImpl::processPendingFinishedTorrents()
     if (m_pendingFinishedTorrents.isEmpty())
         return;
 
+    const Path copyDir = torrentFileCopyDirectory();
+    const bool needCreateTorrentFileForMagnet = isCopyTorrentFileEnabled() && isCreateTorrentFileForMagnetEnabled() && !copyDir.isEmpty();
     for (TorrentImpl *torrent : asConst(m_pendingFinishedTorrents))
     {
         LogMsg(tr("Torrent download finished. Torrent: \"%1\"").arg(torrent->name()));
         emit torrentFinished(torrent);
 
-        if (const Path exportPath = finishedTorrentExportDirectory(); !exportPath.isEmpty())
-            exportTorrentFile(torrent, exportPath);
+        if (needCreateTorrentFileForMagnet)
+        {
+            if (const auto result = createTorrentFile(torrent, copyDir))
+            {
+                const Path torrentFilePath = result.value();
+                torrent->setTorrentFileCopyPath(torrentFilePath);
+                LogMsg(tr("Created .torrent file. Torrent: \"%1\". Destination: \"%2\".")
+                       .arg(torrent->name(), torrentFilePath.toString()));
+            }
+            else
+            {
+                LogMsg(tr("Failed to create .torrent file. Torrent: \"%1\". Destination: \"%2\". Reason: \"%3\"")
+                       .arg(torrent->name(), result.value().toString(), result.error()), Log::WARNING);
+            }
+        }
 
         processTorrentShareLimits(torrent);
     }
@@ -5776,11 +5850,24 @@ TorrentImpl *SessionImpl::createTorrent(const lt::torrent_handle &nativeHandle, 
 
         torrent->requestResumeData(lt::torrent_handle::save_info_dict);
 
-        // The following is useless for newly added magnet
-        if (torrent->hasMetadata())
+        const TorrentDescriptor torrentSource = m_addingTorrents.take(torrent->id());
+        const Path copyDir = torrentFileCopyDirectory();
+
+        // The following is useless for torrents added without metadata
+        if (torrentSource.info().has_value() && isCopyTorrentFileEnabled() && !copyDir.isEmpty())
         {
-            if (!torrentExportDirectory().isEmpty())
-                exportTorrentFile(torrent, torrentExportDirectory());
+            if (const auto result = createTorrentFile(torrentSource, copyDir))
+            {
+                const Path torrentFilePath = result.value();
+                torrent->setTorrentFileCopyPath(torrentFilePath);
+                LogMsg(tr("Created copy of .torrent file. Torrent: \"%1\". Destination: \"%2\".")
+                       .arg(torrent->name(), torrentFilePath.toString()));
+            }
+            else
+            {
+                LogMsg(tr("Failed to copy .torrent file. Torrent: \"%1\". Destination: \"%2\". Reason: \"%3\"")
+                       .arg(torrent->name(), result.value().toString(), result.error()), Log::WARNING);
+            }
         }
     }
 

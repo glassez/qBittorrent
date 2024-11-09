@@ -102,7 +102,9 @@ nonstd::expected<BitTorrent::TorrentDescriptor, QString>
 BitTorrent::TorrentDescriptor::loadFromFile(const Path &path) noexcept
 try
 {
-    return TorrentDescriptor(lt::load_torrent_file(path.toString().toStdString(), loadTorrentLimits()));
+    TorrentDescriptor torrentDescriptor {lt::load_torrent_file(path.toString().toStdString(), loadTorrentLimits())};
+    torrentDescriptor.m_sourceFilePath = path;
+    return torrentDescriptor;
 }
 catch (const lt::system_error &err)
 {
@@ -186,6 +188,11 @@ QString BitTorrent::TorrentDescriptor::comment() const
 const std::optional<BitTorrent::TorrentInfo> &BitTorrent::TorrentDescriptor::info() const
 {
     return m_info;
+}
+
+Path BitTorrent::TorrentDescriptor::sourceFilePath() const
+{
+    return m_sourceFilePath;
 }
 
 void BitTorrent::TorrentDescriptor::setTorrentInfo(TorrentInfo torrentInfo)

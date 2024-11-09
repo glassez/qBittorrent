@@ -57,6 +57,7 @@ namespace BitTorrent
         bool hasFinishedStatus = false;
         bool stopped = false;
         Torrent::StopCondition stopCondition = Torrent::StopCondition::None;
+        Path torrentFileCopyPath;
 
         bool addToQueueTop = false; // only for new torrents
 

@@ -207,10 +207,15 @@ namespace BitTorrent
         void setRefreshInterval(int value) override;
         bool isPreallocationEnabled() const override;
         void setPreallocationEnabled(bool enabled) override;
-        Path torrentExportDirectory() const override;
-        void setTorrentExportDirectory(const Path &path) override;
-        Path finishedTorrentExportDirectory() const override;
-        void setFinishedTorrentExportDirectory(const Path &path) override;
+
+        bool isCopyTorrentFileEnabled() const override;
+        void setCopyTorrentFileEnabled(bool enabled) override;
+        bool isCreateTorrentFileForMagnetEnabled() const override;
+        void setCreateTorrentFileForMagnetEnabled(bool enabled) override;
+        bool isDeleteTorrentFileCopyOnRemoveEnabled() const override;
+        void setDeleteTorrentFileCopyOnRemoveEnabled(bool enabled) override;
+        Path torrentFileCopyDirectory() const override;
+        void setTorrentFileCopyDirectory(const Path &path) override;
 
         int globalDownloadSpeedLimit() const override;
         void setGlobalDownloadSpeedLimit(int limit) override;
@@ -558,7 +563,9 @@ namespace BitTorrent
         bool addTorrent_impl(const TorrentDescriptor &source, const AddTorrentParams &addTorrentParams);
 
         void updateSeedingLimitTimer();
-        void exportTorrentFile(const Torrent *torrent, const Path &folderPath);
+
+        nonstd::expected<Path, QString> createTorrentFile(const Torrent *torrent, const Path &folderPath);
+        nonstd::expected<Path, QString> createTorrentFile(const TorrentDescriptor &torrentDescr, const Path &folderPath);
 
         void handleAlert(const lt::alert *alert);
         void dispatchTorrentAlert(const lt::torrent_alert *alert);
@@ -689,6 +696,10 @@ namespace BitTorrent
         CachedSettingValue<bool> m_isPreallocationEnabled;
         CachedSettingValue<Path> m_torrentExportDirectory;
         CachedSettingValue<Path> m_finishedTorrentExportDirectory;
+        CachedSettingValue<bool> m_isCopyTorrentFileEnabled;
+        CachedSettingValue<bool> m_isCreateTorrentFileForMagnetEnabled;
+        CachedSettingValue<bool> m_isDeleteTorrentFileCopyOnRemoveEnabled;
+        CachedSettingValue<Path> m_torrentFileCopyDirectory;
         CachedSettingValue<int> m_globalDownloadSpeedLimit;
         CachedSettingValue<int> m_globalUploadSpeedLimit;
         CachedSettingValue<int> m_altGlobalDownloadSpeedLimit;
@@ -788,6 +799,7 @@ namespace BitTorrent
 
         QHash<TorrentID, TorrentImpl *> m_torrents;
         QHash<TorrentID, TorrentImpl *> m_hybridTorrentsByAltID;
+        QHash<TorrentID, TorrentDescriptor> m_addingTorrents;
         QHash<TorrentID, LoadTorrentParams> m_loadingTorrents;
         QHash<TorrentID, RemovingTorrentData> m_removingTorrents;
         QHash<TorrentID, TorrentID> m_changedTorrentIDs;

@@ -1,6 +1,6 @@
 /*
  * Bittorrent Client using Qt and libtorrent.
- * Copyright (C) 2015-2023  Vladimir Golovnev <glassez@yandex.ru>
+ * Copyright (C) 2015-2024  Vladimir Golovnev <glassez@yandex.ru>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -62,6 +62,7 @@ namespace BitTorrent
         QList<TrackerEntry> trackers() const;
         QList<QUrl> urlSeeds() const;
         const std::optional<TorrentInfo> &info() const;
+        Path sourceFilePath() const;
 
         void setTorrentInfo(TorrentInfo torrentInfo);
 
@@ -80,6 +81,7 @@ namespace BitTorrent
         QDateTime m_creationDate;
         QString m_creator;
         QString m_comment;
+        Path m_sourceFilePath;
     };
 }
 

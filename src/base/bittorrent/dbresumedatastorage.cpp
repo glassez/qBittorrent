@@ -67,7 +67,7 @@ namespace
 {
     const QString DB_CONNECTION_NAME = u"ResumeDataStorage"_s;
 
-    const int DB_VERSION = 8;
+    const int DB_VERSION = 9;
 
     const QString DB_TABLE_META = u"meta"_s;
     const QString DB_TABLE_TORRENTS = u"torrents"_s;
@@ -143,6 +143,7 @@ namespace
     const Column DB_COLUMN_OPERATING_MODE = makeColumn(u"operating_mode"_s);
     const Column DB_COLUMN_STOPPED = makeColumn(u"stopped"_s);
     const Column DB_COLUMN_STOP_CONDITION = makeColumn(u"stop_condition"_s);
+    const Column DB_COLUMN_TORRENT_FILE_COPY_PATH = makeColumn(u"torrent_file_copy_path"_s);
     const Column DB_COLUMN_SSL_CERTIFICATE = makeColumn(u"ssl_certificate"_s);
     const Column DB_COLUMN_SSL_PRIVATE_KEY = makeColumn(u"ssl_private_key"_s);
     const Column DB_COLUMN_SSL_DH_PARAMS = makeColumn(u"ssl_dh_params"_s);
@@ -243,6 +244,8 @@ namespace
         resumeData.stopped = query.value(DB_COLUMN_STOPPED.name).toBool();
         resumeData.stopCondition = Utils::String::toEnum(
                 query.value(DB_COLUMN_STOP_CONDITION.name).toString(), Torrent::StopCondition::None);
+        resumeData.torrentFileCopyPath = Profile::instance()->fromPortablePath(
+                Path(query.value(DB_COLUMN_TORRENT_FILE_COPY_PATH.name).toString()));
         resumeData.sslParameters =
         {
             .certificate = QSslCertificate(query.value(DB_COLUMN_SSL_CERTIFICATE.name).toByteArray()),
@@ -547,6 +550,7 @@ void BitTorrent::DBResumeDataStorage::createDB() const
             makeColumnDefinition(DB_COLUMN_OPERATING_MODE, u"TEXT NOT NULL"_s),
             makeColumnDefinition(DB_COLUMN_STOPPED, u"INTEGER NOT NULL"_s),
             makeColumnDefinition(DB_COLUMN_STOP_CONDITION, u"TEXT NOT NULL DEFAULT `None`"_s),
+            makeColumnDefinition(DB_COLUMN_TORRENT_FILE_COPY_PATH, u"TEXT"_s),
             makeColumnDefinition(DB_COLUMN_SSL_CERTIFICATE, u"TEXT"_s),
             makeColumnDefinition(DB_COLUMN_SSL_PRIVATE_KEY, u"TEXT"_s),
             makeColumnDefinition(DB_COLUMN_SSL_DH_PARAMS, u"TEXT"_s),
@@ -651,6 +655,9 @@ void BitTorrent::DBResumeDataStorage::updateDB(const int fromVersion) const
             if (!query.exec(queryStr))
                 throw RuntimeError(query.lastError().text());
         }
+
+        if (fromVersion <= 8)
+            addColumn(DB_TABLE_TORRENTS, DB_COLUMN_TORRENT_FILE_COPY_PATH, "TEXT");
 
         const QString updateMetaVersionQuery = makeUpdateStatement(DB_TABLE_META, {DB_COLUMN_NAME, DB_COLUMN_VALUE});
         if (!query.prepare(updateMetaVersionQuery))
@@ -836,6 +843,7 @@ namespace
             DB_COLUMN_OPERATING_MODE,
             DB_COLUMN_STOPPED,
             DB_COLUMN_STOP_CONDITION,
+            DB_COLUMN_TORRENT_FILE_COPY_PATH,
             DB_COLUMN_SSL_CERTIFICATE,
             DB_COLUMN_SSL_PRIVATE_KEY,
             DB_COLUMN_SSL_DH_PARAMS,
@@ -899,6 +907,7 @@ namespace
             query.bindValue(DB_COLUMN_OPERATING_MODE.placeholder, Utils::String::fromEnum(m_resumeData.operatingMode));
             query.bindValue(DB_COLUMN_STOPPED.placeholder, m_resumeData.stopped);
             query.bindValue(DB_COLUMN_STOP_CONDITION.placeholder, Utils::String::fromEnum(m_resumeData.stopCondition));
+            query.bindValue(DB_COLUMN_TORRENT_FILE_COPY_PATH.placeholder, Profile::instance()->toPortablePath(m_resumeData.torrentFileCopyPath).data());
             query.bindValue(DB_COLUMN_SSL_CERTIFICATE.placeholder, QString::fromLatin1(m_resumeData.sslParameters.certificate.toPem()));
             query.bindValue(DB_COLUMN_SSL_PRIVATE_KEY.placeholder, QString::fromLatin1(m_resumeData.sslParameters.privateKey.toPem()));
             query.bindValue(DB_COLUMN_SSL_DH_PARAMS.placeholder, QString::fromLatin1(m_resumeData.sslParameters.dhParams));

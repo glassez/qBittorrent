@@ -171,8 +171,12 @@ void AppController::preferencesAction()
     data[u"temp_path_enabled"_s] = session->isDownloadPathEnabled();
     data[u"temp_path"_s] = session->downloadPath().toString();
     data[u"use_category_paths_in_manual_mode"_s] = session->useCategoryPathsInManualMode();
-    data[u"export_dir"_s] = session->torrentExportDirectory().toString();
-    data[u"export_dir_fin"_s] = session->finishedTorrentExportDirectory().toString();
+
+    // .torrent file copy management
+    data[u"copy_torrent_file"_s] = session->isCopyTorrentFileEnabled();
+    data[u"create_torrent_file_for_magnet"_s] = session->isCreateTorrentFileForMagnetEnabled();
+    data[u"delete_torrent_file_copy_on_remove"_s] = session->isDeleteTorrentFileCopyOnRemoveEnabled();
+    data[u"torrent_file_copy_dir"_s] = session->torrentFileCopyDirectory().toString();
 
     // TODO: The following code is deprecated. Delete it once replaced by updated API method.
     // === BEGIN DEPRECATED CODE === //
@@ -587,10 +591,16 @@ void AppController::setPreferencesAction()
         session->setDownloadPath(Path(it.value().toString()));
     if (hasKey(u"use_category_paths_in_manual_mode"_s))
         session->setUseCategoryPathsInManualMode(it.value().toBool());
-    if (hasKey(u"export_dir"_s))
-        session->setTorrentExportDirectory(Path(it.value().toString()));
-    if (hasKey(u"export_dir_fin"_s))
-        session->setFinishedTorrentExportDirectory(Path(it.value().toString()));
+
+    // .torrent file copy management
+    if (hasKey(u"copy_torrent_file"_s))
+        session->setCopyTorrentFileEnabled(it.value().toBool());
+    if (hasKey(u"create_torrent_file_for_magnet"_s))
+        session->setCreateTorrentFileForMagnetEnabled(it.value().toBool());
+    if (hasKey(u"delete_torrent_file_copy_on_remove"_s))
+        session->setDeleteTorrentFileCopyOnRemoveEnabled(it.value().toBool());
+    if (hasKey(u"torrent_file_copy_dir"_s))
+        session->setTorrentFileCopyDirectory(Path(it.value().toString()));
 
     // TODO: The following code is deprecated. Delete it once replaced by updated API method.
     // === BEGIN DEPRECATED CODE === //

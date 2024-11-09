@@ -264,6 +264,10 @@ BitTorrent::LoadResumeDataResult BitTorrent::BencodeResumeDataStorage::loadTorre
 
     torrentParams.stopCondition = Utils::String::toEnum(
             fromLTString(resumeDataRoot.dict_find_string_value("qBt-stopCondition")), Torrent::StopCondition::None);
+
+    torrentParams.torrentFileCopyPath = Profile::instance()->fromPortablePath(
+        Path(fromLTString(resumeDataRoot.dict_find_string_value("qBt-torrentFileCopyPath"))));
+
     torrentParams.sslParameters =
     {
         .certificate = QSslCertificate(toByteArray(resumeDataRoot.dict_find_string_value(KEY_SSL_CERTIFICATE))),
@@ -428,6 +432,7 @@ void BitTorrent::BencodeResumeDataStorage::Worker::store(const TorrentID &id, co
     data["qBt-contentLayout"] = Utils::String::fromEnum(resumeData.contentLayout).toStdString();
     data["qBt-firstLastPiecePriority"] = resumeData.firstLastPiecePriority;
     data["qBt-stopCondition"] = Utils::String::fromEnum(resumeData.stopCondition).toStdString();
+    data["qBt-torrentFileCopyPath"] = Profile::instance()->toPortablePath(resumeData.torrentFileCopyPath).data().toStdString();
 
     if (!resumeData.sslParameters.certificate.isNull())
         data[KEY_SSL_CERTIFICATE] = resumeData.sslParameters.certificate.toPem().toStdString();

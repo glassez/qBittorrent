@@ -575,12 +575,13 @@ void OptionsDialog::loadDownloadsTabOptions()
     });
 
     const TorrentFileGuard::AutoDeleteMode autoDeleteMode = TorrentFileGuard::autoDeleteMode();
-    m_ui->deleteTorrentBox->setChecked(autoDeleteMode != TorrentFileGuard::Never);
-    m_ui->deleteCancelledTorrentBox->setChecked(autoDeleteMode == TorrentFileGuard::Always);
-    m_ui->deleteTorrentWarningIcon->setPixmap(QApplication::style()->standardIcon(QStyle::SP_MessageBoxCritical).pixmap(16, 16));
-    m_ui->deleteTorrentWarningIcon->hide();
-    m_ui->deleteTorrentWarningLabel->hide();
-    m_ui->deleteTorrentWarningLabel->setToolTip(u"<html><body><p>" +
+    m_ui->deleteTorrentFileCheckBox->setChecked(autoDeleteMode != TorrentFileGuard::Never);
+    m_ui->deleteTorrentFileCancelledCheckBox->setChecked(autoDeleteMode == TorrentFileGuard::Always);
+    m_ui->deleteTorrentFileCancelledCheckBox->setEnabled(m_ui->deleteTorrentFileCheckBox->isChecked());
+    m_ui->deleteTorrentFileWarningIcon->setPixmap(QApplication::style()->standardIcon(QStyle::SP_MessageBoxCritical).pixmap(16, 16));
+    m_ui->deleteTorrentFileWarningIcon->hide();
+    m_ui->deleteTorrentFileWarningLabel->hide();
+    m_ui->deleteTorrentFileWarningLabel->setToolTip(u"<html><body><p>" +
         tr("By enabling these options, you can <strong>irrevocably lose</strong> your .torrent files!") +
         u"</p><p>" +
         tr("When these options are enabled, qBittorrent will <strong>delete</strong> .torrent files "
@@ -616,21 +617,15 @@ void OptionsDialog::loadDownloadsTabOptions()
     m_ui->textDownloadPath->setMode(FileSystemPathEdit::Mode::DirectorySave);
     m_ui->textDownloadPath->setSelectedPath(session->downloadPath());
 
-    const bool isExportDirEmpty = session->torrentExportDirectory().isEmpty();
-    m_ui->checkExportDir->setChecked(!isExportDirEmpty);
-    m_ui->textExportDir->setDialogCaption(tr("Choose export directory"));
-    m_ui->textExportDir->setEnabled(m_ui->checkExportDir->isChecked());
-    m_ui->textExportDir->setMode(FileSystemPathEdit::Mode::DirectorySave);
-    if (!isExportDirEmpty)
-        m_ui->textExportDir->setSelectedPath(session->torrentExportDirectory());
-
-    const bool isExportDirFinEmpty = session->finishedTorrentExportDirectory().isEmpty();
-    m_ui->checkExportDirFin->setChecked(!isExportDirFinEmpty);
-    m_ui->textExportDirFin->setDialogCaption(tr("Choose export directory"));
-    m_ui->textExportDirFin->setEnabled(m_ui->checkExportDirFin->isChecked());
-    m_ui->textExportDirFin->setMode(FileSystemPathEdit::Mode::DirectorySave);
-    if (!isExportDirFinEmpty)
-        m_ui->textExportDirFin->setSelectedPath(session->finishedTorrentExportDirectory());
+    m_ui->copyTorrentFileCheckBox->setChecked(session->isCopyTorrentFileEnabled());
+    m_ui->copyTorrentFilePathEdit->setDialogCaption(tr("Choose .torrent file copy directory"));
+    m_ui->copyTorrentFilePathEdit->setMode(FileSystemPathEdit::Mode::DirectorySave);
+    m_ui->copyTorrentFilePathEdit->setSelectedPath(session->torrentFileCopyDirectory());
+    m_ui->copyTorrentFilePathEdit->setEnabled(m_ui->copyTorrentFileCheckBox->isChecked());
+    m_ui->createTorrentFileForMagnetCheckBox->setChecked(session->isCreateTorrentFileForMagnetEnabled());
+    m_ui->createTorrentFileForMagnetCheckBox->setEnabled(m_ui->copyTorrentFileCheckBox->isChecked());
+    m_ui->deleteTorrentFileCopyOnRemoveCheckBox->setChecked(session->isDeleteTorrentFileCopyOnRemoveEnabled());
+    m_ui->deleteTorrentFileCopyOnRemoveCheckBox->setEnabled(m_ui->copyTorrentFileCheckBox->isChecked());
 
     auto *watchedFoldersModel = new WatchedFoldersModel(TorrentFilesWatcher::instance(), this);
     connect(watchedFoldersModel, &QAbstractListModel::dataChanged, this, &ThisType::enableApplyButton);
@@ -692,10 +687,11 @@ void OptionsDialog::loadDownloadsTabOptions()
     connect(m_ui->stopConditionComboBox, qComboBoxCurrentIndexChanged, this, &ThisType::enableApplyButton);
     connect(m_ui->checkMergeTrackers, &QAbstractButton::toggled, this, &ThisType::enableApplyButton);
     connect(m_ui->checkConfirmMergeTrackers, &QAbstractButton::toggled, this, &ThisType::enableApplyButton);
-    connect(m_ui->deleteTorrentBox, &QGroupBox::toggled, m_ui->deleteTorrentWarningIcon, &QWidget::setVisible);
-    connect(m_ui->deleteTorrentBox, &QGroupBox::toggled, m_ui->deleteTorrentWarningLabel, &QWidget::setVisible);
-    connect(m_ui->deleteTorrentBox, &QGroupBox::toggled, this, &ThisType::enableApplyButton);
-    connect(m_ui->deleteCancelledTorrentBox, &QAbstractButton::toggled, this, &ThisType::enableApplyButton);
+    connect(m_ui->deleteTorrentFileCheckBox, &QCheckBox::toggled, this, &ThisType::enableApplyButton);
+    connect(m_ui->deleteTorrentFileCheckBox, &QCheckBox::toggled, m_ui->deleteTorrentFileWarningIcon, &QWidget::setVisible);
+    connect(m_ui->deleteTorrentFileCheckBox, &QCheckBox::toggled, m_ui->deleteTorrentFileWarningLabel, &QWidget::setVisible);
+    connect(m_ui->deleteTorrentFileCheckBox, &QCheckBox::toggled, m_ui->deleteTorrentFileCancelledCheckBox, &QWidget::setEnabled);
+    connect(m_ui->deleteTorrentFileCancelledCheckBox, &QAbstractButton::toggled, this, &ThisType::enableApplyButton);
 
     connect(m_ui->checkPreallocateAll, &QAbstractButton::toggled, this, &ThisType::enableApplyButton);
     connect(m_ui->checkAppendqB, &QAbstractButton::toggled, this, &ThisType::enableApplyButton);
@@ -710,15 +706,14 @@ void OptionsDialog::loadDownloadsTabOptions()
     connect(m_ui->checkUseSubcategories, &QAbstractButton::toggled, this, &ThisType::enableApplyButton);
     connect(m_ui->checkUseCategoryPaths, &QAbstractButton::toggled, this, &ThisType::enableApplyButton);
 
+    connect(m_ui->copyTorrentFileCheckBox, &QAbstractButton::toggled, this, &ThisType::enableApplyButton);
+    connect(m_ui->copyTorrentFileCheckBox, &QAbstractButton::toggled, m_ui->copyTorrentFilePathEdit, &QWidget::setEnabled);
+    connect(m_ui->copyTorrentFileCheckBox, &QAbstractButton::toggled, m_ui->createTorrentFileForMagnetCheckBox, &QWidget::setEnabled);
+    connect(m_ui->copyTorrentFileCheckBox, &QAbstractButton::toggled, m_ui->deleteTorrentFileCopyOnRemoveCheckBox, &QWidget::setEnabled);
+    connect(m_ui->copyTorrentFilePathEdit, &FileSystemPathEdit::selectedPathChanged, this, &ThisType::enableApplyButton);
+
     connect(m_ui->textSavePath, &FileSystemPathEdit::selectedPathChanged, this, &ThisType::enableApplyButton);
     connect(m_ui->textDownloadPath, &FileSystemPathEdit::selectedPathChanged, this, &ThisType::enableApplyButton);
-
-    connect(m_ui->checkExportDir, &QAbstractButton::toggled, this, &ThisType::enableApplyButton);
-    connect(m_ui->checkExportDir, &QAbstractButton::toggled, m_ui->textExportDir, &QWidget::setEnabled);
-    connect(m_ui->checkExportDirFin, &QAbstractButton::toggled, this, &ThisType::enableApplyButton);
-    connect(m_ui->checkExportDirFin, &QAbstractButton::toggled, m_ui->textExportDirFin, &QWidget::setEnabled);
-    connect(m_ui->textExportDir, &FileSystemPathEdit::selectedPathChanged, this, &ThisType::enableApplyButton);
-    connect(m_ui->textExportDirFin, &FileSystemPathEdit::selectedPathChanged, this, &ThisType::enableApplyButton);
     connect(m_ui->checkUseDownloadPath, &QAbstractButton::toggled, this, &ThisType::enableApplyButton);
     connect(m_ui->checkUseDownloadPath, &QAbstractButton::toggled, m_ui->textDownloadPath, &QWidget::setEnabled);
 
@@ -762,8 +757,8 @@ void OptionsDialog::saveDownloadsTabOptions() const
     session->setAddTorrentToQueueTop(m_ui->checkAddToQueueTop->isChecked());
     session->setAddTorrentStopped(addTorrentsStopped());
     session->setTorrentStopCondition(m_ui->stopConditionComboBox->currentData().value<BitTorrent::Torrent::StopCondition>());
-    TorrentFileGuard::setAutoDeleteMode(!m_ui->deleteTorrentBox->isChecked() ? TorrentFileGuard::Never
-                             : !m_ui->deleteCancelledTorrentBox->isChecked() ? TorrentFileGuard::IfAdded
+    TorrentFileGuard::setAutoDeleteMode(!m_ui->deleteTorrentFileCheckBox->isChecked() ? TorrentFileGuard::Never
+                             : !m_ui->deleteTorrentFileCancelledCheckBox->isChecked() ? TorrentFileGuard::IfAdded
                              : TorrentFileGuard::Always);
     session->setMergeTrackersEnabled(m_ui->checkMergeTrackers->isChecked());
     if (m_ui->checkConfirmMergeTrackers->isEnabled())
@@ -785,8 +780,11 @@ void OptionsDialog::saveDownloadsTabOptions() const
     session->setSavePath(Path(m_ui->textSavePath->selectedPath()));
     session->setDownloadPathEnabled(m_ui->checkUseDownloadPath->isChecked());
     session->setDownloadPath(m_ui->textDownloadPath->selectedPath());
-    session->setTorrentExportDirectory(getTorrentExportDir());
-    session->setFinishedTorrentExportDirectory(getFinishedTorrentExportDir());
+
+    session->setCopyTorrentFileEnabled(m_ui->copyTorrentFileCheckBox->isChecked());
+    session->setCreateTorrentFileForMagnetEnabled(m_ui->createTorrentFileForMagnetCheckBox->isChecked());
+    session->setDeleteTorrentFileCopyOnRemoveEnabled(m_ui->deleteTorrentFileCopyOnRemoveCheckBox->isChecked());
+    session->setTorrentFileCopyDirectory(m_ui->copyTorrentFilePathEdit->selectedPath());
 
     auto *watchedFoldersModel = static_cast<WatchedFoldersModel *>(m_ui->scanFoldersView->model());
     watchedFoldersModel->apply();
@@ -1835,20 +1833,6 @@ void OptionsDialog::setLocale(const QString &localeStr)
         Q_ASSERT(index >= 0);
     }
     m_ui->comboLanguage->setCurrentIndex(index);
-}
-
-Path OptionsDialog::getTorrentExportDir() const
-{
-    if (m_ui->checkExportDir->isChecked())
-        return m_ui->textExportDir->selectedPath();
-    return {};
-}
-
-Path OptionsDialog::getFinishedTorrentExportDir() const
-{
-    if (m_ui->checkExportDirFin->isChecked())
-        return m_ui->textExportDirFin->selectedPath();
-    return {};
 }
 
 void OptionsDialog::on_addWatchedFolderButton_clicked()
