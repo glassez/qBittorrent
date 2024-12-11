@@ -1046,96 +1046,6 @@
                 </widget>
                </item>
                <item>
-                <layout class="QHBoxLayout" name="copyTorrentFileLayout">
-                 <item>
-                  <widget class="QCheckBox" name="copyTorrentFileCheckBox">
-                   <property name="text">
-                    <string>Copy .torrent file to:</string>
-                   </property>
-                  </widget>
-                 </item>
-                 <item>
-                  <widget class="FileSystemPathLineEdit" name="copyTorrentFilePathEdit" native="true"/>
-                 </item>
-                 <item>
-                  <spacer name="copyTorrentFileSpacer">
-                   <property name="orientation">
-                    <enum>Qt::Orientation::Horizontal</enum>
-                   </property>
-                   <property name="sizeHint" stdset="0">
-                    <size>
-                     <width>40</width>
-                     <height>20</height>
-                    </size>
-                   </property>
-                  </spacer>
-                 </item>
-                </layout>
-               </item>
-               <item>
-                <widget class="QWidget" name="copyTorrentFileOptionsWidget" native="true">
-                 <layout class="QVBoxLayout" name="copyTorrentFileOptionsLayout">
-                  <property name="topMargin">
-                   <number>0</number>
-                  </property>
-                  <property name="rightMargin">
-                   <number>0</number>
-                  </property>
-                  <item>
-                   <layout class="QHBoxLayout" name="createTorrentFileForMagnetLayout">
-                    <item>
-                     <widget class="QCheckBox" name="createTorrentFileForMagnetCheckBox">
-                      <property name="toolTip">
-                       <string>Note that for v2/hybrid torrents, this cannot be done immediately when receiving metadata, because it is also required to obtain the data necessary to create &quot;piece layers&quot;. In this case, the .torrent file will be created when the torrent download is completed.</string>
-                      </property>
-                      <property name="text">
-                       <string>Also create .torrent file for torrent  added using Magnet URI (or info-hash)</string>
-                      </property>
-                     </widget>
-                    </item>
-                    <item>
-                     <spacer name="createTorrentFileForMagnetSpacer">
-                      <property name="orientation">
-                       <enum>Qt::Orientation::Horizontal</enum>
-                      </property>
-                      <property name="sizeHint" stdset="0">
-                       <size>
-                        <width>40</width>
-                        <height>20</height>
-                       </size>
-                      </property>
-                     </spacer>
-                    </item>
-                   </layout>
-                  </item>
-                  <item>
-                   <layout class="QHBoxLayout" name="deleteTorrentFileCopyOnRemoveLayout">
-                    <item>
-                     <widget class="QCheckBox" name="deleteTorrentFileCopyOnRemoveCheckBox">
-                      <property name="text">
-                       <string>Delete .torrent file on remove</string>
-                      </property>
-                     </widget>
-                    </item>
-                    <item>
-                     <spacer name="deleteTorrentFileCopyOnRemoveSpacer">
-                      <property name="orientation">
-                       <enum>Qt::Orientation::Horizontal</enum>
-                      </property>
-                      <property name="sizeHint" stdset="0">
-                       <size>
-                        <width>40</width>
-                        <height>20</height>
-                       </size>
-                      </property>
-                     </spacer>
-                    </item>
-                   </layout>
-                  </item>
-                 </layout>
-                </widget>
-               </item>
-               <item>
                 <layout class="QHBoxLayout" name="deleteTorrentFileLayout">
                  <item>
                   <widget class="QCheckBox" name="deleteTorrentFileCheckBox">
@@ -1474,6 +1384,69 @@ Manual: Various torrent properties (e.g. save path) must be assigned manually</s
                   <widget class="FileSystemPathLineEdit" name="textDownloadPath" native="true"/>
                  </item>
                 </layout>
+               </item>
+               <item>
+                <layout class="QHBoxLayout" name="storeTorrentFileLayout">
+                 <item>
+                  <widget class="QCheckBox" name="storeTorrentFileCheckBox">
+                   <property name="text">
+                    <string>Store .torrent file in:</string>
+                   </property>
+                  </widget>
+                 </item>
+                 <item>
+                  <widget class="FileSystemPathLineEdit" name="storeTorrentFilePathEdit" native="true"/>
+                 </item>
+                 <item>
+                  <spacer name="storeTorrentFileSpacer">
+                   <property name="orientation">
+                    <enum>Qt::Orientation::Horizontal</enum>
+                   </property>
+                   <property name="sizeHint" stdset="0">
+                    <size>
+                     <width>40</width>
+                     <height>20</height>
+                    </size>
+                   </property>
+                  </spacer>
+                 </item>
+                </layout>
+               </item>
+               <item>
+                <widget class="QWidget" name="storeTorrentFileOptionsWidget" native="true">
+                 <layout class="QVBoxLayout" name="storeTorrentFileOptionsLayout">
+                  <property name="topMargin">
+                   <number>0</number>
+                  </property>
+                  <property name="rightMargin">
+                   <number>0</number>
+                  </property>
+                  <item>
+                   <layout class="QHBoxLayout" name="deleteStoredTorrentFileOnRemoveLayout">
+                    <item>
+                     <widget class="QCheckBox" name="deleteStoredTorrentFileOnRemoveCheckBox">
+                      <property name="text">
+                       <string>Delete .torrent file on remove</string>
+                      </property>
+                     </widget>
+                    </item>
+                    <item>
+                     <spacer name="deleteStoredTorrentFileOnRemoveSpacer">
+                      <property name="orientation">
+                       <enum>Qt::Orientation::Horizontal</enum>
+                      </property>
+                      <property name="sizeHint" stdset="0">
+                       <size>
+                        <width>40</width>
+                        <height>20</height>
+                       </size>
+                      </property>
+                     </spacer>
+                    </item>
+                   </layout>
+                  </item>
+                 </layout>
+                </widget>
                </item>
               </layout>
              </widget>

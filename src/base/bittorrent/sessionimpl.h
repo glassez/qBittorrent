@@ -208,14 +208,12 @@ namespace BitTorrent
         bool isPreallocationEnabled() const override;
         void setPreallocationEnabled(bool enabled) override;
 
-        bool isCopyTorrentFileEnabled() const override;
-        void setCopyTorrentFileEnabled(bool enabled) override;
-        bool isCreateTorrentFileForMagnetEnabled() const override;
-        void setCreateTorrentFileForMagnetEnabled(bool enabled) override;
-        bool isDeleteTorrentFileCopyOnRemoveEnabled() const override;
-        void setDeleteTorrentFileCopyOnRemoveEnabled(bool enabled) override;
-        Path torrentFileCopyDirectory() const override;
-        void setTorrentFileCopyDirectory(const Path &path) override;
+        bool isStoreTorrentFileEnabled() const override;
+        void setStoreTorrentFileEnabled(bool enabled) override;
+        bool isDeleteStoredTorrentFileOnRemoveEnabled() const override;
+        void setDeleteStoredTorrentFileOnRemoveEnabled(bool enabled) override;
+        Path torrentFileStoreDirectory() const override;
+        void setTorrentFileStoreDirectory(const Path &path) override;
 
         int globalDownloadSpeedLimit() const override;
         void setGlobalDownloadSpeedLimit(int limit) override;
@@ -696,10 +694,9 @@ namespace BitTorrent
         CachedSettingValue<bool> m_isPreallocationEnabled;
         CachedSettingValue<Path> m_torrentExportDirectory;
         CachedSettingValue<Path> m_finishedTorrentExportDirectory;
-        CachedSettingValue<bool> m_isCopyTorrentFileEnabled;
-        CachedSettingValue<bool> m_isCreateTorrentFileForMagnetEnabled;
-        CachedSettingValue<bool> m_isDeleteTorrentFileCopyOnRemoveEnabled;
-        CachedSettingValue<Path> m_torrentFileCopyDirectory;
+        CachedSettingValue<bool> m_isStoreTorrentFileEnabled;
+        CachedSettingValue<bool> m_isDeleteStoredTorrentFileOnRemoveEnabled;
+        CachedSettingValue<Path> m_torrentFileStoreDirectory;
         CachedSettingValue<int> m_globalDownloadSpeedLimit;
         CachedSettingValue<int> m_globalUploadSpeedLimit;
         CachedSettingValue<int> m_altGlobalDownloadSpeedLimit;

@@ -492,10 +492,9 @@ SessionImpl::SessionImpl(QObject *parent)
     , m_isPreallocationEnabled(BITTORRENT_SESSION_KEY(u"Preallocation"_s), false)
     , m_torrentExportDirectory(BITTORRENT_SESSION_KEY(u"TorrentExportDirectory"_s))
     , m_finishedTorrentExportDirectory(BITTORRENT_SESSION_KEY(u"FinishedTorrentExportDirectory"_s))
-    , m_isCopyTorrentFileEnabled(BITTORRENT_SESSION_KEY(u"CopyTorrentFile"_s))
-    , m_isCreateTorrentFileForMagnetEnabled(BITTORRENT_SESSION_KEY(u"CreateTorrentFileForMagnet"_s))
-    , m_isDeleteTorrentFileCopyOnRemoveEnabled(BITTORRENT_SESSION_KEY(u"DeleteTorrentFileCopyOnRemove"_s))
-    , m_torrentFileCopyDirectory(BITTORRENT_SESSION_KEY(u"TorrentFileCopyDirectory"_s))
+    , m_isStoreTorrentFileEnabled(BITTORRENT_SESSION_KEY(u"StoreTorrentFile"_s))
+    , m_isDeleteStoredTorrentFileOnRemoveEnabled(BITTORRENT_SESSION_KEY(u"DeleteStoredTorrentFileOnRemove"_s))
+    , m_torrentFileStoreDirectory(BITTORRENT_SESSION_KEY(u"TorrentFileStoreDirectory"_s))
     , m_globalDownloadSpeedLimit(BITTORRENT_SESSION_KEY(u"GlobalDLSpeedLimit"_s), 0, lowerLimited(0))
     , m_globalUploadSpeedLimit(BITTORRENT_SESSION_KEY(u"GlobalUPSpeedLimit"_s), 0, lowerLimited(0))
     , m_altGlobalDownloadSpeedLimit(BITTORRENT_SESSION_KEY(u"AlternativeGlobalDLSpeedLimit"_s), 10, lowerLimited(0))
@@ -823,48 +822,37 @@ void SessionImpl::setPreallocationEnabled(const bool enabled)
     m_isPreallocationEnabled = enabled;
 }
 
-bool SessionImpl::isCopyTorrentFileEnabled() const
+bool SessionImpl::isStoreTorrentFileEnabled() const
 {
-    return m_isCopyTorrentFileEnabled;
+    return m_isStoreTorrentFileEnabled;
 }
 
-void SessionImpl::setCopyTorrentFileEnabled(const bool enabled)
+void SessionImpl::setStoreTorrentFileEnabled(const bool enabled)
 {
-    if (enabled != m_isCopyTorrentFileEnabled)
-        m_isCopyTorrentFileEnabled = enabled;
+    if (enabled != m_isStoreTorrentFileEnabled)
+        m_isStoreTorrentFileEnabled = enabled;
 }
 
-bool SessionImpl::isCreateTorrentFileForMagnetEnabled() const
+bool SessionImpl::isDeleteStoredTorrentFileOnRemoveEnabled() const
 {
-    return m_isCreateTorrentFileForMagnetEnabled;
+    return m_isDeleteStoredTorrentFileOnRemoveEnabled;
 }
 
-void SessionImpl::setCreateTorrentFileForMagnetEnabled(const bool enabled)
+void SessionImpl::setDeleteStoredTorrentFileOnRemoveEnabled(const bool enabled)
 {
-    if (enabled != m_isCreateTorrentFileForMagnetEnabled)
-        m_isCreateTorrentFileForMagnetEnabled = enabled;
+    if (enabled != m_isDeleteStoredTorrentFileOnRemoveEnabled)
+        m_isDeleteStoredTorrentFileOnRemoveEnabled = enabled;
 }
 
-bool SessionImpl::isDeleteTorrentFileCopyOnRemoveEnabled() const
+Path SessionImpl::torrentFileStoreDirectory() const
 {
-    return m_isDeleteTorrentFileCopyOnRemoveEnabled;
+    return m_torrentFileStoreDirectory;
 }
 
-void SessionImpl::setDeleteTorrentFileCopyOnRemoveEnabled(const bool enabled)
+void SessionImpl::setTorrentFileStoreDirectory(const Path &path)
 {
-    if (enabled != m_isDeleteTorrentFileCopyOnRemoveEnabled)
-        m_isDeleteTorrentFileCopyOnRemoveEnabled = enabled;
-}
-
-Path SessionImpl::torrentFileCopyDirectory() const
-{
-    return m_torrentFileCopyDirectory;
-}
-
-void SessionImpl::setTorrentFileCopyDirectory(const Path &path)
-{
-    if (path != torrentFileCopyDirectory())
-        m_torrentFileCopyDirectory = path;
+    if (path != torrentFileStoreDirectory())
+        m_torrentFileStoreDirectory = path;
 }
 
 Path SessionImpl::savePath() const
@@ -5143,13 +5131,13 @@ void SessionImpl::handleTorrentUrlSeedsRemoved(TorrentImpl *const torrent, const
 
 void SessionImpl::handleTorrentMetadataReceived(TorrentImpl *const torrent)
 {
-    if (const Path copyDir = torrentFileCopyDirectory();
-            isCopyTorrentFileEnabled() && isCreateTorrentFileForMagnetEnabled() && !copyDir.isEmpty())
+    if (const Path storeDir = torrentFileStoreDirectory();
+            isStoreTorrentFileEnabled() && !storeDir.isEmpty())
     {
-        if (const auto result = createTorrentFile(torrent, copyDir))
+        if (const auto result = createTorrentFile(torrent, storeDir))
         {
             const Path torrentFilePath = result.value();
-            torrent->setTorrentFileCopyPath(torrentFilePath);
+            torrent->setStoredTorrentFilePath(torrentFilePath);
             LogMsg(tr("Created .torrent file. Torrent: \"%1\". Destination: \"%2\".")
                    .arg(torrent->name(), torrentFilePath.toString()));
         }
@@ -5330,19 +5318,19 @@ void SessionImpl::processPendingFinishedTorrents()
     if (m_pendingFinishedTorrents.isEmpty())
         return;
 
-    const Path copyDir = torrentFileCopyDirectory();
-    const bool needCreateTorrentFileForMagnet = isCopyTorrentFileEnabled() && isCreateTorrentFileForMagnetEnabled() && !copyDir.isEmpty();
+    const Path storeDir = torrentFileStoreDirectory();
+    const bool needStoreTorrentFile = isStoreTorrentFileEnabled() && !storeDir.isEmpty();
     for (TorrentImpl *torrent : asConst(m_pendingFinishedTorrents))
     {
         LogMsg(tr("Torrent download finished. Torrent: \"%1\"").arg(torrent->name()));
         emit torrentFinished(torrent);
 
-        if (needCreateTorrentFileForMagnet)
+        if (needStoreTorrentFile)
         {
-            if (const auto result = createTorrentFile(torrent, copyDir))
+            if (const auto result = createTorrentFile(torrent, storeDir))
             {
                 const Path torrentFilePath = result.value();
-                torrent->setTorrentFileCopyPath(torrentFilePath);
+                torrent->setStoredTorrentFilePath(torrentFilePath);
                 LogMsg(tr("Created .torrent file. Torrent: \"%1\". Destination: \"%2\".")
                        .arg(torrent->name(), torrentFilePath.toString()));
             }
@@ -5851,15 +5839,15 @@ TorrentImpl *SessionImpl::createTorrent(const lt::torrent_handle &nativeHandle, 
         torrent->requestResumeData(lt::torrent_handle::save_info_dict);
 
         const TorrentDescriptor torrentSource = m_addingTorrents.take(torrent->id());
-        const Path copyDir = torrentFileCopyDirectory();
+        const Path copyDir = torrentFileStoreDirectory();
 
         // The following is useless for torrents added without metadata
-        if (torrentSource.info().has_value() && isCopyTorrentFileEnabled() && !copyDir.isEmpty())
+        if (torrentSource.info().has_value() && isStoreTorrentFileEnabled() && !copyDir.isEmpty())
         {
             if (const auto result = createTorrentFile(torrentSource, copyDir))
             {
                 const Path torrentFilePath = result.value();
-                torrent->setTorrentFileCopyPath(torrentFilePath);
+                torrent->setStoredTorrentFilePath(torrentFilePath);
                 LogMsg(tr("Created copy of .torrent file. Torrent: \"%1\". Destination: \"%2\".")
                        .arg(torrent->name(), torrentFilePath.toString()));
             }

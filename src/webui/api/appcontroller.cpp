@@ -172,11 +172,10 @@ void AppController::preferencesAction()
     data[u"temp_path"_s] = session->downloadPath().toString();
     data[u"use_category_paths_in_manual_mode"_s] = session->useCategoryPathsInManualMode();
 
-    // .torrent file copy management
-    data[u"copy_torrent_file"_s] = session->isCopyTorrentFileEnabled();
-    data[u"create_torrent_file_for_magnet"_s] = session->isCreateTorrentFileForMagnetEnabled();
-    data[u"delete_torrent_file_copy_on_remove"_s] = session->isDeleteTorrentFileCopyOnRemoveEnabled();
-    data[u"torrent_file_copy_dir"_s] = session->torrentFileCopyDirectory().toString();
+    // .torrent file store management
+    data[u"store_torrent_file"_s] = session->isStoreTorrentFileEnabled();
+    data[u"delete_stored_torrent_file_on_remove"_s] = session->isDeleteStoredTorrentFileOnRemoveEnabled();
+    data[u"torrent_file_store_dir"_s] = session->torrentFileStoreDirectory().toString();
 
     // TODO: The following code is deprecated. Delete it once replaced by updated API method.
     // === BEGIN DEPRECATED CODE === //
@@ -592,15 +591,13 @@ void AppController::setPreferencesAction()
     if (hasKey(u"use_category_paths_in_manual_mode"_s))
         session->setUseCategoryPathsInManualMode(it.value().toBool());
 
-    // .torrent file copy management
-    if (hasKey(u"copy_torrent_file"_s))
-        session->setCopyTorrentFileEnabled(it.value().toBool());
-    if (hasKey(u"create_torrent_file_for_magnet"_s))
-        session->setCreateTorrentFileForMagnetEnabled(it.value().toBool());
-    if (hasKey(u"delete_torrent_file_copy_on_remove"_s))
-        session->setDeleteTorrentFileCopyOnRemoveEnabled(it.value().toBool());
-    if (hasKey(u"torrent_file_copy_dir"_s))
-        session->setTorrentFileCopyDirectory(Path(it.value().toString()));
+    // .torrent file store management
+    if (hasKey(u"store_torrent_file"_s))
+        session->setStoreTorrentFileEnabled(it.value().toBool());
+    if (hasKey(u"delete_stored_torrent_file_on_remove"_s))
+        session->setDeleteStoredTorrentFileOnRemoveEnabled(it.value().toBool());
+    if (hasKey(u"torrent_file_store_dir"_s))
+        session->setTorrentFileStoreDirectory(Path(it.value().toString()));
 
     // TODO: The following code is deprecated. Delete it once replaced by updated API method.
     // === BEGIN DEPRECATED CODE === //

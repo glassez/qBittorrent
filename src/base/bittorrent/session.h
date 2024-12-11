@@ -233,14 +233,12 @@ namespace BitTorrent
         virtual bool isPreallocationEnabled() const = 0;
         virtual void setPreallocationEnabled(bool enabled) = 0;
 
-        virtual bool isCopyTorrentFileEnabled() const = 0;
-        virtual void setCopyTorrentFileEnabled(bool enabled) = 0;
-        virtual bool isCreateTorrentFileForMagnetEnabled() const = 0;
-        virtual void setCreateTorrentFileForMagnetEnabled(bool enabled) = 0;
-        virtual bool isDeleteTorrentFileCopyOnRemoveEnabled() const = 0;
-        virtual void setDeleteTorrentFileCopyOnRemoveEnabled(bool enabled) = 0;
-        virtual Path torrentFileCopyDirectory() const = 0;
-        virtual void setTorrentFileCopyDirectory(const Path &path) = 0;
+        virtual bool isStoreTorrentFileEnabled() const = 0;
+        virtual void setStoreTorrentFileEnabled(bool enabled) = 0;
+        virtual bool isDeleteStoredTorrentFileOnRemoveEnabled() const = 0;
+        virtual void setDeleteStoredTorrentFileOnRemoveEnabled(bool enabled) = 0;
+        virtual Path torrentFileStoreDirectory() const = 0;
+        virtual void setTorrentFileStoreDirectory(const Path &path) = 0;
 
         virtual int globalDownloadSpeedLimit() const = 0;
         virtual void setGlobalDownloadSpeedLimit(int limit) = 0;

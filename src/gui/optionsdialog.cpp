@@ -617,15 +617,13 @@ void OptionsDialog::loadDownloadsTabOptions()
     m_ui->textDownloadPath->setMode(FileSystemPathEdit::Mode::DirectorySave);
     m_ui->textDownloadPath->setSelectedPath(session->downloadPath());
 
-    m_ui->copyTorrentFileCheckBox->setChecked(session->isCopyTorrentFileEnabled());
-    m_ui->copyTorrentFilePathEdit->setDialogCaption(tr("Choose .torrent file copy directory"));
-    m_ui->copyTorrentFilePathEdit->setMode(FileSystemPathEdit::Mode::DirectorySave);
-    m_ui->copyTorrentFilePathEdit->setSelectedPath(session->torrentFileCopyDirectory());
-    m_ui->copyTorrentFilePathEdit->setEnabled(m_ui->copyTorrentFileCheckBox->isChecked());
-    m_ui->createTorrentFileForMagnetCheckBox->setChecked(session->isCreateTorrentFileForMagnetEnabled());
-    m_ui->createTorrentFileForMagnetCheckBox->setEnabled(m_ui->copyTorrentFileCheckBox->isChecked());
-    m_ui->deleteTorrentFileCopyOnRemoveCheckBox->setChecked(session->isDeleteTorrentFileCopyOnRemoveEnabled());
-    m_ui->deleteTorrentFileCopyOnRemoveCheckBox->setEnabled(m_ui->copyTorrentFileCheckBox->isChecked());
+    m_ui->storeTorrentFileCheckBox->setChecked(session->isStoreTorrentFileEnabled());
+    m_ui->storeTorrentFilePathEdit->setDialogCaption(tr("Choose .torrent file copy directory"));
+    m_ui->storeTorrentFilePathEdit->setMode(FileSystemPathEdit::Mode::DirectorySave);
+    m_ui->storeTorrentFilePathEdit->setSelectedPath(session->torrentFileStoreDirectory());
+    m_ui->storeTorrentFilePathEdit->setEnabled(m_ui->storeTorrentFileCheckBox->isChecked());
+    m_ui->deleteStoredTorrentFileOnRemoveCheckBox->setChecked(session->isDeleteStoredTorrentFileOnRemoveEnabled());
+    m_ui->deleteStoredTorrentFileOnRemoveCheckBox->setEnabled(m_ui->storeTorrentFileCheckBox->isChecked());
 
     auto *watchedFoldersModel = new WatchedFoldersModel(TorrentFilesWatcher::instance(), this);
     connect(watchedFoldersModel, &QAbstractListModel::dataChanged, this, &ThisType::enableApplyButton);
@@ -706,11 +704,10 @@ void OptionsDialog::loadDownloadsTabOptions()
     connect(m_ui->checkUseSubcategories, &QAbstractButton::toggled, this, &ThisType::enableApplyButton);
     connect(m_ui->checkUseCategoryPaths, &QAbstractButton::toggled, this, &ThisType::enableApplyButton);
 
-    connect(m_ui->copyTorrentFileCheckBox, &QAbstractButton::toggled, this, &ThisType::enableApplyButton);
-    connect(m_ui->copyTorrentFileCheckBox, &QAbstractButton::toggled, m_ui->copyTorrentFilePathEdit, &QWidget::setEnabled);
-    connect(m_ui->copyTorrentFileCheckBox, &QAbstractButton::toggled, m_ui->createTorrentFileForMagnetCheckBox, &QWidget::setEnabled);
-    connect(m_ui->copyTorrentFileCheckBox, &QAbstractButton::toggled, m_ui->deleteTorrentFileCopyOnRemoveCheckBox, &QWidget::setEnabled);
-    connect(m_ui->copyTorrentFilePathEdit, &FileSystemPathEdit::selectedPathChanged, this, &ThisType::enableApplyButton);
+    connect(m_ui->storeTorrentFileCheckBox, &QAbstractButton::toggled, this, &ThisType::enableApplyButton);
+    connect(m_ui->storeTorrentFileCheckBox, &QAbstractButton::toggled, m_ui->storeTorrentFilePathEdit, &QWidget::setEnabled);
+    connect(m_ui->storeTorrentFileCheckBox, &QAbstractButton::toggled, m_ui->deleteStoredTorrentFileOnRemoveCheckBox, &QWidget::setEnabled);
+    connect(m_ui->storeTorrentFilePathEdit, &FileSystemPathEdit::selectedPathChanged, this, &ThisType::enableApplyButton);
 
     connect(m_ui->textSavePath, &FileSystemPathEdit::selectedPathChanged, this, &ThisType::enableApplyButton);
     connect(m_ui->textDownloadPath, &FileSystemPathEdit::selectedPathChanged, this, &ThisType::enableApplyButton);
@@ -781,10 +778,9 @@ void OptionsDialog::saveDownloadsTabOptions() const
     session->setDownloadPathEnabled(m_ui->checkUseDownloadPath->isChecked());
     session->setDownloadPath(m_ui->textDownloadPath->selectedPath());
 
-    session->setCopyTorrentFileEnabled(m_ui->copyTorrentFileCheckBox->isChecked());
-    session->setCreateTorrentFileForMagnetEnabled(m_ui->createTorrentFileForMagnetCheckBox->isChecked());
-    session->setDeleteTorrentFileCopyOnRemoveEnabled(m_ui->deleteTorrentFileCopyOnRemoveCheckBox->isChecked());
-    session->setTorrentFileCopyDirectory(m_ui->copyTorrentFilePathEdit->selectedPath());
+    session->setStoreTorrentFileEnabled(m_ui->storeTorrentFileCheckBox->isChecked());
+    session->setDeleteStoredTorrentFileOnRemoveEnabled(m_ui->deleteStoredTorrentFileOnRemoveCheckBox->isChecked());
+    session->setTorrentFileStoreDirectory(m_ui->storeTorrentFilePathEdit->selectedPath());
 
     auto *watchedFoldersModel = static_cast<WatchedFoldersModel *>(m_ui->scanFoldersView->model());
     watchedFoldersModel->apply();
