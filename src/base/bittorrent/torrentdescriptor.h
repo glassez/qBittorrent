@@ -63,6 +63,8 @@ namespace BitTorrent
         QList<QUrl> urlSeeds() const;
         const std::optional<TorrentInfo> &info() const;
 
+        QString source() const;
+
         void setTorrentInfo(TorrentInfo torrentInfo);
 
         static nonstd::expected<TorrentDescriptor, QString> load(const QByteArray &data) noexcept;
@@ -80,6 +82,8 @@ namespace BitTorrent
         QDateTime m_creationDate;
         QString m_creator;
         QString m_comment;
+
+        QString m_source;
     };
 }
 

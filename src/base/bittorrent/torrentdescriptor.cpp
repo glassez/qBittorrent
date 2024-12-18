@@ -102,7 +102,9 @@ nonstd::expected<BitTorrent::TorrentDescriptor, QString>
 BitTorrent::TorrentDescriptor::loadFromFile(const Path &path) noexcept
 try
 {
-    return TorrentDescriptor(lt::load_torrent_file(path.toString().toStdString(), loadTorrentLimits()));
+    TorrentDescriptor torrentDescriptor {lt::load_torrent_file(path.toString().toStdString(), loadTorrentLimits())};
+    torrentDescriptor.m_source = path.data();
+    return torrentDescriptor;
 }
 catch (const lt::system_error &err)
 {
@@ -119,7 +121,9 @@ try
     else if (isV1Hash(str))
         magnetURI = u"magnet:?xt=urn:btih:" + str;
 
-    return TorrentDescriptor(lt::parse_magnet_uri(magnetURI.toStdString()));
+    TorrentDescriptor torrentDescriptor {lt::parse_magnet_uri(magnetURI.toStdString())};
+    torrentDescriptor.m_source = magnetURI;
+    return torrentDescriptor;
 }
 catch (const lt::system_error &err)
 {
@@ -227,6 +231,11 @@ QList<QUrl> BitTorrent::TorrentDescriptor::urlSeeds() const
         urlSeeds.append(QUrl(QString::fromStdString(nativeURLSeed)));
 
     return urlSeeds;
+}
+
+QString BitTorrent::TorrentDescriptor::source() const
+{
+    return m_source;
 }
 
 const libtorrent::add_torrent_params &BitTorrent::TorrentDescriptor::ltAddTorrentParams() const
