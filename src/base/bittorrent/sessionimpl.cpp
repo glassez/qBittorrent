@@ -2927,6 +2927,7 @@ bool SessionImpl::addTorrent_impl(const TorrentDescriptor &source, const AddTorr
     p.storage = customStorageConstructor;
 #endif
 
+    m_addingTorrents.insert(id, source);
     m_loadingTorrents.insert(id, loadTorrentParams);
     if (infoHash.isHybrid())
         m_hybridTorrentsByAltID.insert(altID, nullptr);
@@ -5771,6 +5772,8 @@ TorrentImpl *SessionImpl::createTorrent(const lt::torrent_handle &nativeHandle, 
 
     if (isRestored())
     {
+        const TorrentDescriptor torrentSource = m_addingTorrents.take(torrent->id());
+
         if (params.addToQueueTop)
             nativeHandle.queue_position_top();
 
