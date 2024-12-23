@@ -98,11 +98,11 @@ bool AddTorrentManager::addTorrent(const QString &source, const BitTorrent::AddT
 bool AddTorrentManager::addTorrentToSession(const QString &source, const BitTorrent::TorrentDescriptor &torrentDescr
         , const BitTorrent::AddTorrentParams &addTorrentParams)
 {
-    const bool result = btSession()->addTorrent(torrentDescr, addTorrentParams);
+    const BitTorrent::AddTorrentResult result = btSession()->addTorrent(torrentDescr, addTorrentParams);
     if (result)
        m_sourcesByInfoHash[torrentDescr.infoHash()] = source;
 
-    return result;
+    return result.has_value();
 }
 
 void AddTorrentManager::onDownloadFinished(const Net::DownloadResult &result)

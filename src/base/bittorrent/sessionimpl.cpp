@@ -2670,10 +2670,10 @@ qsizetype SessionImpl::torrentsCount() const
     return m_torrents.size();
 }
 
-bool SessionImpl::addTorrent(const TorrentDescriptor &torrentDescr, const AddTorrentParams &params)
+AddTorrentResult SessionImpl::addTorrent(const TorrentDescriptor &torrentDescr, const AddTorrentParams &params)
 {
     if (!isRestored())
-        return false;
+        return nonstd::make_unexpected(AddTorrentError::Unexpected);
 
     return addTorrent_impl(torrentDescr, params);
 }
@@ -2743,9 +2743,11 @@ LoadTorrentParams SessionImpl::initLoadTorrentParams(const AddTorrentParams &add
 }
 
 // Add a torrent to the BitTorrent session
-bool SessionImpl::addTorrent_impl(const TorrentDescriptor &source, const AddTorrentParams &addTorrentParams)
+AddTorrentResult SessionImpl::addTorrent_impl(const TorrentDescriptor &source, const AddTorrentParams &addTorrentParams)
 {
     Q_ASSERT(isRestored());
+    if (!isRestored()) [[unlikely]]
+        return nonstd::make_unexpected(AddTorrentError::Unexpected);
 
     const bool hasMetadata = (source.info().has_value());
     const auto infoHash = source.infoHash();
@@ -2757,7 +2759,7 @@ bool SessionImpl::addTorrent_impl(const TorrentDescriptor &source, const AddTorr
     // We should not add the torrent if it is already
     // processed or is pending to add to session
     if (m_loadingTorrents.contains(id) || (infoHash.isHybrid() && m_loadingTorrents.contains(altID)))
-        return false;
+        return nonstd::make_unexpected(AddTorrentError::Pending);
 
     if (Torrent *torrent = findTorrent(infoHash))
     {
@@ -2773,7 +2775,7 @@ bool SessionImpl::addTorrent_impl(const TorrentDescriptor &source, const AddTorr
         {
             LogMsg(tr("Detected an attempt to add a duplicate torrent. Existing torrent: %1. Result: %2")
                     .arg(torrent->name(), tr("Merging of trackers is disabled")));
-            return false;
+            return nonstd::make_unexpected(AddTorrentError::Duplicate);
         }
 
         const bool isPrivate = torrent->isPrivate() || (hasMetadata && source.info()->isPrivate());
@@ -2781,7 +2783,7 @@ bool SessionImpl::addTorrent_impl(const TorrentDescriptor &source, const AddTorr
         {
             LogMsg(tr("Detected an attempt to add a duplicate torrent. Existing torrent: %1. Result: %2")
                     .arg(torrent->name(), tr("Trackers cannot be merged because it is a private torrent")));
-            return false;
+            return nonstd::make_unexpected(AddTorrentError::Duplicate);
         }
 
         // merge trackers and web seeds
@@ -2790,7 +2792,7 @@ bool SessionImpl::addTorrent_impl(const TorrentDescriptor &source, const AddTorr
 
         LogMsg(tr("Detected an attempt to add a duplicate torrent. Existing torrent: %1. Result: %2")
                 .arg(torrent->name(), tr("Trackers are merged from new source")));
-        return false;
+        return nonstd::make_unexpected(AddTorrentError::Duplicate);
     }
 
     // It looks illogical that we don't just use an existing handle,
@@ -2964,7 +2966,7 @@ bool SessionImpl::addTorrent_impl(const TorrentDescriptor &source, const AddTorr
     if (!isFindingIncompleteFiles)
         m_nativeSession->async_add_torrent(p);
 
-    return true;
+    return id;
 }
 
 void SessionImpl::findIncompleteFiles(const TorrentInfo &torrentInfo, const Path &savePath

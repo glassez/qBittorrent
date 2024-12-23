@@ -870,7 +870,7 @@ void TorrentsController::addAction()
     {
         if (const auto loadResult = BitTorrent::TorrentDescriptor::load(it.value()))
         {
-            partialSuccess |= BitTorrent::Session::instance()->addTorrent(loadResult.value(), addTorrentParams);
+            partialSuccess |= BitTorrent::Session::instance()->addTorrent(loadResult.value(), addTorrentParams).has_value();
         }
         else
         {

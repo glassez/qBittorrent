@@ -32,10 +32,12 @@
 #include <QtContainerFwd>
 #include <QObject>
 
+#include "base/3rdparty/expected.hpp"
 #include "base/pathfwd.h"
 #include "base/tagset.h"
 #include "addtorrentparams.h"
 #include "categoryoptions.h"
+#include "infohash.h"
 #include "sharelimitaction.h"
 #include "torrentcontentremoveoption.h"
 #include "trackerentry.h"
@@ -45,13 +47,20 @@ class QString;
 
 namespace BitTorrent
 {
-    class InfoHash;
     class Torrent;
     class TorrentDescriptor;
-    class TorrentID;
     class TorrentInfo;
     struct CacheStatus;
     struct SessionStatus;
+
+    enum class AddTorrentError
+    {
+        Unexpected,
+        Pending,
+        Duplicate
+    };
+
+    using AddTorrentResult = nonstd::expected<TorrentID, AddTorrentError>;
 
     enum class TorrentRemoveOption
     {
@@ -461,7 +470,7 @@ namespace BitTorrent
         virtual void banIP(const QString &ip) = 0;
 
         virtual bool isKnownTorrent(const InfoHash &infoHash) const = 0;
-        virtual bool addTorrent(const TorrentDescriptor &torrentDescr, const AddTorrentParams &params = {}) = 0;
+        virtual AddTorrentResult addTorrent(const TorrentDescriptor &torrentDescr, const AddTorrentParams &params = {}) = 0;
         virtual bool removeTorrent(const TorrentID &id, TorrentRemoveOption deleteOption = TorrentRemoveOption::KeepContent) = 0;
         virtual bool downloadMetadata(const TorrentDescriptor &torrentDescr) = 0;
         virtual bool cancelDownloadMetadata(const TorrentID &id) = 0;
