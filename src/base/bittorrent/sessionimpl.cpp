@@ -3127,11 +3127,10 @@ nonstd::expected<Path, QString> SessionImpl::createTorrentFile(const Torrent *to
         return nonstd::make_unexpected(tr("Unable to create folder. Path: \"%1\".").arg(folderPath.toString()));
 
     const Path torrentFilePath = generateTorrentFilePath(folderPath, torrent->name());
-    const auto result = torrent->exportToFile(torrentFilePath);
-    if (result)
-        return torrentFilePath;
+    if (const auto result = torrent->exportToFile(torrentFilePath); !result)
+        return nonstd::make_unexpected(result.error());
 
-    return nonstd::make_unexpected(result.error());
+    return torrentFilePath;
 }
 
 nonstd::expected<Path, QString> SessionImpl::createTorrentFile(const TorrentDescriptor &torrentDescr, const Path &folderPath)
@@ -5066,6 +5065,48 @@ void SessionImpl::updateSeedingLimitTimer()
     }
 }
 
+void SessionImpl::storeTorrentFile(TorrentImpl *torrent)
+{
+    if (!isStoreTorrentFileEnabled())
+        return;
+
+    const Path storeDir = torrentFileStoreDirectory();
+    if (storeDir.isEmpty())
+        return;
+
+    const std::variant<QString, Path> storedTorrentInfo = torrent->storedTorrentInfo();
+    if (!std::holds_alternative<QString>(storedTorrentInfo))
+        return;
+
+    const QString originalMagnetURI = std::get<QString>(storedTorrentInfo);
+    if (originalMagnetURI.isEmpty())
+        return;
+
+    const auto parseResult = TorrentDescriptor::parse(originalMagnetURI);
+    if (!parseResult)
+    {
+        LogMsg(tr("Failed to store .torrent file. Torrent: \"%1\". Destination: \"%2\". Reason: \"%3\".")
+               .arg(torrent->name(), storeDir.toString(), parseResult.error()), Log::WARNING);
+        return;
+    }
+
+    TorrentDescriptor torrentDescr = parseResult.value();
+    torrentDescr.setTorrentInfo(torrent->info());
+
+    if (const auto result = createTorrentFile(torrentDescr, storeDir))
+    {
+        const Path torrentFilePath = result.value();
+        torrent->setStoredTorrentInfo(torrentFilePath);
+        LogMsg(tr("Stored .torrent file. Torrent: \"%1\". Destination: \"%2\".")
+               .arg(torrent->name(), torrentFilePath.toString()));
+    }
+    else
+    {
+        LogMsg(tr("Failed to store .torrent file. Torrent: \"%1\". Destination: \"%2\". Reason: \"%3\".")
+               .arg(torrent->name(), result.value().toString(), result.error()), Log::WARNING);
+    }
+}
+
 void SessionImpl::handleTorrentShareLimitChanged(TorrentImpl *const)
 {
     updateSeedingLimitTimer();
@@ -5133,23 +5174,7 @@ void SessionImpl::handleTorrentUrlSeedsRemoved(TorrentImpl *const torrent, const
 
 void SessionImpl::handleTorrentMetadataReceived(TorrentImpl *const torrent)
 {
-    if (const Path storeDir = torrentFileStoreDirectory();
-            isStoreTorrentFileEnabled() && !storeDir.isEmpty())
-    {
-        if (const auto result = createTorrentFile(torrent, storeDir))
-        {
-            const Path torrentFilePath = result.value();
-            torrent->setStoredTorrentFilePath(torrentFilePath);
-            LogMsg(tr("Created .torrent file. Torrent: \"%1\". Destination: \"%2\".")
-                   .arg(torrent->name(), torrentFilePath.toString()));
-        }
-        else
-        {
-            LogMsg(tr("Failed to create .torrent file. Torrent: \"%1\". Destination: \"%2\". Reason: \"%3\"")
-                   .arg(torrent->name(), result.value().toString(), result.error()), Log::WARNING);
-        }
-    }
-
+    m_needStoreFileTorrents.insert(torrent);
     emit torrentMetadataReceived(torrent);
 }
 
@@ -5320,28 +5345,12 @@ void SessionImpl::processPendingFinishedTorrents()
     if (m_pendingFinishedTorrents.isEmpty())
         return;
 
-    const Path storeDir = torrentFileStoreDirectory();
-    const bool needStoreTorrentFile = isStoreTorrentFileEnabled() && !storeDir.isEmpty();
     for (TorrentImpl *torrent : asConst(m_pendingFinishedTorrents))
     {
         LogMsg(tr("Torrent download finished. Torrent: \"%1\"").arg(torrent->name()));
         emit torrentFinished(torrent);
 
-        if (needStoreTorrentFile)
-        {
-            if (const auto result = createTorrentFile(torrent, storeDir))
-            {
-                const Path torrentFilePath = result.value();
-                torrent->setStoredTorrentFilePath(torrentFilePath);
-                LogMsg(tr("Created .torrent file. Torrent: \"%1\". Destination: \"%2\".")
-                       .arg(torrent->name(), torrentFilePath.toString()));
-            }
-            else
-            {
-                LogMsg(tr("Failed to create .torrent file. Torrent: \"%1\". Destination: \"%2\". Reason: \"%3\"")
-                       .arg(torrent->name(), result.value().toString(), result.error()), Log::WARNING);
-            }
-        }
+        m_needStoreFileTorrents.insert(torrent);
 
         processTorrentShareLimits(torrent);
     }
@@ -5814,7 +5823,14 @@ void SessionImpl::dispatchTorrentAlert(const lt::torrent_alert *alert)
 
     if (torrent)
     {
+        const bool needStoreTorentFile = (alert->type() == lt::save_resume_data_alert::alert_type)
+                && m_needStoreFileTorrents.contains(torrent);
+
         torrent->handleAlert(alert);
+
+        if (needStoreTorentFile)
+            storeTorrentFile(torrent);
+
         return;
     }
 
@@ -5840,23 +5856,54 @@ TorrentImpl *SessionImpl::createTorrent(const lt::torrent_handle &nativeHandle, 
 
         torrent->requestResumeData(lt::torrent_handle::save_info_dict);
 
-        const TorrentDescriptor torrentSource = m_addingTorrents.take(torrent->id());
-        const Path copyDir = torrentFileStoreDirectory();
-
-        // The following is useless for torrents added without metadata
-        if (torrentSource.info().has_value() && isStoreTorrentFileEnabled() && !copyDir.isEmpty())
+        const TorrentDescriptor torrentDescr = m_addingTorrents.take(torrent->id());
+        if (const Path copyDir = torrentFileStoreDirectory();
+                isStoreTorrentFileEnabled() && !copyDir.isEmpty())
         {
-            if (const auto result = createTorrentFile(torrentSource, copyDir))
+            if (torrentDescr.hasCompleteMetadata())
             {
-                const Path torrentFilePath = result.value();
-                torrent->setStoredTorrentFilePath(torrentFilePath);
-                LogMsg(tr("Created copy of .torrent file. Torrent: \"%1\". Destination: \"%2\".")
-                       .arg(torrent->name(), torrentFilePath.toString()));
+                const auto storeTorrent = [&torrentDescr, &copyDir]() -> nonstd::expected<Path, QString>
+                {
+                    if (!copyDir.exists() && !Utils::Fs::mkpath(copyDir))
+                        return nonstd::make_unexpected(tr("Unable to create folder. Path: \"%1\".").arg(copyDir.toString()));
+
+                    const Path destFilePath = generateTorrentFilePath(copyDir, torrentDescr.name());
+
+                    if (std::holds_alternative<Path>(torrentDescr.source()))
+                    {
+                        const Path sourceFilePath = std::get<Path>(torrentDescr.source());
+                        if (!Utils::Fs::copyFile(sourceFilePath, destFilePath))
+                        {
+                            return nonstd::make_unexpected(tr("Unable to copy file. Source: \"%1\". Destination:  \"%2\".")
+                                    .arg(sourceFilePath.toString(), destFilePath.toString()));
+                        }
+                    }
+                    else
+                    {
+                        if (const auto saveResult = torrentDescr.saveToFile(destFilePath); !saveResult)
+                            return nonstd::make_unexpected(saveResult.error());
+                    }
+
+                    return destFilePath;
+                };
+
+                if (const auto result = storeTorrent())
+                {
+                    const Path torrentFilePath = result.value();
+                    torrent->setStoredTorrentInfo(torrentFilePath);
+                    LogMsg(tr("Stored .torrent file. Torrent: \"%1\". Destination: \"%2\".")
+                           .arg(torrent->name(), torrentFilePath.toString()));
+                }
+                else
+                {
+                    LogMsg(tr("Failed to store .torrent file. Torrent: \"%1\". Destination: \"%2\". Reason: \"%3\".")
+                           .arg(torrent->name(), result.value().toString(), result.error()), Log::WARNING);
+                }
             }
             else
             {
-                LogMsg(tr("Failed to copy .torrent file. Torrent: \"%1\". Destination: \"%2\". Reason: \"%3\"")
-                       .arg(torrent->name(), result.value().toString(), result.error()), Log::WARNING);
+                // Store original Magnet URI until metadata is available.
+                torrent->setStoredTorrentInfo(std::get<QString>(torrentDescr.source()));
             }
         }
     }

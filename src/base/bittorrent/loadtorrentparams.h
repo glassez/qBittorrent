@@ -28,6 +28,8 @@
 
 #pragma once
 
+#include <variant>
+
 #include <libtorrent/add_torrent_params.hpp>
 
 #include <QString>
@@ -57,7 +59,7 @@ namespace BitTorrent
         bool hasFinishedStatus = false;
         bool stopped = false;
         Torrent::StopCondition stopCondition = Torrent::StopCondition::None;
-        Path storedTorrentFilePath;
+        std::variant<QString, Path> storedTorrentInfo;
 
         bool addToQueueTop = false; // only for new torrents
 

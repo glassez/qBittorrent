@@ -29,6 +29,7 @@
 #pragma once
 
 #include <optional>
+#include <variant>
 
 #include <libtorrent/add_torrent_params.hpp>
 
@@ -54,6 +55,9 @@ namespace BitTorrent
     public:
         TorrentDescriptor() = default;
 
+        // The source from which the  torrent descriptor was loaded (either the path of .torrent file or magnet URI)
+        std::variant<QString, Path> source() const;
+
         InfoHash infoHash() const;
         QString name() const;
         QDateTime creationDate() const;
@@ -62,7 +66,7 @@ namespace BitTorrent
         QList<TrackerEntry> trackers() const;
         QList<QUrl> urlSeeds() const;
         const std::optional<TorrentInfo> &info() const;
-        Path sourceFilePath() const;
+        bool hasCompleteMetadata() const;
 
         void setTorrentInfo(TorrentInfo torrentInfo);
 
@@ -76,12 +80,14 @@ namespace BitTorrent
     private:
         explicit TorrentDescriptor(lt::add_torrent_params ltAddTorrentParams);
 
+        std::variant<QString, Path> m_source;
+        bool m_hasCompleteMetadata = false;
+
         lt::add_torrent_params m_ltAddTorrentParams;
         std::optional<TorrentInfo> m_info;
         QDateTime m_creationDate;
         QString m_creator;
         QString m_comment;
-        Path m_sourceFilePath;
     };
 }
 

@@ -562,6 +562,7 @@ namespace BitTorrent
 
         void updateSeedingLimitTimer();
 
+        void storeTorrentFile(TorrentImpl *torrent);
         nonstd::expected<Path, QString> createTorrentFile(const Torrent *torrent, const Path &folderPath);
         nonstd::expected<Path, QString> createTorrentFile(const TorrentDescriptor &torrentDescr, const Path &folderPath);
 
@@ -837,6 +838,7 @@ namespace BitTorrent
         QElapsedTimer m_wakeupCheckTimestamp;
 
         QList<TorrentImpl *> m_pendingFinishedTorrents;
+        QSet<TorrentImpl *> m_needStoreFileTorrents;
 
         friend void Session::initInstance();
         friend void Session::freeInstance();

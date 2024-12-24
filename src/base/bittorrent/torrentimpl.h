@@ -1,6 +1,6 @@
 /*
  * Bittorrent Client using Qt and libtorrent.
- * Copyright (C) 2015-2023  Vladimir Golovnev <glassez@yandex.ru>
+ * Copyright (C) 2015-2024  Vladimir Golovnev <glassez@yandex.ru>
  * Copyright (C) 2006  Christophe Dumez <chris@qbittorrent.org>
  *
  * This program is free software; you can redistribute it and/or
@@ -31,6 +31,7 @@
 
 #include <functional>
 #include <memory>
+#include <variant>
 
 #include <libtorrent/add_torrent_params.hpp>
 #include <libtorrent/fwd.hpp>
@@ -269,8 +270,8 @@ namespace BitTorrent
         // Session interface
         lt::torrent_handle nativeHandle() const;
 
-        Path storedTorrentFilePath() const;
-        void setStoredTorrentFilePath(const Path &path);
+        std::variant<QString, Path> storedTorrentInfo() const;
+        void setStoredTorrentInfo(const std::variant<QString, Path> &info);
 
         void handleAlert(const lt::alert *a);
         void handleStateUpdate(const lt::torrent_status &nativeStatus);
@@ -387,7 +388,7 @@ namespace BitTorrent
         bool m_isStopped = false;
         StopCondition m_stopCondition = StopCondition::None;
         SSLParameters m_sslParams;
-        Path m_storedTorrentFilePath;
+        std::variant<QString, Path> m_storedTorrentInfo;
 
         bool m_unchecked = false;
 

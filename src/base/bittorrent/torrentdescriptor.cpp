@@ -91,7 +91,9 @@ nonstd::expected<BitTorrent::TorrentDescriptor, QString>
 BitTorrent::TorrentDescriptor::load(const QByteArray &data) noexcept
 try
 {
-    return TorrentDescriptor(lt::load_torrent_buffer(lt::span<const char>(data.data(), data.size()), loadTorrentLimits()));
+    TorrentDescriptor torrentDescriptor {lt::load_torrent_buffer(lt::span<const char>(data.data(), data.size()), loadTorrentLimits())};
+    torrentDescriptor.m_hasCompleteMetadata = true;
+    return torrentDescriptor;
 }
 catch (const lt::system_error &err)
 {
@@ -103,7 +105,8 @@ BitTorrent::TorrentDescriptor::loadFromFile(const Path &path) noexcept
 try
 {
     TorrentDescriptor torrentDescriptor {lt::load_torrent_file(path.toString().toStdString(), loadTorrentLimits())};
-    torrentDescriptor.m_sourceFilePath = path;
+    torrentDescriptor.m_source = path;
+    torrentDescriptor.m_hasCompleteMetadata = true;
     return torrentDescriptor;
 }
 catch (const lt::system_error &err)
@@ -121,7 +124,9 @@ try
     else if (isV1Hash(str))
         magnetURI = u"magnet:?xt=urn:btih:" + str;
 
-    return TorrentDescriptor(lt::parse_magnet_uri(magnetURI.toStdString()));
+    TorrentDescriptor torrentDescriptor {lt::parse_magnet_uri(magnetURI.toStdString())};
+    torrentDescriptor.m_source = magnetURI;
+    return torrentDescriptor;
 }
 catch (const lt::system_error &err)
 {
@@ -190,9 +195,9 @@ const std::optional<BitTorrent::TorrentInfo> &BitTorrent::TorrentDescriptor::inf
     return m_info;
 }
 
-Path BitTorrent::TorrentDescriptor::sourceFilePath() const
+std::variant<QString, Path> BitTorrent::TorrentDescriptor::source() const
 {
-    return m_sourceFilePath;
+    return m_source;
 }
 
 void BitTorrent::TorrentDescriptor::setTorrentInfo(TorrentInfo torrentInfo)
@@ -208,8 +213,10 @@ void BitTorrent::TorrentDescriptor::setTorrentInfo(TorrentInfo torrentInfo)
         m_ltAddTorrentParams.ti = m_info->nativeInfo();
 #ifdef QBT_USES_LIBTORRENT2
         m_ltAddTorrentParams.info_hashes = m_ltAddTorrentParams.ti->info_hashes();
+        m_hasCompleteMetadata = !m_ltAddTorrentParams.info_hashes.has_v2();
 #else
         m_ltAddTorrentParams.info_hash = m_ltAddTorrentParams.ti->info_hash();
+        m_hasCompleteMetadata = true;
 #endif
     }
 }
@@ -234,6 +241,11 @@ QList<QUrl> BitTorrent::TorrentDescriptor::urlSeeds() const
         urlSeeds.append(QUrl(QString::fromStdString(nativeURLSeed)));
 
     return urlSeeds;
+}
+
+bool BitTorrent::TorrentDescriptor::hasCompleteMetadata() const
+{
+    return m_hasCompleteMetadata;
 }
 
 const libtorrent::add_torrent_params &BitTorrent::TorrentDescriptor::ltAddTorrentParams() const

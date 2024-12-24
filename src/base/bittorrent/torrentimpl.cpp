@@ -314,7 +314,7 @@ TorrentImpl::TorrentImpl(SessionImpl *session, lt::session *nativeSession
     , m_useAutoTMM(params.useAutoTMM)
     , m_isStopped(params.stopped)
     , m_sslParams(params.sslParameters)
-    , m_storedTorrentFilePath(params.storedTorrentFilePath)
+    , m_storedTorrentInfo(params.storedTorrentInfo)
     , m_ltAddTorrentParams(params.ltAddTorrentParams)
     , m_downloadLimit(cleanLimitValue(m_ltAddTorrentParams.download_limit))
     , m_uploadLimit(cleanLimitValue(m_ltAddTorrentParams.upload_limit))
@@ -2253,7 +2253,7 @@ void TorrentImpl::prepareResumeData(const lt::add_torrent_params &params)
         .hasFinishedStatus = m_hasFinishedStatus,
         .stopped = m_isStopped,
         .stopCondition = m_stopCondition,
-        .storedTorrentFilePath = m_storedTorrentFilePath,
+        .storedTorrentInfo = m_storedTorrentInfo,
         .addToQueueTop = false,
         .ratioLimit = m_ratioLimit,
         .seedingTimeLimit = m_seedingTimeLimit,
@@ -2553,17 +2553,17 @@ lt::torrent_handle TorrentImpl::nativeHandle() const
     return m_nativeHandle;
 }
 
-Path TorrentImpl::storedTorrentFilePath() const
+std::variant<QString, Path> TorrentImpl::storedTorrentInfo() const
 {
-    return m_storedTorrentFilePath;
+    return m_storedTorrentInfo;
 }
 
-void TorrentImpl::setStoredTorrentFilePath(const Path &path)
+void TorrentImpl::setStoredTorrentInfo(const std::variant<QString, Path> &info)
 {
-    if (path == m_storedTorrentFilePath)
+    if (info == m_storedTorrentInfo)
         return;
 
-    m_storedTorrentFilePath = path;
+    m_storedTorrentInfo = info;
     deferredRequestResumeData();
 }
 

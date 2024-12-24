@@ -265,8 +265,11 @@ BitTorrent::LoadResumeDataResult BitTorrent::BencodeResumeDataStorage::loadTorre
     torrentParams.stopCondition = Utils::String::toEnum(
             fromLTString(resumeDataRoot.dict_find_string_value("qBt-stopCondition")), Torrent::StopCondition::None);
 
-    torrentParams.storedTorrentFilePath = Profile::instance()->fromPortablePath(
-        Path(fromLTString(resumeDataRoot.dict_find_string_value("qBt-storedTorrentFilePath"))));
+    const QString storedTorrentInfo = fromLTString(resumeDataRoot.dict_find_string_value("qBt-storedTorrentInfo"));
+    if (storedTorrentInfo.startsWith(u"magnet:"))
+        torrentParams.storedTorrentInfo = storedTorrentInfo;
+    else
+        torrentParams.storedTorrentInfo = Profile::instance()->fromPortablePath(Path(storedTorrentInfo));
 
     torrentParams.sslParameters =
     {
@@ -432,7 +435,9 @@ void BitTorrent::BencodeResumeDataStorage::Worker::store(const TorrentID &id, co
     data["qBt-contentLayout"] = Utils::String::fromEnum(resumeData.contentLayout).toStdString();
     data["qBt-firstLastPiecePriority"] = resumeData.firstLastPiecePriority;
     data["qBt-stopCondition"] = Utils::String::fromEnum(resumeData.stopCondition).toStdString();
-    data["qBt-storedTorrentFilePath"] = Profile::instance()->toPortablePath(resumeData.storedTorrentFilePath).data().toStdString();
+    data["qBt-storedTorrentInfo"] = std::holds_alternative<QString>(resumeData.storedTorrentInfo)
+            ? std::get<QString>(resumeData.storedTorrentInfo).toStdString()
+            : Profile::instance()->toPortablePath(std::get<Path>(resumeData.storedTorrentInfo)).data().toStdString();
 
     if (!resumeData.sslParameters.certificate.isNull())
         data[KEY_SSL_CERTIFICATE] = resumeData.sslParameters.certificate.toPem().toStdString();
