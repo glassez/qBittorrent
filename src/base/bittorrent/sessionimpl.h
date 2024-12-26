@@ -562,9 +562,7 @@ namespace BitTorrent
 
         void updateSeedingLimitTimer();
 
-        void storeTorrentFile(TorrentImpl *torrent);
-        nonstd::expected<Path, QString> createTorrentFile(const Torrent *torrent, const Path &folderPath);
-        nonstd::expected<Path, QString> createTorrentFile(const TorrentDescriptor &torrentDescr, const Path &folderPath);
+        void storeTorrentFile(TorrentImpl *torrent, const lt::add_torrent_params &resumeData);
 
         void handleAlert(const lt::alert *alert);
         void dispatchTorrentAlert(const lt::torrent_alert *alert);
