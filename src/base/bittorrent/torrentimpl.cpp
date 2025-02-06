@@ -837,7 +837,11 @@ bool TorrentImpl::connectPeer(const PeerAddress &peerAddress)
 
 bool TorrentImpl::needSaveResumeData() const
 {
+#if LIBTORRENT_VERSION_NUM < 20100
     return m_nativeStatus.need_save_resume;
+#else
+    return static_cast<bool>(m_nativeStatus.need_save_resume_data);
+#endif
 }
 
 void TorrentImpl::requestResumeData(const lt::resume_data_flags_t flags)
@@ -1885,9 +1889,11 @@ void TorrentImpl::reload()
         m_nativeSession->remove_torrent(m_nativeHandle, lt::session::delete_partfile);
 
         lt::add_torrent_params p = m_ltAddTorrentParams;
-        p.flags |= lt::torrent_flags::update_subscribe
-                | lt::torrent_flags::override_trackers
+        p.flags |= lt::torrent_flags::update_subscribe;
+#if LIBTORRENT_VERSION_NUM < 20100
+        p.flags |= lt::torrent_flags::override_trackers
                 | lt::torrent_flags::override_web_seeds;
+#endif
 
         if (m_isStopped)
         {
@@ -2096,7 +2102,7 @@ void TorrentImpl::handleTorrentCheckedAlert([[maybe_unused]] const lt::torrent_c
             }
         }
 
-        if (m_nativeStatus.need_save_resume)
+        if (needSaveResumeData())
             deferredRequestResumeData();
 
         m_session->handleTorrentChecked(this);

@@ -28,6 +28,8 @@
 
 #include "peerinfo.h"
 
+#include <libtorrent/version.hpp>
+
 #include <QBitArray>
 
 #include "base/bittorrent/ltqbitarray.h"
@@ -35,6 +37,17 @@
 #include "base/unicodestrings.h"
 #include "base/utils/bytearray.h"
 #include "peeraddress.h"
+
+namespace
+{
+#ifdef QBT_USES_LIBTORRENT2
+    QString toI2PAddress(const lt::sha256_hash &destHash)
+    {
+        const QByteArray base32Dest = Utils::ByteArray::toBase32({destHash.data(), destHash.size()}).replace('=', "").toLower();
+        return QString::fromLatin1(base32Dest) + u".b32.i2p";
+    }
+#endif
+}
 
 using namespace BitTorrent;
 
@@ -172,11 +185,16 @@ PeerAddress PeerInfo::address() const
     if (useI2PSocket())
         return {};
 
+#if LIBTORRENT_VERSION_NUM < 20100
     // fast path for platforms which boost.asio internal struct maps to `sockaddr`
     return {QHostAddress(m_nativeInfo.ip.data()), m_nativeInfo.ip.port()};
     // slow path for the others
     //return {QHostAddress(QString::fromStdString(m_nativeInfo.ip.address().to_string()))
     //    , m_nativeInfo.ip.port()};
+#else
+    const lt::tcp::endpoint remoteEndpoint = m_nativeInfo.remote_endpoint();
+    return {QHostAddress(remoteEndpoint.data()), remoteEndpoint.port()};
+#endif
 }
 
 QString PeerInfo::I2PAddress() const
@@ -186,11 +204,7 @@ QString PeerInfo::I2PAddress() const
 
 #if defined(QBT_USES_LIBTORRENT2) && TORRENT_USE_I2P
     if (m_I2PAddress.isEmpty())
-    {
-        const lt::sha256_hash destHash = m_nativeInfo.i2p_destination();
-        const QByteArray base32Dest = Utils::ByteArray::toBase32({destHash.data(), destHash.size()}).replace('=', "").toLower();
-        m_I2PAddress = QString::fromLatin1(base32Dest) + u".b32.i2p";
-    }
+        m_I2PAddress = toI2PAddress(m_nativeInfo.i2p_destination());
 #endif
 
     return m_I2PAddress;

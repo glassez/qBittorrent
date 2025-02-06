@@ -35,6 +35,7 @@
 #include <libtorrent/create_torrent.hpp>
 #include <libtorrent/file_storage.hpp>
 #include <libtorrent/torrent_info.hpp>
+#include <libtorrent/version.hpp>
 
 #include <QtSystemDetection>
 #include <QDirIterator>
@@ -114,10 +115,18 @@ void TorrentCreator::run()
         const Utils::Compare::NaturalLessThan<Qt::CaseInsensitive> naturalLessThan {};
 
         // Adding files to the torrent
+#if LIBTORRENT_VERSION_NUM < 20100
         lt::file_storage fs;
+#else
+        std::vector<lt::create_file_entry> fileEntries;
+#endif
         if (QFileInfo(m_params.sourcePath.data()).isFile())
         {
+#if LIBTORRENT_VERSION_NUM < 20100
             lt::add_files(fs, m_params.sourcePath.toString().toStdString(), fileFilter);
+#else
+            fileEntries = lt::list_files(m_params.sourcePath.toString().toStdString(), fileFilter);
+#endif
         }
         else
         {
@@ -166,13 +175,23 @@ void TorrentCreator::run()
             }
 
             for (const QString &fileName : asConst(fileNames))
+            {
+#if LIBTORRENT_VERSION_NUM < 20100
                 fs.add_file(fileName.toStdString(), fileSizeMap[fileName]);
+#else
+                fileEntries.emplace_back(fileName.toStdString(), fileSizeMap[fileName]);
+#endif
+            }
         }
 
         checkInterruptionRequested();
 
 #ifdef QBT_USES_LIBTORRENT2
+#if LIBTORRENT_VERSION_NUM < 20100
         lt::create_torrent newTorrent {fs, m_params.pieceSize, toNativeTorrentFormatFlag(m_params.torrentFormat)};
+#else
+        lt::create_torrent newTorrent {fileEntries, m_params.pieceSize, toNativeTorrentFormatFlag(m_params.torrentFormat)};
+#endif
 #else
         lt::create_torrent newTorrent(fs, m_params.pieceSize, m_params.paddedFileSizeLimit
             , (m_params.isAlignmentOptimized ? lt::create_torrent::optimize_alignment : lt::create_flags_t {}));
@@ -268,13 +287,17 @@ int TorrentCreator::calculateTotalPieces(const Path &inputPath, const int pieceS
     if (inputPath.isEmpty())
         return 0;
 
+#if LIBTORRENT_VERSION_NUM >= 20100
+    std::vector<lt::create_file_entry> fileEntries = lt::list_files(inputPath.toString().toStdString(), fileFilter);
+    return lt::create_torrent {std::move(fileEntries), pieceSize, toNativeTorrentFormatFlag(torrentFormat)}.num_pieces();
+#else
     lt::file_storage fs;
     lt::add_files(fs, inputPath.toString().toStdString(), fileFilter);
-
 #ifdef QBT_USES_LIBTORRENT2
     return lt::create_torrent {fs, pieceSize, toNativeTorrentFormatFlag(torrentFormat)}.num_pieces();
 #else
     return lt::create_torrent(fs, pieceSize, paddedFileSizeLimit
-        , (isAlignmentOptimized ? lt::create_torrent::optimize_alignment : lt::create_flags_t {})).num_pieces();
+            , (isAlignmentOptimized ? lt::create_torrent::optimize_alignment : lt::create_flags_t {})).num_pieces();
+#endif
 #endif
 }

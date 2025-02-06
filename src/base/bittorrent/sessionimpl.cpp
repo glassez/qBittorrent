@@ -83,6 +83,7 @@
 #include "base/preferences.h"
 #include "base/profile.h"
 #include "base/unicodestrings.h"
+#include "base/utils/bytearray.h"
 #include "base/utils/fs.h"
 #include "base/utils/io.h"
 #include "base/utils/net.h"
@@ -199,6 +200,10 @@ namespace
 #endif
         case lt::socket_type_t::i2p:
             return u"I2P"_s;
+#if LIBTORRENT_VERSION_NUM >= 20100
+        case lt::socket_type_t::rtc:
+            return u"WebRTC"_s;
+#endif
         case lt::socket_type_t::socks5:
             return u"SOCKS5"_s;
 #ifdef QBT_USES_LIBTORRENT2
@@ -234,6 +239,14 @@ namespace
         }
         return {};
     }
+
+#if LIBTORRENT_VERSION_NUM >= 20100
+    QString toI2PAddress(const lt::sha256_hash &destHash)
+    {
+        const QByteArray base32Dest = Utils::ByteArray::toBase32({destHash.data(), destHash.size()}).replace('=', "").toLower();
+        return QString::fromLatin1(base32Dest) + u".b32.i2p";
+    }
+#endif
 
     template <typename T>
     struct LowerLimited
@@ -6050,6 +6063,15 @@ void SessionImpl::handlePortmapAlert(const lt::portmap_alert *alert)
 
 void SessionImpl::handlePeerBlockedAlert(const lt::peer_blocked_alert *alert)
 {
+#if LIBTORRENT_VERSION_NUM < 20100
+    const lt::tcp::endpoint peerIPEndpoint = alert->endpoint;
+    const QString peerAddress = toString(peerIPEndpoint.address());
+#else
+    const auto peerIPEndpointPtr = std::get_if<lt::peer_alert::ip_endpoint>(&alert->ep);
+    const auto peerIPEndpoint = peerIPEndpointPtr ? static_cast<lt::tcp::endpoint>(*peerIPEndpointPtr) : lt::tcp::endpoint();
+    const QString peerAddress = peerIPEndpointPtr
+            ? toString(peerIPEndpoint.address()) : toI2PAddress(std::get<lt::peer_alert::i2p_endpoint>(alert->ep));
+#endif
     QString reason;
     switch (alert->reason)
     {
@@ -6057,13 +6079,13 @@ void SessionImpl::handlePeerBlockedAlert(const lt::peer_blocked_alert *alert)
         reason = tr("IP filter", "this peer was blocked. Reason: IP filter.");
         break;
     case lt::peer_blocked_alert::port_filter:
-        reason = tr("filtered port (%1)", "this peer was blocked. Reason: filtered port (8899).").arg(QString::number(alert->endpoint.port()));
+        reason = tr("filtered port (%1)", "this peer was blocked. Reason: filtered port (8899).").arg(QString::number(peerIPEndpoint.port()));
         break;
     case lt::peer_blocked_alert::i2p_mixed:
         reason = tr("%1 mixed mode restrictions", "this peer was blocked. Reason: I2P mixed mode restrictions.").arg(u"I2P"_s); // don't translate I2P
         break;
     case lt::peer_blocked_alert::privileged_ports:
-        reason = tr("privileged port (%1)", "this peer was blocked. Reason: privileged port (80).").arg(QString::number(alert->endpoint.port()));
+        reason = tr("privileged port (%1)", "this peer was blocked. Reason: privileged port (80).").arg(QString::number(peerIPEndpoint.port()));
         break;
     case lt::peer_blocked_alert::utp_disabled:
         reason = tr("%1 is disabled", "this peer was blocked. Reason: uTP is disabled.").arg(C_UTP); // don't translate μTP
@@ -6073,16 +6095,23 @@ void SessionImpl::handlePeerBlockedAlert(const lt::peer_blocked_alert *alert)
         break;
     }
 
-    const QString ip {toString(alert->endpoint.address())};
-    if (!ip.isEmpty())
-        Logger::instance()->addPeer(ip, true, reason);
+    if (!peerAddress.isEmpty())
+        Logger::instance()->addPeer(peerAddress, true, reason);
 }
 
 void SessionImpl::handlePeerBanAlert(const lt::peer_ban_alert *alert)
 {
-    const QString ip {toString(alert->endpoint.address())};
-    if (!ip.isEmpty())
-        Logger::instance()->addPeer(ip, false);
+#if LIBTORRENT_VERSION_NUM < 20100
+    const lt::tcp::endpoint peerIPEndpoint = alert->endpoint;
+    const QString peerAddress = toString(peerIPEndpoint.address());
+#else
+    const auto peerIPEndpointPtr = std::get_if<lt::peer_alert::ip_endpoint>(&alert->ep);
+    const auto peerIPEndpoint = peerIPEndpointPtr ? static_cast<lt::tcp::endpoint>(*peerIPEndpointPtr) : lt::tcp::endpoint();
+    const QString peerAddress = peerIPEndpointPtr
+            ? toString(peerIPEndpoint.address()) : toI2PAddress(std::get<lt::peer_alert::i2p_endpoint>(alert->ep));
+#endif
+    if (!peerAddress.isEmpty())
+        Logger::instance()->addPeer(peerAddress, false);
 }
 
 void SessionImpl::handleUrlSeedAlert(const lt::url_seed_alert *alert)
