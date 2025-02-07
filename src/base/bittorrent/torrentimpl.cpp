@@ -1,6 +1,6 @@
 /*
  * Bittorrent Client using Qt and libtorrent.
- * Copyright (C) 2015-2024  Vladimir Golovnev <glassez@yandex.ru>
+ * Copyright (C) 2015-2025  Vladimir Golovnev <glassez@yandex.ru>
  * Copyright (C) 2006  Christophe Dumez <chris@qbittorrent.org>
  *
  * This program is free software; you can redistribute it and/or
@@ -38,10 +38,10 @@
 
 #include <libtorrent/address.hpp>
 #include <libtorrent/alert_types.hpp>
-#include <libtorrent/create_torrent.hpp>
 #include <libtorrent/session.hpp>
 #include <libtorrent/storage_defs.hpp>
 #include <libtorrent/time.hpp>
+#include <libtorrent/write_resume_data.hpp>
 
 #ifdef QBT_USES_LIBTORRENT2
 #include <libtorrent/info_hash.hpp>
@@ -2888,18 +2888,9 @@ nonstd::expected<lt::entry, QString> TorrentImpl::exportTorrent() const
 
     try
     {
-#ifdef QBT_USES_LIBTORRENT2
-        const std::shared_ptr<lt::torrent_info> completeTorrentInfo = m_nativeHandle.torrent_file_with_hashes();
-        const std::shared_ptr<lt::torrent_info> torrentInfo = (completeTorrentInfo ? completeTorrentInfo : info().nativeInfo());
-#else
-        const std::shared_ptr<lt::torrent_info> torrentInfo = info().nativeInfo();
-#endif
-        lt::create_torrent creator {*torrentInfo};
-
-        for (const TrackerEntryStatus &status : asConst(trackers()))
-            creator.add_tracker(status.url.toStdString(), status.tier);
-
-        return creator.generate();
+        lt::add_torrent_params addTorrentParams = m_ltAddTorrentParams;
+        addTorrentParams.ti = info().nativeInfo();
+        return lt::write_torrent_file(addTorrentParams);
     }
     catch (const lt::system_error &err)
     {
