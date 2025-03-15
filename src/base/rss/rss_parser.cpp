@@ -1,6 +1,6 @@
 /*
  * Bittorrent Client using Qt and libtorrent.
- * Copyright (C) 2015-2024  Vladimir Golovnev <glassez@yandex.ru>
+ * Copyright (C) 2015-2025  Vladimir Golovnev <glassez@yandex.ru>
  * Copyright (C) 2012  Christophe Dumez <chris@qbittorrent.org>
  *
  * This program is free software; you can redistribute it and/or
@@ -34,6 +34,7 @@
 #include <QRegularExpression>
 #include <QStringList>
 #include <QTimeZone>
+#include <QUrl>
 #include <QVariant>
 #include <QXmlStreamEntityResolver>
 #include <QXmlStreamReader>
@@ -628,11 +629,24 @@ void RSS::Private::Parser::parseRssArticle(QXmlStreamReader &xml)
             }
             else if (name == u"link")
             {
-                const QString text {xml.readElementText().trimmed()};
+                const QString text = xml.readElementText().trimmed();
                 if (text.startsWith(u"magnet:", Qt::CaseInsensitive))
+                {
                     article[Article::KeyTorrentURL] = text; // magnet link instead of a news URL
+                }
                 else
-                    article[Article::KeyLink] = text;
+                {
+                    // Some RSS feeds can have relative links
+                    // Try to resolve them against base URL
+                    if (QUrl(text).isRelative() && !m_baseUrl.isEmpty())
+                    {
+                        article[Article::KeyLink] = QString(m_baseUrl + text);
+                    }
+                    else
+                    {
+                        article[Article::KeyLink] = text;
+                    }
+                }
             }
             else if (name == u"description")
             {
@@ -687,6 +701,12 @@ void RSS::Private::Parser::parseRSSChannel(QXmlStreamReader &xml)
                     }
                     m_result.lastBuildDate = lastBuildDate;
                 }
+            }
+            else if (xml.name() == u"link")
+            {
+                m_baseUrl = xml.readElementText();
+                if (m_baseUrl.endsWith(u'/'))
+                    m_baseUrl.chop(1);
             }
             else if (xml.name() == u"item")
             {
