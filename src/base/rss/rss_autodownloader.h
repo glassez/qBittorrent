@@ -48,6 +48,14 @@ class Application;
 class AsyncFileStorage;
 struct ProcessingJob;
 
+namespace BitTorrent
+{
+    class InfoHash;
+    class Torrent;
+    class TorrentDescriptor;
+    struct AddTorrentParams;
+}
+
 namespace RSS
 {
     class Article;
@@ -111,8 +119,10 @@ namespace RSS
 
     private slots:
         void process();
-        void handleTorrentAdded(const QString &source);
-        void handleAddTorrentFailed(const QString &url, const BitTorrent::AddTorrentError &error);
+        void processTorrent(const QString &torrentURL, const BitTorrent::TorrentDescriptor &torrentDescr
+                , const BitTorrent::AddTorrentParams &addTorrentParams);
+        void onTorrentAdded(BitTorrent::Torrent *torrent);
+        void onAddTorrentFailed(const BitTorrent::InfoHash &infoHash, const BitTorrent::AddTorrentError &reason);
         void handleNewArticle(const Article *article);
         void handleFeedURLChanged(Feed *feed, const QString &oldURL);
 
@@ -133,6 +143,7 @@ namespace RSS
         void importRulesFromJSONFormat(const QByteArray &data);
         QByteArray exportRulesToLegacyFormat() const;
         void importRulesFromLegacyFormat(const QByteArray &data);
+        void handleAddTorrentFailed(const QString &torrentURL, const QString &reason);
 
         static QPointer<AutoDownloader> m_instance;
 
@@ -147,6 +158,7 @@ namespace RSS
         QHash<QString, qsizetype> m_rulesByName;
         QList<QSharedPointer<ProcessingJob>> m_processingQueue;
         QHash<QString, QSharedPointer<ProcessingJob>> m_waitingJobs;
+        QHash<BitTorrent::InfoHash, QString> m_sourcesByInfoHash;
         bool m_dirty = false;
         QBasicTimer m_savingTimer;
         QRegularExpression m_smartEpisodeRegex;

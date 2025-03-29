@@ -1,6 +1,6 @@
 /*
  * Bittorrent Client using Qt and libtorrent.
- * Copyright (C) 2017-2023  Vladimir Golovnev <glassez@yandex.ru>
+ * Copyright (C) 2017-2025  Vladimir Golovnev <glassez@yandex.ru>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -28,8 +28,6 @@
 
 #include "rss_autodownloader.h"
 
-#include <queue>
-
 #include <QDataStream>
 #include <QDebug>
 #include <QJsonDocument>
@@ -41,15 +39,17 @@
 #include <QUrl>
 #include <QVariant>
 
-#include "base/addtorrentmanager.h"
 #include "base/asyncfilestorage.h"
+#include "base/bittorrent/infohash.h"
 #include "base/bittorrent/session.h"
+#include "base/bittorrent/torrent.h"
 #include "base/bittorrent/torrentdescriptor.h"
 #include "base/global.h"
 #include "base/interfaces/iapplication.h"
 #include "base/logger.h"
+#include "base/net/downloadmanager.h"
+#include "base/preferences.h"
 #include "base/profile.h"
-#include "base/utils/fs.h"
 #include "base/utils/io.h"
 #include "rss_article.h"
 #include "rss_autodownloadrule.h"
@@ -126,10 +126,10 @@ AutoDownloader::AutoDownloader(IApplication *app)
     m_ioThread->setObjectName("RSS::AutoDownloader m_ioThread");
     m_ioThread->start();
 
-    connect(app->addTorrentManager(), &AddTorrentManager::torrentAdded
-            , this, &AutoDownloader::handleTorrentAdded);
-    connect(app->addTorrentManager(), &AddTorrentManager::addTorrentFailed
-            , this, &AutoDownloader::handleAddTorrentFailed);
+    connect(BitTorrent::Session::instance(), &BitTorrent::Session::torrentAdded
+            , this, &AutoDownloader::onTorrentAdded);
+    connect(BitTorrent::Session::instance(), &BitTorrent::Session::addTorrentFailed
+            , this, &AutoDownloader::onAddTorrentFailed);
 
     // initialise the smart episode regex
     const QString regex = computeSmartFilterRegex(smartEpisodeFilters());
@@ -309,6 +309,12 @@ void AutoDownloader::importRulesFromLegacyFormat(const QByteArray &data)
         setRule(AutoDownloadRule::fromLegacyDict(val.toHash()));
 }
 
+void AutoDownloader::handleAddTorrentFailed(const QString &torrentURL, const QString &reason)
+{
+    LogMsg(tr("Failed to add torrent. Source: \"%1\". Reason: \"%2\"").arg(torrentURL, reason), Log::WARNING);
+    // TODO: Re-schedule job here.
+}
+
 QStringList AutoDownloader::smartEpisodeFilters() const
 {
     const QVariant filter = m_storeSmartEpisodeFilter.get();
@@ -362,8 +368,19 @@ void AutoDownloader::process()
     }
 }
 
-void AutoDownloader::handleTorrentAdded(const QString &source)
+void AutoDownloader::processTorrent(const QString &torrentURL
+        , const BitTorrent::TorrentDescriptor &torrentDescr, const BitTorrent::AddTorrentParams &addTorrentParams)
 {
+    m_sourcesByInfoHash[torrentDescr.infoHash()] = torrentURL;
+    BitTorrent::Session::instance()->addTorrent(torrentDescr, addTorrentParams);
+}
+
+void AutoDownloader::onTorrentAdded(BitTorrent::Torrent *torrent)
+{
+    const QString source = m_sourcesByInfoHash.take(torrent->infoHash());
+    if (source.isEmpty())
+        return;
+
     const auto job = m_waitingJobs.take(source);
     if (!job)
         return;
@@ -375,13 +392,17 @@ void AutoDownloader::handleTorrentAdded(const QString &source)
     }
 }
 
-void AutoDownloader::handleAddTorrentFailed(const QString &source, const BitTorrent::AddTorrentError &error)
+void AutoDownloader::onAddTorrentFailed(const BitTorrent::InfoHash &infoHash, const BitTorrent::AddTorrentError &reason)
 {
+    const QString source = m_sourcesByInfoHash.take(infoHash);
+    if (source.isEmpty())
+        return;
+
     const auto job = m_waitingJobs.take(source);
     if (!job)
         return;
 
-    if (error.kind == BitTorrent::AddTorrentError::DuplicateTorrent)
+    if (reason.kind == BitTorrent::AddTorrentError::DuplicateTorrent)
     {
         if (Feed *feed = Session::instance()->feedByURL(job->feedURL))
         {
@@ -391,7 +412,7 @@ void AutoDownloader::handleAddTorrentFailed(const QString &source, const BitTorr
     }
     else
     {
-        // TODO: Re-schedule job here.
+        handleAddTorrentFailed(source, reason.message);
     }
 }
 
@@ -490,20 +511,48 @@ void AutoDownloader::processJob(const QSharedPointer<ProcessingJob> &job)
                 .arg(job->articleData.value(Article::KeyTitle).toString(), rule.name()));
 
         const auto torrentURL = job->articleData.value(Article::KeyTorrentURL).toString();
-        app()->addTorrentManager()->addTorrent(torrentURL, rule.addTorrentParams());
 
-        if (BitTorrent::TorrentDescriptor::parse(torrentURL))
+        if (Net::DownloadManager::hasSupportedScheme(torrentURL))
         {
-            if (Feed *feed = Session::instance()->feedByURL(job->feedURL))
+            LogMsg(tr("Downloading torrent... Source: \"%1\"").arg(torrentURL));
+            const auto *pref = Preferences::instance();
+            // Launch downloader
+            Net::DownloadManager::instance()->download(
+                    Net::DownloadRequest(torrentURL).limit(pref->getTorrentFileSizeLimit())
+                    , pref->useProxyForRSS(), this
+                    , [this, addTorrentParams = rule.addTorrentParams()](const Net::DownloadResult &result)
             {
-                if (Article *article = feed->articleByGUID(job->articleData.value(Article::KeyId).toString()))
-                    article->markAsRead();
-            }
+                const QString &source = result.url;
+
+                switch (result.status)
+                {
+                case Net::DownloadStatus::Success:
+                    if (const auto loadResult = BitTorrent::TorrentDescriptor::load(result.data))
+                        processTorrent(source, loadResult.value(), addTorrentParams);
+                    else
+                        handleAddTorrentFailed(source, loadResult.error());
+                    break;
+                case Net::DownloadStatus::RedirectedToMagnet:
+                    if (const auto parseResult = BitTorrent::TorrentDescriptor::parse(result.magnetURI))
+                        processTorrent(source, parseResult.value(), addTorrentParams);
+                    else
+                        handleAddTorrentFailed(source, parseResult.error());
+                    break;
+                default:
+                    handleAddTorrentFailed(source, result.errorString);
+                }
+            });
+
+            // waiting for torrent file downloading
+            m_waitingJobs.insert(torrentURL, job);
+        }
+        else if (const auto parseResult = BitTorrent::TorrentDescriptor::parse(torrentURL))
+        {
+            BitTorrent::Session::instance()->addTorrent(parseResult.value(), rule.addTorrentParams());
         }
         else
         {
-            // waiting for torrent file downloading
-            m_waitingJobs.insert(torrentURL, job);
+            handleAddTorrentFailed(torrentURL, parseResult.error());
         }
 
         return;
