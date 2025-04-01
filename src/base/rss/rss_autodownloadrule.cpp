@@ -131,6 +131,8 @@ namespace RSS
 
         QStringList mustContain;
         QStringList mustNotContain;
+        qint64 minSize = 0;
+        qint64 maxSize = -1;
         QString episodeFilter;
         QStringList feedURLs;
         bool useRegex = false;
@@ -152,6 +154,8 @@ namespace RSS
                     && (left.priority == right.priority)
                     && (left.mustContain == right.mustContain)
                     && (left.mustNotContain == right.mustNotContain)
+                    && (left.minSize == right.minSize)
+                    && (left.maxSize == right.maxSize)
                     && (left.episodeFilter == right.episodeFilter)
                     && (left.feedURLs == right.feedURLs)
                     && (left.useRegex == right.useRegex)
@@ -603,34 +607,6 @@ AutoDownloadRule AutoDownloadRule::fromLegacyDict(const QVariantHash &dict)
     return rule;
 }
 
-void AutoDownloadRule::setMustContain(const QString &tokens)
-{
-    m_dataPtr->cachedRegexes.clear();
-
-    if (m_dataPtr->useRegex)
-        m_dataPtr->mustContain = QStringList() << tokens;
-    else
-        m_dataPtr->mustContain = tokens.split(u'|');
-
-    // Check for single empty string - if so, no condition
-    if ((m_dataPtr->mustContain.size() == 1) && m_dataPtr->mustContain[0].isEmpty())
-        m_dataPtr->mustContain.clear();
-}
-
-void AutoDownloadRule::setMustNotContain(const QString &tokens)
-{
-    m_dataPtr->cachedRegexes.clear();
-
-    if (m_dataPtr->useRegex)
-        m_dataPtr->mustNotContain = QStringList() << tokens;
-    else
-        m_dataPtr->mustNotContain = tokens.split(u'|');
-
-    // Check for single empty string - if so, no condition
-    if ((m_dataPtr->mustNotContain.size() == 1) && m_dataPtr->mustNotContain[0].isEmpty())
-        m_dataPtr->mustNotContain.clear();
-}
-
 QStringList AutoDownloadRule::feedURLs() const
 {
     return m_dataPtr->feedURLs;
@@ -706,9 +682,57 @@ QString AutoDownloadRule::mustContain() const
     return m_dataPtr->mustContain.join(u'|');
 }
 
+void AutoDownloadRule::setMustContain(const QString &tokens)
+{
+    m_dataPtr->cachedRegexes.clear();
+
+    if (m_dataPtr->useRegex)
+        m_dataPtr->mustContain = QStringList() << tokens;
+    else
+        m_dataPtr->mustContain = tokens.split(u'|');
+
+    // Check for single empty string - if so, no condition
+    if ((m_dataPtr->mustContain.size() == 1) && m_dataPtr->mustContain[0].isEmpty())
+        m_dataPtr->mustContain.clear();
+}
+
 QString AutoDownloadRule::mustNotContain() const
 {
     return m_dataPtr->mustNotContain.join(u'|');
+}
+
+void AutoDownloadRule::setMustNotContain(const QString &tokens)
+{
+    m_dataPtr->cachedRegexes.clear();
+
+    if (m_dataPtr->useRegex)
+        m_dataPtr->mustNotContain = QStringList() << tokens;
+    else
+        m_dataPtr->mustNotContain = tokens.split(u'|');
+
+    // Check for single empty string - if so, no condition
+    if ((m_dataPtr->mustNotContain.size() == 1) && m_dataPtr->mustNotContain[0].isEmpty())
+        m_dataPtr->mustNotContain.clear();
+}
+
+qint64 AutoDownloadRule::minSize() const
+{
+    return m_dataPtr->minSize;
+}
+
+void AutoDownloadRule::setMinSize(const qint64 size)
+{
+    m_dataPtr->minSize = size;
+}
+
+qint64 AutoDownloadRule::maxSize() const
+{
+    return m_dataPtr->maxSize;
+}
+
+void AutoDownloadRule::setMaxSize(const qint64 size)
+{
+    m_dataPtr->maxSize = size;
 }
 
 bool AutoDownloadRule::useSmartFilter() const

@@ -68,6 +68,10 @@ namespace RSS
         void setMustContain(const QString &tokens);
         QString mustNotContain() const;
         void setMustNotContain(const QString &tokens);
+        qint64 minSize() const;
+        void setMinSize(qint64 size);
+        qint64 maxSize() const;
+        void setMaxSize(qint64 size);
         QStringList feedURLs() const;
         void setFeedURLs(const QStringList &urls);
         int ignoreDays() const;
