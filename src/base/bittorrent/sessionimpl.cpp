@@ -3155,6 +3155,14 @@ bool SessionImpl::downloadMetadata(const TorrentDescriptor &torrentDescr)
     if (isKnownTorrent(infoHash))
         return false;
 
+    const auto id = TorrentID::fromInfoHash(infoHash);
+
+    if (m_downloadedMetadata.contains(id)
+            || (infoHash.isHybrid() && m_downloadedMetadata.contains(TorrentID::fromSHA1Hash(infoHash.v1()))))
+    {
+        return true;
+    }
+
     lt::add_torrent_params p = torrentDescr.ltAddTorrentParams();
 
     if (isAddTrackersEnabled())
@@ -3185,7 +3193,6 @@ bool SessionImpl::downloadMetadata(const TorrentDescriptor &torrentDescr)
     p.max_connections = maxConnectionsPerTorrent();
     p.max_uploads = maxUploadsPerTorrent();
 
-    const auto id = TorrentID::fromInfoHash(infoHash);
     const Path savePath = Utils::Fs::tempPath() / Path(id.toString());
     p.save_path = savePath.toString().toStdString();
 
@@ -5272,14 +5279,6 @@ void SessionImpl::setShareLimitAction(const ShareLimitAction act)
 
 bool SessionImpl::isKnownTorrent(const InfoHash &infoHash) const
 {
-    const bool isHybrid = infoHash.isHybrid();
-    const auto id = TorrentID::fromInfoHash(infoHash);
-    // alternative ID can be useful to find existing torrent
-    // in case if hybrid torrent was added by v1 info hash
-    const auto altID = (isHybrid ? TorrentID::fromSHA1Hash(infoHash.v1()) : TorrentID());
-
-    if (m_downloadedMetadata.contains(id) || (isHybrid && m_downloadedMetadata.contains(altID)))
-        return true;
     return findTorrent(infoHash);
 }
 
@@ -5947,13 +5946,19 @@ void SessionImpl::handleAlert(const lt::alert *alert)
 
 void SessionImpl::dispatchTorrentAlert(const lt::torrent_alert *alert)
 {
-    // The torrent can be deleted between the time the resume data was requested and
-    // the time we received the appropriate alert. We have to decrease `m_numResumeData` anyway,
-    // so we do this before checking for an existing torrent.
-    if ((alert->type() == lt::save_resume_data_alert::alert_type)
-            || (alert->type() == lt::save_resume_data_failed_alert::alert_type))
+    switch (alert->type())
     {
+    case lt::metadata_received_alert::alert_type:
+        handleMetadataReceivedAlert(static_cast<const lt::metadata_received_alert *>(alert));
+        break;
+
+    case lt::save_resume_data_alert::alert_type:
+    case lt::save_resume_data_failed_alert::alert_type:
+        // The torrent can be deleted between the time the resume data was requested and
+        // the time we received the appropriate alert. We have to decrease `m_numResumeData` anyway,
+        // so we do this before checking for an existing torrent.
         --m_numResumeData;
+        break;
     }
 
     TorrentImpl *torrent = getTorrent(alert->handle);
@@ -5967,17 +5972,7 @@ void SessionImpl::dispatchTorrentAlert(const lt::torrent_alert *alert)
 #endif
 
     if (torrent)
-    {
         torrent->handleAlert(alert);
-        return;
-    }
-
-    switch (alert->type())
-    {
-    case lt::metadata_received_alert::alert_type:
-        handleMetadataReceivedAlert(static_cast<const lt::metadata_received_alert *>(alert));
-        break;
-    }
 }
 
 TorrentImpl *SessionImpl::createTorrent(const lt::torrent_handle &nativeHandle, const LoadTorrentParams &params)
@@ -6063,7 +6058,8 @@ void SessionImpl::handleMetadataReceivedAlert(const lt::metadata_received_alert 
     if (found)
     {
         const TorrentInfo metadata {*alert->handle.torrent_file()};
-        m_nativeSession->remove_torrent(alert->handle, lt::session::delete_files);
+        if (!findTorrent(metadata.infoHash()))
+            m_nativeSession->remove_torrent(alert->handle, lt::session::delete_files);
 
         emit metadataDownloaded(metadata);
     }

@@ -830,6 +830,7 @@ void AddNewTorrentDialog::reject()
     if (!hasMetadata)
     {
         setMetadataProgressIndicator(false);
+        // TODO: Avoid conflicts between multiple requests
         BitTorrent::Session::instance()->cancelDownloadMetadata(torrentDescr.infoHash().toTorrentID());
     }
 
