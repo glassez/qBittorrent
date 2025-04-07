@@ -47,6 +47,7 @@ class QString;
 namespace BitTorrent
 {
     class InfoHash;
+    class MetadataDownloadHandler;
     class Torrent;
     class TorrentDescriptor;
     class TorrentID;
@@ -471,8 +472,7 @@ namespace BitTorrent
         virtual bool isKnownTorrent(const InfoHash &infoHash) const = 0;
         virtual bool addTorrent(const TorrentDescriptor &torrentDescr, const AddTorrentParams &params = {}) = 0;
         virtual bool removeTorrent(const TorrentID &id, TorrentRemoveOption deleteOption = TorrentRemoveOption::KeepContent) = 0;
-        virtual bool downloadMetadata(const TorrentDescriptor &torrentDescr) = 0;
-        virtual bool cancelDownloadMetadata(const TorrentID &id) = 0;
+        virtual MetadataDownloadHandler *downloadMetadata(const TorrentDescriptor &torrentDescr) = 0;
 
         virtual void increaseTorrentsQueuePos(const QList<TorrentID> &ids) = 0;
         virtual void decreaseTorrentsQueuePos(const QList<TorrentID> &ids) = 0;
@@ -493,7 +493,6 @@ namespace BitTorrent
         void categoryOptionsChanged(const QString &categoryName);
         void fullDiskError(Torrent *torrent, const QString &msg);
         void IPFilterParsed(bool error, int ruleCount);
-        void metadataDownloaded(const TorrentInfo &info);
         void restored();
         void paused();
         void resumed();

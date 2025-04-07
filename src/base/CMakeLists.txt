@@ -25,6 +25,9 @@ add_library(qbt_base STATIC
     bittorrent/loadtorrentparams.h
     bittorrent/ltqbitarray.h
     bittorrent/lttypecast.h
+    bittorrent/metadatadownloadcontext.h
+    bittorrent/metadatadownloadhandler.h
+    bittorrent/metadatadownloadhandlerimpl.h
     bittorrent/nativesessionextension.h
     bittorrent/nativetorrentextension.h
     bittorrent/peeraddress.h
@@ -139,6 +142,8 @@ add_library(qbt_base STATIC
     bittorrent/filterparserthread.cpp
     bittorrent/infohash.cpp
     bittorrent/ltqbitarray.cpp
+    bittorrent/metadatadownloadcontext.cpp
+    bittorrent/metadatadownloadhandlerimpl.cpp
     bittorrent/nativesessionextension.cpp
     bittorrent/nativetorrentextension.cpp
     bittorrent/peeraddress.cpp

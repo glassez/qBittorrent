@@ -1,6 +1,6 @@
 /*
  * Bittorrent Client using Qt and libtorrent.
- * Copyright (C) 2015-2023  Vladimir Golovnev <glassez@yandex.ru>
+ * Copyright (C) 2015-2025  Vladimir Golovnev <glassez@yandex.ru>
  * Copyright (C) 2006  Christophe Dumez <chris@qbittorrent.org>
  *
  * This program is free software; you can redistribute it and/or
@@ -31,6 +31,7 @@
 
 #include <QScreen>
 
+#include "base/bittorrent/metadatadownloadhandler.h"
 #include "base/bittorrent/session.h"
 #include "base/bittorrent/torrentdescriptor.h"
 #include "base/net/downloadmanager.h"
@@ -78,7 +79,6 @@ namespace
 GUIAddTorrentManager::GUIAddTorrentManager(IGUIApplication *app, BitTorrent::Session *session, QObject *parent)
     : GUIApplicationComponent(app, session, parent)
 {
-    connect(btSession(), &BitTorrent::Session::metadataDownloaded, this, &GUIAddTorrentManager::onMetadataDownloaded);
 }
 
 GUIAddTorrentManager::~GUIAddTorrentManager()
@@ -170,19 +170,6 @@ void GUIAddTorrentManager::onDownloadFinished(const Net::DownloadResult &result)
     }
 }
 
-void GUIAddTorrentManager::onMetadataDownloaded(const BitTorrent::TorrentInfo &metadata)
-{
-    Q_ASSERT(metadata.isValid());
-    if (!metadata.isValid()) [[unlikely]]
-        return;
-
-    for (const auto &[infoHash, dialog] : m_dialogs.asKeyValueRange())
-    {
-        if (metadata.matchesInfoHash(infoHash))
-            dialog->updateMetadata(metadata);
-    }
-}
-
 bool GUIAddTorrentManager::processTorrent(const QString &source
         , const BitTorrent::TorrentDescriptor &torrentDescr, const BitTorrent::AddTorrentParams &params)
 {
@@ -230,9 +217,6 @@ bool GUIAddTorrentManager::processTorrent(const QString &source
         return false;
     }
 
-    if (!hasMetadata)
-        btSession()->downloadMetadata(torrentDescr);
-
 #ifdef Q_OS_MACOS
     const bool attached = false;
 #else
@@ -249,6 +233,21 @@ bool GUIAddTorrentManager::processTorrent(const QString &source
 
     dlg->setAttribute(Qt::WA_DeleteOnClose);
     m_dialogs[infoHash] = dlg;
+
+    if (!hasMetadata)
+    {
+        BitTorrent::MetadataDownloadHandler *metadataDownloadHandler = btSession()->downloadMetadata(torrentDescr);
+        connect(dlg, &QDialog::finished, metadataDownloadHandler, &QObject::deleteLater);
+        connect(metadataDownloadHandler, &BitTorrent::MetadataDownloadHandler::finished, dlg
+                , [dlg, metadataDownloadHandler](const BitTorrent::MetadataDownloadResult &result)
+        {
+            if (result.status == BitTorrent::MetadataDownloadResult::Succeeded)
+                dlg->updateMetadata(result.metadata);
+
+            metadataDownloadHandler->deleteLater();
+        });
+    }
+
     connect(dlg, &AddNewTorrentDialog::torrentAccepted, this
             , [this, source, dlg](const BitTorrent::TorrentDescriptor &torrentDescr, const BitTorrent::AddTorrentParams &addTorrentParams)
     {

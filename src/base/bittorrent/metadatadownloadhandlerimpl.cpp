@@ -1,7 +1,6 @@
 /*
  * Bittorrent Client using Qt and libtorrent.
- * Copyright (C) 2015-2025  Vladimir Golovnev <glassez@yandex.ru>
- * Copyright (C) 2006  Christophe Dumez <chris@qbittorrent.org>
+ * Copyright (C) 2025  Vladimir Golovnev <glassez@yandex.ru>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -27,48 +26,23 @@
  * exception statement from your version.
  */
 
-#pragma once
+#include "metadatadownloadhandlerimpl.h"
 
-#include "base/addtorrentmanager.h"
-#include "base/bittorrent/infohash.h"
-#include "guiapplicationcomponent.h"
+#include "metadatadownloadcontext.h"
 
-#include <QHash>
-
-namespace BitTorrent
+bool BitTorrent::MetadataDownloadHandlerImpl::isFinished() const
 {
-    class TorrentDescriptor;
+    return m_context ? m_context->isFinished() : false;
 }
 
-namespace Net
+void BitTorrent::MetadataDownloadHandlerImpl::setContext(MetadataDownloadContext *context)
 {
-    struct DownloadResult;
+    Q_ASSERT(context);
+    m_context = context;
+    setParent(context);
 }
 
-class AddNewTorrentDialog;
-
-enum class AddTorrentOption
+std::optional<BitTorrent::MetadataDownloadResult> BitTorrent::MetadataDownloadHandlerImpl::result() const
 {
-    Default,
-    ShowDialog,
-    SkipDialog,
-};
-
-class GUIAddTorrentManager : public GUIApplicationComponent<AddTorrentManager>
-{
-    Q_OBJECT
-    Q_DISABLE_COPY_MOVE(GUIAddTorrentManager)
-
-public:
-    GUIAddTorrentManager(IGUIApplication *app, BitTorrent::Session *session, QObject *parent = nullptr);
-    ~GUIAddTorrentManager() override;
-
-    bool addTorrent(const QString &source, const BitTorrent::AddTorrentParams &params = {}, AddTorrentOption option = AddTorrentOption::Default);
-
-private:
-    void onDownloadFinished(const Net::DownloadResult &result);
-    bool processTorrent(const QString &source, const BitTorrent::TorrentDescriptor &torrentDescr, const BitTorrent::AddTorrentParams &params);
-
-    QHash<QString, BitTorrent::AddTorrentParams> m_downloadedTorrents;
-    QHash<BitTorrent::InfoHash, AddNewTorrentDialog *> m_dialogs;
-};
+    return m_context ? m_context->result() : std::nullopt;
+}

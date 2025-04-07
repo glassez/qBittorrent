@@ -828,11 +828,7 @@ void AddNewTorrentDialog::reject()
     const BitTorrent::TorrentDescriptor &torrentDescr = m_currentContext->torrentDescr;
     const bool hasMetadata = torrentDescr.info().has_value();
     if (!hasMetadata)
-    {
         setMetadataProgressIndicator(false);
-        // TODO: Avoid conflicts between multiple requests
-        BitTorrent::Session::instance()->cancelDownloadMetadata(torrentDescr.infoHash().toTorrentID());
-    }
 
     QDialog::reject();
 }

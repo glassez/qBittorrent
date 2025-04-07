@@ -79,6 +79,7 @@ namespace BitTorrent
     enum class MoveStorageContext;
 
     class InfoHash;
+    class MetadataDownloadContext;
     class ResumeDataStorage;
     class Torrent;
     class TorrentContentRemover;
@@ -446,8 +447,7 @@ namespace BitTorrent
         bool isKnownTorrent(const InfoHash &infoHash) const override;
         bool addTorrent(const TorrentDescriptor &torrentDescr, const AddTorrentParams &params = {}) override;
         bool removeTorrent(const TorrentID &id, TorrentRemoveOption deleteOption = TorrentRemoveOption::KeepContent) override;
-        bool downloadMetadata(const TorrentDescriptor &torrentDescr) override;
-        bool cancelDownloadMetadata(const TorrentID &id) override;
+        MetadataDownloadHandler *downloadMetadata(const TorrentDescriptor &torrentDescr) override;
 
         void increaseTorrentsQueuePos(const QList<TorrentID> &ids) override;
         void decreaseTorrentsQueuePos(const QList<TorrentID> &ids) override;
@@ -639,6 +639,8 @@ namespace BitTorrent
         void setAdditionalTrackersFromURL(const QString &trackers);
         void updateTrackersFromURL();
 
+        void onMetadataDownloadCanceled(MetadataDownloadContext *metadataDownloadContext);
+
         CachedSettingValue<QString> m_DHTBootstrapNodes;
         CachedSettingValue<bool> m_isDHTEnabled;
         CachedSettingValue<bool> m_isLSDEnabled;
@@ -820,7 +822,7 @@ namespace BitTorrent
         using AddTorrentAlertHandler = std::function<void (const lt::add_torrent_alert *alert)>;
         QQueue<AddTorrentAlertHandler> m_addTorrentAlertHandlers;
 
-        QHash<TorrentID, lt::torrent_handle> m_downloadedMetadata;
+        QHash<TorrentID, MetadataDownloadContext *> m_downloadedMetadata;
 
         QHash<TorrentID, TorrentImpl *> m_torrents;
         QHash<TorrentID, TorrentImpl *> m_hybridTorrentsByAltID;

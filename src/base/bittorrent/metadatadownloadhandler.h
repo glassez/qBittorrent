@@ -1,7 +1,6 @@
 /*
  * Bittorrent Client using Qt and libtorrent.
- * Copyright (C) 2015-2025  Vladimir Golovnev <glassez@yandex.ru>
- * Copyright (C) 2006  Christophe Dumez <chris@qbittorrent.org>
+ * Copyright (C) 2025  Vladimir Golovnev <glassez@yandex.ru>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -29,46 +28,38 @@
 
 #pragma once
 
-#include "base/addtorrentmanager.h"
-#include "base/bittorrent/infohash.h"
-#include "guiapplicationcomponent.h"
+#include <optional>
 
-#include <QHash>
+#include <QObject>
+
+#include "torrentinfo.h"
 
 namespace BitTorrent
 {
-    class TorrentDescriptor;
+    struct MetadataDownloadResult
+    {
+        enum Status
+        {
+            Succeeded,
+            Failed
+        };
+
+        Status status = Succeeded;
+        TorrentInfo metadata;
+    };
+
+    class MetadataDownloadHandler : public QObject
+    {
+        Q_OBJECT
+        Q_DISABLE_COPY_MOVE(MetadataDownloadHandler)
+
+    public:
+        using QObject::QObject;
+
+        virtual bool isFinished() const = 0;
+        virtual std::optional<MetadataDownloadResult> result() const = 0;
+
+    signals:
+        void finished(const MetadataDownloadResult &result);
+    };
 }
-
-namespace Net
-{
-    struct DownloadResult;
-}
-
-class AddNewTorrentDialog;
-
-enum class AddTorrentOption
-{
-    Default,
-    ShowDialog,
-    SkipDialog,
-};
-
-class GUIAddTorrentManager : public GUIApplicationComponent<AddTorrentManager>
-{
-    Q_OBJECT
-    Q_DISABLE_COPY_MOVE(GUIAddTorrentManager)
-
-public:
-    GUIAddTorrentManager(IGUIApplication *app, BitTorrent::Session *session, QObject *parent = nullptr);
-    ~GUIAddTorrentManager() override;
-
-    bool addTorrent(const QString &source, const BitTorrent::AddTorrentParams &params = {}, AddTorrentOption option = AddTorrentOption::Default);
-
-private:
-    void onDownloadFinished(const Net::DownloadResult &result);
-    bool processTorrent(const QString &source, const BitTorrent::TorrentDescriptor &torrentDescr, const BitTorrent::AddTorrentParams &params);
-
-    QHash<QString, BitTorrent::AddTorrentParams> m_downloadedTorrents;
-    QHash<BitTorrent::InfoHash, AddNewTorrentDialog *> m_dialogs;
-};
