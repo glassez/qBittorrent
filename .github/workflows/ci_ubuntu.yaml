@@ -67,7 +67,7 @@ jobs:
           mv "${{ github.workspace }}/.."/boost_* "${{ env.boost_path }}"
           cd "${{ env.boost_path }}"
           ./bootstrap.sh
-          ./b2 stage --stagedir=./ --with-headers
+          ./b2 stage --stagedir=./ --with-headers --with-iostreams
 
       - name: Install Qt
         uses: jurplel/install-qt-action@v4
@@ -162,6 +162,7 @@ jobs:
 
       - name: Package AppImage
         run: |
+          LD_LIBRARY_PATH="${LD_LIBRARY_PATH}:${{ env.boost_path }}/lib" \
           ./linuxdeploy-x86_64.AppImage --appdir qbittorrent --plugin qt
           rm qbittorrent/apprun-hooks/*
           cp .github/workflows/helper/appimage/export_vars.sh qbittorrent/apprun-hooks/export_vars.sh

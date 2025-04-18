@@ -81,27 +81,21 @@ jobs:
 
       - name: Install boost
         env:
-          BOOST_MAJOR_VERSION: "1"
-          BOOST_MINOR_VERSION: "86"
-          BOOST_PATCH_VERSION: "0"
+          BOOST_VERSION: "1.86.0"
         run: |
-          $boost_url="https://archives.boost.io/release/${{ env.BOOST_MAJOR_VERSION }}.${{ env.BOOST_MINOR_VERSION }}.${{ env.BOOST_PATCH_VERSION }}/source/boost_${{ env.BOOST_MAJOR_VERSION }}_${{ env.BOOST_MINOR_VERSION }}_${{ env.BOOST_PATCH_VERSION }}.tar.gz"
-          $boost_url2="https://sourceforge.net/projects/boost/files/boost/${{ env.BOOST_MAJOR_VERSION }}.${{ env.BOOST_MINOR_VERSION }}.${{ env.BOOST_PATCH_VERSION }}/boost_${{ env.BOOST_MAJOR_VERSION }}_${{ env.BOOST_MINOR_VERSION }}_${{ env.BOOST_PATCH_VERSION }}.tar.gz"
+          $boost_url="https://github.com/boostorg/boost/releases/download/boost-${{ env.BOOST_VERSION }}/boost-${{ env.BOOST_VERSION }}-cmake.tar.gz"
           curl -L -o "${{ runner.temp }}/boost.tar.gz" "$boost_url"
           tar -xf "${{ runner.temp }}/boost.tar.gz" -C "${{ github.workspace }}/.."
-          if ($LastExitCode -ne 0)
-          {
-            curl -L -o "${{ runner.temp }}/boost.tar.gz" "$boost_url2"
-            tar -xf "${{ runner.temp }}/boost.tar.gz" -C "${{ github.workspace }}/.."
-          }
-          move "${{ github.workspace }}/../boost_*" "${{ env.boost_path }}"
-          cd "${{ env.boost_path }}"
-          #.\bootstrap.bat
-          ${{ env.vcpkg_path }}/installed/x64-windows-static-md-release/tools/boost-build/b2.exe `
-            stage `
-            toolset=msvc `
-            --stagedir=.\ `
-            --with-headers
+          cd "${{ github.workspace }}/../boost-${{ env.BOOST_VERSION }}"
+          cmake `
+            -B __build `
+            -G "Ninja" `
+            -DCMAKE_BUILD_TYPE=RelWithDebInfo `
+            -DCMAKE_INSTALL_PREFIX="${{ env.boost_path }}" `
+            -DCMAKE_TOOLCHAIN_FILE="${{ env.vcpkg_path }}/scripts/buildsystems/vcpkg.cmake" `
+            -DVCPKG_TARGET_TRIPLET=x64-windows-static-md-release `
+            -DBOOST_INCLUDE_LIBRARIES="asio;circular_buffer;crc;iostreams;logic;multi_index;multiprecision;scope_exit;stacktrace;variant"
+          cmake --build __build --target install
 
       - name: Install Qt
         uses: jurplel/install-qt-action@v4

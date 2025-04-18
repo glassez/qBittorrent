@@ -1,6 +1,6 @@
 /*
  * Bittorrent Client using Qt and libtorrent.
- * Copyright (C) 2015-2022  Vladimir Golovnev <glassez@yandex.ru>
+ * Copyright (C) 2015-2025  Vladimir Golovnev <glassez@yandex.ru>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -53,6 +53,13 @@
 #include "infohash.h"
 #include "loadtorrentparams.h"
 
+#ifdef QBT_USES_LIBTORRENT2
+#include "base/utils/misc.h"
+#include <boost/iostreams/filtering_stream.hpp>
+#include <boost/iostreams/copy.hpp>
+#include <boost/iostreams/filter/zlib.hpp>
+#endif
+
 namespace BitTorrent
 {
     class BencodeResumeDataStorage::Worker final : public QObject
@@ -99,6 +106,264 @@ namespace
             entryList.emplace_back(setValue.toString().toStdString());
         return entryList;
     }
+
+#ifdef QBT_USES_LIBTORRENT2
+    void readMerkleTrees(const lt::bdecode_node &merkleTreesNode, lt::add_torrent_params &addTorrentParams)
+    {
+        addTorrentParams.merkle_trees.reserve(merkleTreesNode.list_size());
+        addTorrentParams.verified_leaf_hashes.reserve(merkleTreesNode.list_size());
+        for (int i = 0; i < merkleTreesNode.list_size(); ++i)
+        {
+            const lt::bdecode_node merkleTreeNode = merkleTreesNode.list_at(i);
+            if (merkleTreeNode.type() != lt::bdecode_node::dict_t)
+                break;
+
+            const lt::bdecode_node hashesNode = merkleTreeNode.dict_find_string("hashes");
+            if (!hashesNode || ((hashesNode.string_length() % 32) != 0))
+                break;
+
+            addTorrentParams.merkle_trees.emplace_back();
+            addTorrentParams.merkle_trees.back().reserve(hashesNode.string_value().size() / 32);
+            for (lt::string_view hashes = hashesNode.string_value(); !hashes.empty(); hashes = hashes.substr(32))
+            {
+                addTorrentParams.merkle_trees.back().emplace_back(hashes);
+            }
+
+            if (const lt::bdecode_node verified = merkleTreeNode.dict_find_string("verified"))
+            {
+                const lt::string_view str = verified.string_value();
+                // addTorrentParams.verified_leaf_hashes.emplace_back(str.size() * 8);
+                // auto &v = addTorrentParams.verified_leaf_hashes.back();
+                // for (std::size_t j = 0; j < v.size(); ++j)
+                // {
+                //     if (str[j / 8] & (0x80 >> (j % 8)))
+                //         v[j] = true;
+                // }
+
+                addTorrentParams.verified_leaf_hashes.emplace_back(str.size());
+                auto &v = addTorrentParams.verified_leaf_hashes.back();
+                for (std::size_t j = 0; j < str.size(); ++j)
+                {
+                    if (str[j] == '1')
+                        v[j] = true;
+                }
+            }
+
+            if (const lt::bdecode_node mask = merkleTreeNode.dict_find_string("mask"))
+            {
+                const lt::string_view str = mask.string_value();
+                // addTorrentParams.merkle_tree_mask.emplace_back(str.size() * 8);
+                // auto &m = addTorrentParams.merkle_tree_mask.back();
+                // for (std::size_t j = 0; j < m.size(); ++j)
+                // {
+                //     if (str[j / 8] & (0x80 >> (j % 8)))
+                //         m[j] = true;
+                // }
+
+                addTorrentParams.merkle_tree_mask.emplace_back(str.size());
+                auto &m = addTorrentParams.merkle_tree_mask.back();
+                for (std::size_t j = 0; j < m.size(); ++j)
+                {
+                    if (str[j] == '1')
+                        m[j] = true;
+                }
+            }
+        }
+    }
+
+    namespace io = boost::iostreams;
+
+    class BackInsertDevice
+    {
+    public:
+        using char_type = char;
+        using category = io::sink_tag;
+
+        BackInsertDevice(QByteArray &ba)
+            : m_byteArray {&ba}
+        {
+        }
+
+        std::streamsize write(const char_type *s, const std::streamsize n)
+        {
+            m_byteArray->append(s, n);
+            return n;
+        }
+
+    private:
+        QByteArray *m_byteArray;
+    };
+
+    QByteArray serializeMerkleTrees(const lt::add_torrent_params &addTorrentParams)
+    {
+        if (addTorrentParams.merkle_trees.empty())
+            return {};
+
+        auto t1 = QDateTime::currentMSecsSinceEpoch();
+
+        qint64 ht = 0;
+        qint64 vt = 0;
+        qint64 mt = 0;
+
+        lt::entry::list_type merkleTreesEntry;
+        merkleTreesEntry.reserve(addTorrentParams.merkle_trees.size());
+        for (std::size_t i = 0; i < addTorrentParams.merkle_trees.size(); ++i)
+        {
+            const auto f = static_cast<lt::file_index_t>(i);
+            const std::vector<lt::sha256_hash> &tree = addTorrentParams.merkle_trees[f];
+
+            merkleTreesEntry.emplace_back(lt::entry::dictionary_t);
+            lt::entry::dictionary_type &retDict = merkleTreesEntry.back().dict();
+
+            auto tt1 = QDateTime::currentMSecsSinceEpoch();
+
+            lt::entry::string_type &retTree = retDict["hashes"].string();
+            retTree.reserve(tree.size() * 32);
+            for (const lt::sha256_hash &n : tree)
+                retTree.append(n.data(), n.size());
+
+            auto tt2 = QDateTime::currentMSecsSinceEpoch();
+            ht += tt2 - tt1;
+
+            if (f < addTorrentParams.verified_leaf_hashes.end_index())
+            {
+                const std::vector<bool> &verifiedLeafHashes = addTorrentParams.verified_leaf_hashes[f];
+                if (!verifiedLeafHashes.empty())
+                {
+                    lt::entry::string_type &retVerifiedLeafHashes = retDict["verified"].string();
+                    retVerifiedLeafHashes.reserve(verifiedLeafHashes.size());
+                    for (const auto bit : verifiedLeafHashes)
+                        retVerifiedLeafHashes.push_back(bit ? '1' : '0');
+                }
+            }
+
+            auto tt3 = QDateTime::currentMSecsSinceEpoch();
+            vt += tt3 - tt2;
+
+            if (f < addTorrentParams.merkle_tree_mask.end_index())
+            {
+                const std::vector<bool> &merkleTreeMask = addTorrentParams.merkle_tree_mask[f];
+                if (!merkleTreeMask.empty())
+                {
+                    lt::entry::string_type &retMerkleTreeMask = retDict["mask"].string();
+                    retMerkleTreeMask.reserve(merkleTreeMask.size());
+                    for (const auto bit : merkleTreeMask)
+                        retMerkleTreeMask.push_back(bit ? '1' : '0');
+                }
+            }
+
+            auto tt4 = QDateTime::currentMSecsSinceEpoch();
+            mt += tt4 - tt3;
+        }
+
+        auto t2 = QDateTime::currentMSecsSinceEpoch();
+
+        QByteArray treesData;
+        treesData.reserve(512 * 1024 * 1024);
+        lt::bencode(std::back_inserter(treesData), merkleTreesEntry);
+
+        QByteArray source = treesData;
+        QByteArray test1;
+        {
+            io::filtering_ostream out1;
+            out1.push(io::zlib_compressor());
+            out1.push(BackInsertDevice(test1));
+            io::copy(io::array_source(source.data(), source.size()), out1);
+        }
+
+        QByteArray test2;
+        {
+            io::filtering_ostream out2;
+            out2.push(io::zlib_compressor());
+            out2.push(BackInsertDevice(test2));
+            lt::bencode(std::ostream_iterator<char>(out2), merkleTreesEntry);
+        }
+
+        QByteArray check1;
+        {
+            io::filtering_istream in1;
+            in1.push(io::zlib_decompressor());
+            in1.push(io::array_source(test1.data(), test1.size()));
+            io::copy(in1, BackInsertDevice(check1));
+        }
+        Q_ASSERT(source == check1);
+
+        QByteArray check2;
+        {
+            io::filtering_istream in2;
+            in2.push(io::zlib_decompressor());
+            in2.push(io::array_source(test2.data(), test2.size()));
+            io::copy(in2, BackInsertDevice(check2));
+        }
+        Q_ASSERT(source == check2);
+
+        // QByteArray treesData;
+        // treesData.reserve(512 * 1024 * 1024);
+
+        // treesData.append('l');
+        // for (std::size_t i = 0; i < addTorrentParams.merkle_trees.size(); ++i)
+        // {
+        //     const auto f = static_cast<lt::file_index_t>(i);
+        //     const std::vector<lt::sha256_hash> &tree = addTorrentParams.merkle_trees[f];
+
+        //     auto tt1 = QDateTime::currentMSecsSinceEpoch();
+
+        //     treesData.append('d');
+
+
+        //     treesData.append("6:hashes");
+        //     treesData.append(QByteArray::number(tree.size() * 32)).append(':');
+        //     for (const lt::sha256_hash &n : tree)
+        //         treesData.append(n.data(), n.size());
+
+        //     auto tt2 = QDateTime::currentMSecsSinceEpoch();
+        //     ht += tt2 - tt1;
+
+        //     if (f < addTorrentParams.merkle_tree_mask.end_index())
+        //     {
+        //         const std::vector<bool> &merkleTreeMask = addTorrentParams.merkle_tree_mask[f];
+        //         if (!merkleTreeMask.empty())
+        //         {
+        //             treesData.append("4:mask");
+        //             treesData.append(QByteArray::number(merkleTreeMask.size())).append(':');
+        //             for (const auto bit : merkleTreeMask)
+        //                 treesData.append(bit ? '1' : '0');
+        //         }
+        //     }
+
+        //     auto tt3 = QDateTime::currentMSecsSinceEpoch();
+        //     mt += tt3 - tt2;
+
+        //     if (f < addTorrentParams.verified_leaf_hashes.end_index())
+        //     {
+        //         const std::vector<bool> &verifiedLeafHashes = addTorrentParams.verified_leaf_hashes[f];
+        //         if (!verifiedLeafHashes.empty())
+        //         {
+        //             treesData.append("8:verified");
+        //             treesData.append(QByteArray::number(verifiedLeafHashes.size())).append(':');
+        //             for (const auto bit : verifiedLeafHashes)
+        //                 treesData.append(bit ? '1' : '0');
+        //         }
+        //     }
+
+        //     auto tt4 = QDateTime::currentMSecsSinceEpoch();
+        //     vt += tt4 - tt3;
+
+        //     treesData.append('e');
+        // }
+        // treesData.append('e');
+
+        // auto t2 = QDateTime::currentMSecsSinceEpoch();
+
+        qDebug() << "Data size:" << qPrintable(Utils::Misc::friendlyUnit(treesData.size()));
+        qDebug() << "Converting time:" << t2 - t1 << "msecs";
+        qDebug() << "    Hashes:" << ht << "msecs";
+        qDebug() << "    Verified:" << vt << "msecs";
+        qDebug() << "    Mask:" << mt << "msecs";
+
+        return treesData;
+    }
+#endif
 }
 
 BitTorrent::BencodeResumeDataStorage::BencodeResumeDataStorage(const Path &path, QObject *parent)
@@ -293,6 +558,28 @@ BitTorrent::LoadResumeDataResult BitTorrent::BencodeResumeDataStorage::loadTorre
     if (ec)
         return nonstd::make_unexpected(tr("Cannot parse resume data: %1").arg(QString::fromStdString(ec.message())));
 
+#ifdef QBT_USES_LIBTORRENT2
+    const lt::string_view compressedTreesData = resumeDataRoot.dict_find_string_value("qBt-merkleTreesData");
+    if (!compressedTreesData.empty())
+    {
+        // QByteArray treesData;
+        // treesData.reserve(512 * 1024 * 1024);
+        // io::filtering_streambuf<io::input> in;
+        // in.push(io::zlib_decompressor());
+        // in.push(io::array_source(compressedTreesData.data(), compressedTreesData.size()));
+        // io::copy(in, BackInsertDevice(treesData));
+
+        const QByteArray treesData = qUncompress(reinterpret_cast<const uchar *>(compressedTreesData.data())
+                , static_cast<qsizetype>(compressedTreesData.size()));
+        const lt::bdecode_node treesDataRoot = lt::bdecode(treesData, ec
+                , nullptr, pref->getBdecodeDepthLimit(), pref->getBdecodeTokenLimit());
+        if (ec)
+            return nonstd::make_unexpected(tr("Cannot parse resume data: %1").arg(QString::fromStdString(ec.message())));
+
+        readMerkleTrees(treesDataRoot, p);
+    }
+#endif
+
     if (!metadata.isEmpty())
     {
         const lt::bdecode_node torentInfoRoot = lt::bdecode(metadata, ec
@@ -397,6 +684,13 @@ void BitTorrent::BencodeResumeDataStorage::Worker::store(const TorrentID &id, co
         }
     }
 
+#ifdef QBT_USES_LIBTORRENT2
+    const QByteArray merkleTreesData = serializeMerkleTrees(p);
+    p.merkle_trees.clear();
+    p.merkle_tree_mask.clear();
+    p.verified_leaf_hashes.clear();
+#endif
+
     lt::entry data = lt::write_resume_data(p);
 
     // metadata is stored in separate .torrent file
@@ -419,6 +713,13 @@ void BitTorrent::BencodeResumeDataStorage::Worker::store(const TorrentID &id, co
             return;
         }
     }
+
+#ifdef QBT_USES_LIBTORRENT2
+    auto t1 = QDateTime::currentMSecsSinceEpoch();
+    data["qBt-merkleTreesData"] = qCompress(merkleTreesData).toStdString();
+    auto t2 = QDateTime::currentMSecsSinceEpoch();
+    qDebug() << "Compression time:" << t2 - t1 << "msecs";
+#endif
 
     data["qBt-ratioLimit"] = static_cast<int>(resumeData.ratioLimit * 1000);
     data["qBt-seedingTimeLimit"] = resumeData.seedingTimeLimit;

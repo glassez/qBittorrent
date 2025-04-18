@@ -221,6 +221,7 @@ add_library(qbt_base STATIC
 
 target_link_libraries(qbt_base
     PRIVATE
+        Boost::iostreams
         OpenSSL::Crypto
         OpenSSL::SSL
         ZLIB::ZLIB

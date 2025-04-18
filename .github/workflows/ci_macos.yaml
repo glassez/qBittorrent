@@ -72,7 +72,7 @@ jobs:
           mv "${{ github.workspace }}/.."/boost_* "${{ env.boost_path }}"
           cd "${{ env.boost_path }}"
           ./bootstrap.sh
-          ./b2 stage --stagedir=./ --with-headers
+          ./b2 stage --stagedir=./ --with-headers --with-iostreams
 
       - name: Install Qt
         uses: jurplel/install-qt-action@v4
