@@ -845,7 +845,8 @@ bool TorrentImpl::needSaveResumeData() const
 
 void TorrentImpl::requestResumeData(const lt::resume_data_flags_t flags)
 {
-    m_nativeHandle.save_resume_data(flags);
+    // Always add info dict in resume data and let resume data storage subsystem decide what to do with it.
+    m_nativeHandle.save_resume_data(flags | lt::torrent_handle::save_info_dict);
     m_deferredRequestResumeDataInvoked = false;
 
     m_session->handleTorrentResumeDataRequested(this);
@@ -855,12 +856,7 @@ void TorrentImpl::deferredRequestResumeData()
 {
     if (!m_deferredRequestResumeDataInvoked)
     {
-        QMetaObject::invokeMethod(this, [this]
-        {
-            requestResumeData((m_maintenanceJob == MaintenanceJob::HandleMetadata)
-                    ? lt::torrent_handle::save_info_dict : lt::resume_data_flags_t());
-        }, Qt::QueuedConnection);
-
+        QMetaObject::invokeMethod(this, [this] { requestResumeData(); }, Qt::QueuedConnection);
         m_deferredRequestResumeDataInvoked = true;
     }
 }

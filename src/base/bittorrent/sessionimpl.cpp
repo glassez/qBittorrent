@@ -5967,7 +5967,7 @@ TorrentImpl *SessionImpl::createTorrent(const lt::torrent_handle &nativeHandle, 
         if (params.addToQueueTop)
             nativeHandle.queue_position_top();
 
-        torrent->requestResumeData(lt::torrent_handle::save_info_dict);
+        torrent->requestResumeData();
 
         // The following is useless for newly added magnet
         if (torrent->hasMetadata())
