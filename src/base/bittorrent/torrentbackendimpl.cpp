@@ -26,7 +26,7 @@
  * exception statement from your version.
  */
 
-#include "torrentbackend.h"
+#include "torrentbackendimpl.h"
 
 #include <libtorrent/announce_entry.hpp>
 #include <libtorrent/session.hpp>
@@ -62,26 +62,26 @@ namespace
     }
 }
 
-BitTorrent::TorrentBackend::TorrentBackend(Executor *executor, lt::session *ltSession, lt::torrent_handle ltTorrentHandle, QObject *parent)
-    : QObject(parent)
+BitTorrent::TorrentBackendImpl::TorrentBackendImpl(Executor *executor, lt::session *ltSession, lt::torrent_handle ltTorrentHandle, QObject *parent)
+    : TorrentBackend(parent)
     , m_executor {executor}
     , m_ltSession {ltSession}
     , m_ltTorrentHandle {std::move(ltTorrentHandle)}
 {
 }
 
-BitTorrent::TorrentBackend::~TorrentBackend()
+BitTorrent::TorrentBackendImpl::~TorrentBackendImpl()
 {
     qDebug() << Q_FUNC_INFO;
 }
 
-lt::torrent_handle BitTorrent::TorrentBackend::ltTorrentHandle() const
+lt::torrent_handle BitTorrent::TorrentBackendImpl::ltTorrentHandle() const
 {
     const QReadLocker locker {&m_torrentHandleLock};
     return m_ltTorrentHandle;
 }
 
-BitTorrent::InfoHash BitTorrent::TorrentBackend::infoHash() const
+BitTorrent::InfoHash BitTorrent::TorrentBackendImpl::infoHash() const
 {
 #ifdef QBT_USES_LIBTORRENT2
     return ltTorrentHandle().info_hashes();
@@ -90,7 +90,7 @@ BitTorrent::InfoHash BitTorrent::TorrentBackend::infoHash() const
 #endif
 }
 
-void BitTorrent::TorrentBackend::start(const TorrentOperatingMode mode)
+void BitTorrent::TorrentBackendImpl::start(const TorrentOperatingMode mode)
 {
     m_executor->addJob([self = shared_from_this(), mode]
     {
@@ -109,7 +109,7 @@ void BitTorrent::TorrentBackend::start(const TorrentOperatingMode mode)
     });
 }
 
-void BitTorrent::TorrentBackend::stop()
+void BitTorrent::TorrentBackendImpl::stop()
 {
     m_executor->addJob([self = shared_from_this()]
     {
@@ -118,7 +118,7 @@ void BitTorrent::TorrentBackend::stop()
     });
 }
 
-void BitTorrent::TorrentBackend::forceRecheck()
+void BitTorrent::TorrentBackendImpl::forceRecheck()
 {
     m_executor->addJob([self = shared_from_this()]
     {
@@ -126,7 +126,7 @@ void BitTorrent::TorrentBackend::forceRecheck()
     });
 }
 
-void BitTorrent::TorrentBackend::forceAnnounce(const int index, int seconds, const lt::reannounce_flags_t flags)
+void BitTorrent::TorrentBackendImpl::forceAnnounce(const int index, int seconds, const lt::reannounce_flags_t flags)
 {
     m_executor->addJob([self = shared_from_this(), index, seconds, flags]
     {
@@ -134,7 +134,7 @@ void BitTorrent::TorrentBackend::forceAnnounce(const int index, int seconds, con
     });
 }
 
-void BitTorrent::TorrentBackend::forceDHTAnnounce()
+void BitTorrent::TorrentBackendImpl::forceDHTAnnounce()
 {
     m_executor->addJob([self = shared_from_this()]
     {
@@ -142,7 +142,7 @@ void BitTorrent::TorrentBackend::forceDHTAnnounce()
     });
 }
 
-void BitTorrent::TorrentBackend::addTrackers(QList<TrackerEntry> trackers)
+void BitTorrent::TorrentBackendImpl::addTrackers(QList<TrackerEntry> trackers)
 {
     m_executor->addJob([self = shared_from_this(), trackers = std::move(trackers)]
     {
@@ -151,7 +151,7 @@ void BitTorrent::TorrentBackend::addTrackers(QList<TrackerEntry> trackers)
     });
 }
 
-void BitTorrent::TorrentBackend::replaceTrackers(QList<TrackerEntry> trackers)
+void BitTorrent::TorrentBackendImpl::replaceTrackers(QList<TrackerEntry> trackers)
 {
     m_executor->addJob([self = shared_from_this(), trackers = std::move(trackers)]
     {
@@ -163,7 +163,7 @@ void BitTorrent::TorrentBackend::replaceTrackers(QList<TrackerEntry> trackers)
     });
 }
 
-void BitTorrent::TorrentBackend::addUrlSeeds(QList<QUrl> urlSeeds)
+void BitTorrent::TorrentBackendImpl::addUrlSeeds(QList<QUrl> urlSeeds)
 {
     m_executor->addJob([self = shared_from_this(), urlSeeds = std::move(urlSeeds)]
     {
@@ -172,7 +172,7 @@ void BitTorrent::TorrentBackend::addUrlSeeds(QList<QUrl> urlSeeds)
     });
 }
 
-void BitTorrent::TorrentBackend::removeUrlSeeds(QList<QUrl> urlSeeds)
+void BitTorrent::TorrentBackendImpl::removeUrlSeeds(QList<QUrl> urlSeeds)
 {
     m_executor->addJob([self = shared_from_this(), urlSeeds = std::move(urlSeeds)]
     {
@@ -181,7 +181,7 @@ void BitTorrent::TorrentBackend::removeUrlSeeds(QList<QUrl> urlSeeds)
     });
 }
 
-void BitTorrent::TorrentBackend::connectPeer(PeerAddress peerAddress)
+void BitTorrent::TorrentBackendImpl::connectPeer(PeerAddress peerAddress)
 {
     m_executor->addJob([self = shared_from_this(), peerAddress = std::move(peerAddress)]
     {
@@ -198,7 +198,7 @@ void BitTorrent::TorrentBackend::connectPeer(PeerAddress peerAddress)
     });
 }
 
-void BitTorrent::TorrentBackend::clearPeers()
+void BitTorrent::TorrentBackendImpl::clearPeers()
 {
     m_executor->addJob([self = shared_from_this()]
     {
@@ -206,7 +206,7 @@ void BitTorrent::TorrentBackend::clearPeers()
     });
 }
 
-void BitTorrent::TorrentBackend::setMaxConnections(const int max)
+void BitTorrent::TorrentBackendImpl::setMaxConnections(const int max)
 {
     m_executor->addJob([self = shared_from_this(), max]
     {
@@ -214,7 +214,7 @@ void BitTorrent::TorrentBackend::setMaxConnections(const int max)
     });
 }
 
-void BitTorrent::TorrentBackend::setMaxUploads(const int max)
+void BitTorrent::TorrentBackendImpl::setMaxUploads(const int max)
 {
     m_executor->addJob([self = shared_from_this(), max]
     {
@@ -222,7 +222,7 @@ void BitTorrent::TorrentBackend::setMaxUploads(const int max)
     });
 }
 
-void BitTorrent::TorrentBackend::setMetadata(TorrentInfo torrentInfo)
+void BitTorrent::TorrentBackendImpl::setMetadata(TorrentInfo torrentInfo)
 {
     m_executor->addJob([self = shared_from_this(), torrentInfo = std::move(torrentInfo)]
     {
@@ -239,7 +239,7 @@ void BitTorrent::TorrentBackend::setMetadata(TorrentInfo torrentInfo)
     });
 }
 
-void BitTorrent::TorrentBackend::setSequentialDownload(const bool enable)
+void BitTorrent::TorrentBackendImpl::setSequentialDownload(const bool enable)
 {
     m_executor->addJob([self = shared_from_this(), enable]
     {
@@ -250,7 +250,7 @@ void BitTorrent::TorrentBackend::setSequentialDownload(const bool enable)
     });
 }
 
-void BitTorrent::TorrentBackend::setSuperSeeding(const bool enable)
+void BitTorrent::TorrentBackendImpl::setSuperSeeding(const bool enable)
 {
     m_executor->addJob([self = shared_from_this(), enable]
     {
@@ -261,7 +261,7 @@ void BitTorrent::TorrentBackend::setSuperSeeding(const bool enable)
     });
 }
 
-void BitTorrent::TorrentBackend::setDHTDisabled(const bool disable)
+void BitTorrent::TorrentBackendImpl::setDHTDisabled(const bool disable)
 {
     m_executor->addJob([self = shared_from_this(), disable]
     {
@@ -272,7 +272,7 @@ void BitTorrent::TorrentBackend::setDHTDisabled(const bool disable)
     });
 }
 
-void BitTorrent::TorrentBackend::setPEXDisabled(const bool disable)
+void BitTorrent::TorrentBackendImpl::setPEXDisabled(const bool disable)
 {
     m_executor->addJob([self = shared_from_this(), disable]
     {
@@ -283,7 +283,7 @@ void BitTorrent::TorrentBackend::setPEXDisabled(const bool disable)
     });
 }
 
-void BitTorrent::TorrentBackend::setLSDDisabled(const bool disable)
+void BitTorrent::TorrentBackendImpl::setLSDDisabled(const bool disable)
 {
     m_executor->addJob([self = shared_from_this(), disable]
     {
@@ -294,7 +294,7 @@ void BitTorrent::TorrentBackend::setLSDDisabled(const bool disable)
     });
 }
 
-void BitTorrent::TorrentBackend::setSSLParameters(SSLParameters sslParameters)
+void BitTorrent::TorrentBackendImpl::setSSLParameters(SSLParameters sslParameters)
 {
     m_executor->addJob([self = shared_from_this(), sslParameters = std::move(sslParameters)]
     {
@@ -303,7 +303,7 @@ void BitTorrent::TorrentBackend::setSSLParameters(SSLParameters sslParameters)
     });
 }
 
-void BitTorrent::TorrentBackend::setDownloadLimit(const int limit)
+void BitTorrent::TorrentBackendImpl::setDownloadLimit(const int limit)
 {
     m_executor->addJob([self = shared_from_this(), limit]
     {
@@ -311,7 +311,7 @@ void BitTorrent::TorrentBackend::setDownloadLimit(const int limit)
     });
 }
 
-void BitTorrent::TorrentBackend::setUploadLimit(const int limit)
+void BitTorrent::TorrentBackendImpl::setUploadLimit(const int limit)
 {
     m_executor->addJob([self = shared_from_this(), limit]
     {
@@ -319,7 +319,7 @@ void BitTorrent::TorrentBackend::setUploadLimit(const int limit)
     });
 }
 
-void BitTorrent::TorrentBackend::flushCache()
+void BitTorrent::TorrentBackendImpl::flushCache()
 {
     m_executor->addJob([self = shared_from_this()]
     {
@@ -327,7 +327,7 @@ void BitTorrent::TorrentBackend::flushCache()
     });
 }
 
-void BitTorrent::TorrentBackend::renameFile(const lt::file_index_t index, Path path)
+void BitTorrent::TorrentBackendImpl::renameFile(const lt::file_index_t index, Path path)
 {
     m_executor->addJob([self = shared_from_this(), index, path = std::move(path)]
     {
@@ -335,7 +335,7 @@ void BitTorrent::TorrentBackend::renameFile(const lt::file_index_t index, Path p
     });
 }
 
-void BitTorrent::TorrentBackend::prioritizeFiles(std::vector<lt::download_priority_t> filePriorities)
+void BitTorrent::TorrentBackendImpl::prioritizeFiles(std::vector<lt::download_priority_t> filePriorities)
 {
     m_executor->addJob([self = shared_from_this(), filePriorities = std::move(filePriorities)]
     {
@@ -343,7 +343,7 @@ void BitTorrent::TorrentBackend::prioritizeFiles(std::vector<lt::download_priori
     });
 }
 
-void BitTorrent::TorrentBackend::prioritizePieces(std::vector<lt::download_priority_t> piecePriorities)
+void BitTorrent::TorrentBackendImpl::prioritizePieces(std::vector<lt::download_priority_t> piecePriorities)
 {
     m_executor->addJob([self = shared_from_this(), piecePriorities = std::move(piecePriorities)]
     {
@@ -351,7 +351,7 @@ void BitTorrent::TorrentBackend::prioritizePieces(std::vector<lt::download_prior
     });
 }
 
-void BitTorrent::TorrentBackend::queuePositionUp()
+void BitTorrent::TorrentBackendImpl::queuePositionUp()
 {
     m_executor->addJob([self = shared_from_this()]
     {
@@ -359,7 +359,7 @@ void BitTorrent::TorrentBackend::queuePositionUp()
     });
 }
 
-void BitTorrent::TorrentBackend::queuePositionDown()
+void BitTorrent::TorrentBackendImpl::queuePositionDown()
 {
     m_executor->addJob([self = shared_from_this()]
     {
@@ -367,7 +367,7 @@ void BitTorrent::TorrentBackend::queuePositionDown()
     });
 }
 
-void BitTorrent::TorrentBackend::queuePositionTop()
+void BitTorrent::TorrentBackendImpl::queuePositionTop()
 {
     m_executor->addJob([self = shared_from_this()]
     {
@@ -375,7 +375,7 @@ void BitTorrent::TorrentBackend::queuePositionTop()
     });
 }
 
-void BitTorrent::TorrentBackend::queuePositionBottom()
+void BitTorrent::TorrentBackendImpl::queuePositionBottom()
 {
     m_executor->addJob([self = shared_from_this()]
     {
@@ -383,7 +383,7 @@ void BitTorrent::TorrentBackend::queuePositionBottom()
     });
 }
 
-void BitTorrent::TorrentBackend::requestResumeData(const lt::resume_data_flags_t flags)
+void BitTorrent::TorrentBackendImpl::requestResumeData(const lt::resume_data_flags_t flags)
 {
     m_executor->addJob([self = shared_from_this(), flags]
     {
@@ -391,11 +391,29 @@ void BitTorrent::TorrentBackend::requestResumeData(const lt::resume_data_flags_t
     });
 }
 
-void BitTorrent::TorrentBackend::reload(lt::add_torrent_params ltAddTorrentParams
+void BitTorrent::TorrentBackendImpl::reload(lt::add_torrent_params ltAddTorrentParams
         , const bool isStopped, const TorrentOperatingMode operatingMode)
 {
+    ltAddTorrentParams.flags |= lt::torrent_flags::update_subscribe
+            | lt::torrent_flags::override_trackers
+            | lt::torrent_flags::override_web_seeds;
+
+    if (isStopped)
+    {
+        ltAddTorrentParams.flags |= lt::torrent_flags::paused;
+        ltAddTorrentParams.flags &= ~lt::torrent_flags::auto_managed;
+    }
+    else if (operatingMode == TorrentOperatingMode::AutoManaged)
+    {
+        ltAddTorrentParams.flags |= (lt::torrent_flags::auto_managed | lt::torrent_flags::paused);
+    }
+    else
+    {
+        ltAddTorrentParams.flags &= ~(lt::torrent_flags::auto_managed | lt::torrent_flags::paused);
+    }
+
     m_executor->addJob([self = shared_from_this()
-            , ltAddTorrentParams = std::move(ltAddTorrentParams), isStopped, operatingMode]
+            , ltAddTorrentParams = std::move(ltAddTorrentParams)]() mutable
     {
         lt::torrent_handle ltTorrentHandle = self->m_ltTorrentHandle;
         lt::session *ltSession = self->m_ltSession;
@@ -404,33 +422,14 @@ void BitTorrent::TorrentBackend::reload(lt::add_torrent_params ltAddTorrentParam
 
         ltSession->remove_torrent(ltTorrentHandle, lt::session::delete_partfile);
 
-        lt::add_torrent_params p = ltAddTorrentParams;
-        p.flags |= lt::torrent_flags::update_subscribe
-                | lt::torrent_flags::override_trackers
-                | lt::torrent_flags::override_web_seeds;
-
-        if (isStopped)
-        {
-            p.flags |= lt::torrent_flags::paused;
-            p.flags &= ~lt::torrent_flags::auto_managed;
-        }
-        else if (operatingMode == TorrentOperatingMode::AutoManaged)
-        {
-            p.flags |= (lt::torrent_flags::auto_managed | lt::torrent_flags::paused);
-        }
-        else
-        {
-            p.flags &= ~(lt::torrent_flags::auto_managed | lt::torrent_flags::paused);
-        }
-
         auto *const extensionData = new ExtensionData;
-        p.userdata = LTClientData(extensionData);
+        ltAddTorrentParams.userdata = LTClientData(extensionData);
     #ifndef QBT_USES_LIBTORRENT2
-        p.storage = customStorageConstructor;
+        ltAddTorrentParams.storage = customStorageConstructor;
     #endif
 
         QWriteLocker locker {&self->m_torrentHandleLock};
-        ltTorrentHandle = ltSession->add_torrent(p);
+        ltTorrentHandle = ltSession->add_torrent(ltAddTorrentParams);
         locker.unlock();
 
         if (queuePos >= lt::queue_position_t {})
@@ -443,7 +442,7 @@ void BitTorrent::TorrentBackend::reload(lt::add_torrent_params ltAddTorrentParam
     });
 }
 
-QFuture<QList<BitTorrent::PeerInfo>> BitTorrent::TorrentBackend::fetchPeerInfo()
+QFuture<QList<BitTorrent::PeerInfo>> BitTorrent::TorrentBackendImpl::fetchPeerInfo()
 {
     auto promise = std::make_shared<QPromise<QList<PeerInfo>>>();
 
@@ -467,7 +466,7 @@ QFuture<QList<BitTorrent::PeerInfo>> BitTorrent::TorrentBackend::fetchPeerInfo()
     return promise->future();
 }
 
-QFuture<QList<int>> BitTorrent::TorrentBackend::fetchDownloadingPieces()
+QFuture<QList<int>> BitTorrent::TorrentBackendImpl::fetchDownloadingPieces()
 {
     auto promise = std::make_shared<QPromise<QList<int>>>();
 
@@ -490,7 +489,7 @@ QFuture<QList<int>> BitTorrent::TorrentBackend::fetchDownloadingPieces()
     return promise->future();
 }
 
-QFuture<QList<int>> BitTorrent::TorrentBackend::fetchPieceAvailability()
+QFuture<QList<int>> BitTorrent::TorrentBackendImpl::fetchPieceAvailability()
 {
     auto promise = std::make_shared<QPromise<QList<int>>>();
 
@@ -508,7 +507,7 @@ QFuture<QList<int>> BitTorrent::TorrentBackend::fetchPieceAvailability()
     return promise->future();
 }
 
-QFuture<QList<QUrl>> BitTorrent::TorrentBackend::fetchURLSeeds()
+QFuture<QList<QUrl>> BitTorrent::TorrentBackendImpl::fetchURLSeeds()
 {
     auto promise = std::make_shared<QPromise<QList<QUrl>>>();
 
@@ -530,7 +529,7 @@ QFuture<QList<QUrl>> BitTorrent::TorrentBackend::fetchURLSeeds()
     return promise->future();
 }
 
-QFuture<std::vector<lt::announce_entry>> BitTorrent::TorrentBackend::fetchAnnounceEntries()
+QFuture<std::vector<lt::announce_entry>> BitTorrent::TorrentBackendImpl::fetchAnnounceEntries()
 {
     auto promise = std::make_shared<QPromise<std::vector<lt::announce_entry>>>();
 
@@ -544,7 +543,12 @@ QFuture<std::vector<lt::announce_entry>> BitTorrent::TorrentBackend::fetchAnnoun
     return promise->future();
 }
 
-QFuture<std::shared_ptr<const lt::torrent_info>> BitTorrent::TorrentBackend::fetchTorrentFileWithHashes()
+void BitTorrent::TorrentBackendImpl::handleStateUpdated(const lt::torrent_status &nativeStatus)
+{
+    emit stateUpdated(nativeStatus);
+}
+
+QFuture<std::shared_ptr<const lt::torrent_info>> BitTorrent::TorrentBackendImpl::fetchTorrentFileWithHashes()
 {
     auto promise = std::make_shared<QPromise<std::shared_ptr<const lt::torrent_info>>>();
 

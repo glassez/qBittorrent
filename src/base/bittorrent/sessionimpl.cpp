@@ -111,7 +111,6 @@
 #include "torrentbackend.h"
 #include "torrentcontentremover.h"
 #include "torrentdescriptor.h"
-#include "torrentimpl.h"
 #include "tracker.h"
 #include "trackerentry.h"
 #include "trackerentrystatus.h"
@@ -582,6 +581,7 @@ SessionImpl::SessionImpl(QObject *parent)
     });
 
     m_backend = initializeSessionBackend();
+    connect(m_backend, &SessionBackend::torrentsUpdated, this, &SessionImpl::onTorrentsUpdated);
 
     m_backendExecutor->setObjectName("SessionImpl::m_backendExecutor");
     m_backendExecutor->start();
@@ -1581,8 +1581,8 @@ void SessionImpl::processNextResumeData(ResumeSessionContext *context)
 #endif
 
     qDebug() << "Starting up torrent" << torrentID.toString() << "...";
-    m_backend->addTorrentAsync(resumeData.ltAddTorrentParams);
-    m_addTorrentAlertHandlers.append([this, resumeData = std::move(resumeData)](const lt::add_torrent_alert *alert) mutable
+    m_backend->addTorrentAsync(resumeData.ltAddTorrentParams
+            , [this, resumeData = std::move(resumeData)](const lt::add_torrent_alert *alert) mutable
     {
         if (alert->error)
         {
@@ -1736,7 +1736,7 @@ SessionBackend *SessionImpl::initializeSessionBackend()
         QMetaObject::invokeMethod(this, &SessionImpl::readAlerts, Qt::QueuedConnection);
     });
 
-    return new SessionBackend(m_backendExecutor, nativeSession);
+    return SessionBackend::create(m_backendExecutor, nativeSession);
 }
 
 void SessionImpl::processBannedIPs(lt::ip_filter &filter)
@@ -2390,7 +2390,7 @@ void SessionImpl::torrentContentRemovingFinished(const QString &torrentName, con
     }
 }
 
-Torrent *SessionImpl::getTorrent(const TorrentID &id) const
+TorrentImpl *SessionImpl::getTorrent(const TorrentID &id) const
 {
     return m_torrents.value(id);
 }
@@ -2972,8 +2972,8 @@ bool SessionImpl::addTorrent_impl(const TorrentDescriptor &source, const AddTorr
                 p.renamed_files[nativeIndexes[i]] = result.fileNames[i].toString().toStdString();
         }
 
-        m_backend->addTorrentAsync(p);
-        m_addTorrentAlertHandlers.append([this, loadTorrentParams = std::move(loadTorrentParams)](const lt::add_torrent_alert *alert) mutable
+        m_backend->addTorrentAsync(p
+                , [this, loadTorrentParams = std::move(loadTorrentParams)](const lt::add_torrent_alert *alert) mutable
         {
             if (alert->error)
             {
@@ -3123,10 +3123,8 @@ bool SessionImpl::downloadMetadata(const TorrentDescriptor &torrentDescr)
     p.storage = customStorageConstructor;
 #endif
 
-    // Adding torrent to libtorrent session
-    m_backend->addTorrentAsync(p);
     m_downloadedMetadata.insert(id, {});
-    m_addTorrentAlertHandlers.append([this](const lt::add_torrent_alert *alert)
+    m_backend->addTorrentAsync(p, [this](const lt::add_torrent_alert *alert)
     {
         if (alert->error)
         {
@@ -5709,19 +5707,6 @@ void SessionImpl::readAlerts()
     processPendingFinishedTorrents();
 }
 
-void SessionImpl::handleAddTorrentAlert(const lt::add_torrent_alert *alert)
-{
-    ++m_receivedAddTorrentAlertsCount;
-
-    // FIXME: Need to handle torrent reloading!
-    Q_ASSERT(!m_addTorrentAlertHandlers.isEmpty());
-    if (m_addTorrentAlertHandlers.isEmpty()) [[unlikely]]
-        return;
-
-    if (const AddTorrentAlertHandler handleAlert = m_addTorrentAlertHandlers.takeFirst())
-        handleAlert(alert);
-}
-
 void SessionImpl::handleAlert(lt::alert *alert)
 {
     try
@@ -5780,9 +5765,6 @@ void SessionImpl::handleAlert(lt::alert *alert)
         case lt::tracker_reply_alert::alert_type:
         case lt::tracker_warning_alert::alert_type:
             handleTrackerAlert(static_cast<const lt::tracker_alert *>(alert));
-            break;
-        case lt::add_torrent_alert::alert_type:
-            handleAddTorrentAlert(static_cast<const lt::add_torrent_alert *>(alert));
             break;
         case lt::torrent_removed_alert::alert_type:
             handleTorrentRemovedAlert(static_cast<const lt::torrent_removed_alert *>(alert));
@@ -6228,33 +6210,6 @@ void SessionImpl::handleStorageMovedFailedAlert(const lt::storage_moved_failed_a
     handleMoveTorrentStorageJobFinished(currentLocation);
 }
 
-void SessionImpl::handleStateUpdateAlert(const lt::state_update_alert *alert)
-{
-    QList<Torrent *> updatedTorrents;
-    updatedTorrents.reserve(static_cast<decltype(updatedTorrents)::size_type>(alert->status.size()));
-
-    for (const lt::torrent_status &status : alert->status)
-    {
-        TorrentImpl *const torrent = getTorrent(status.handle);
-        if (!torrent)
-            continue;
-
-        torrent->handleStateUpdate(status);
-        updatedTorrents.push_back(torrent);
-    }
-
-    if (!updatedTorrents.isEmpty())
-        emit torrentsUpdated(updatedTorrents);
-
-    if (m_needSaveTorrentsQueue)
-        saveTorrentsQueue();
-
-    if (m_refreshEnqueued)
-        m_refreshEnqueued = false;
-    else
-        enqueueRefresh();
-}
-
 void SessionImpl::handleSocks5Alert(const lt::socks5_alert *alert) const
 {
     if (alert->error)
@@ -6353,6 +6308,32 @@ void SessionImpl::handleTorrentFinishedAlert([[maybe_unused]] const lt::torrent_
 {
     if (TorrentImpl *torrent = getTorrent(alert->handle)) [[likely]]
         torrent->handleTorrentFinished();
+}
+
+void SessionImpl::onTorrentsUpdated(const QList<TorrentID> &torrentIDs)
+{
+    QList<Torrent *> updatedTorrents;
+    updatedTorrents.reserve(static_cast<decltype(updatedTorrents)::size_type>(torrentIDs.size()));
+
+    for (const TorrentID &torrentID : torrentIDs)
+    {
+        TorrentImpl *const torrent = getTorrent(torrentID);
+        if (!torrent) [[unlikely]]
+            continue;
+
+        updatedTorrents.append(torrent);
+    }
+
+    if (!updatedTorrents.isEmpty())
+        emit torrentsUpdated(updatedTorrents);
+
+    if (m_needSaveTorrentsQueue)
+        saveTorrentsQueue();
+
+    if (m_refreshEnqueued)
+        m_refreshEnqueued = false;
+    else
+        enqueueRefresh();
 }
 
 void SessionImpl::handleSaveResumeDataAlert(lt::save_resume_data_alert *alert)

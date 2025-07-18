@@ -53,6 +53,7 @@
 #include "categoryoptions.h"
 #include "session.h"
 #include "sessionstatus.h"
+#include "torrentimpl.h"
 #include "torrentinfo.h"
 
 class QString;
@@ -77,10 +78,8 @@ namespace BitTorrent
     class InfoHash;
     class ResumeDataStorage;
     class SessionBackend;
-    class Torrent;
     class TorrentContentRemover;
     class TorrentDescriptor;
-    class TorrentImpl;
     class Tracker;
 
     struct LoadTorrentParams;
@@ -430,7 +429,7 @@ namespace BitTorrent
         void pause() override;
         void resume() override;
 
-        Torrent *getTorrent(const TorrentID &id) const override;
+        TorrentImpl *getTorrent(const TorrentID &id) const override;
         Torrent *findTorrent(const InfoHash &infoHash) const override;
         QList<Torrent *> torrents() const override;
         qsizetype torrentsCount() const override;
@@ -569,8 +568,6 @@ namespace BitTorrent
         void exportTorrentFile(const Torrent *torrent, const Path &folderPath);
 
         void handleAlert(lt::alert *alert);
-        void handleAddTorrentAlert(const lt::add_torrent_alert *alert);
-        void handleStateUpdateAlert(const lt::state_update_alert *alert);
         void handleMetadataReceivedAlert(const lt::metadata_received_alert *alert);
         void handleFileErrorAlert(const lt::file_error_alert *alert);
         void handleTorrentRemovedAlert(const lt::torrent_removed_alert *alert);
@@ -606,6 +603,7 @@ namespace BitTorrent
         void handleSaveResumeDataFailedAlert(const lt::save_resume_data_failed_alert *alert);
         void handleTorrentCheckedAlert(const lt::torrent_checked_alert *alert);
         void handleTorrentFinishedAlert(const lt::torrent_finished_alert *alert);
+        void onTorrentsUpdated(const QList<TorrentID> &torrentIDs);
 
         TorrentImpl *createTorrent(const lt::torrent_handle &nativeHandle, LoadTorrentParams params);
         TorrentImpl *getTorrent(const lt::torrent_handle &nativeHandle) const;

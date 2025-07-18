@@ -312,6 +312,7 @@ TorrentImpl::TorrentImpl(SessionImpl *session, std::shared_ptr<TorrentBackend> b
     , m_downloadLimit {cleanLimitValue(m_ltAddTorrentParams.download_limit)}
     , m_uploadLimit {cleanLimitValue(m_ltAddTorrentParams.upload_limit)}
 {
+    connect(m_backend.get(), &TorrentBackend::stateUpdated, this, &TorrentImpl::handleStateUpdate);
     connect(m_backend.get(), &TorrentBackend::reloaded, this, &TorrentImpl::onBackendReloaded);
 
     if (m_ltAddTorrentParams.ti)
@@ -2422,12 +2423,6 @@ bool TorrentImpl::isMoveInProgress() const
 
 void TorrentImpl::updateStatus(const lt::torrent_status &nativeStatus)
 {
-    // Since libtorrent alerts are handled asynchronously there can be obsolete
-    // "state update" event reached here after torrent was reloaded in libtorrent.
-    // Just discard such events.
-    if (nativeStatus.handle != m_backend->ltTorrentHandle()) [[unlikely]]
-        return;
-
     const lt::torrent_status oldStatus = std::exchange(m_nativeStatus, nativeStatus);
 
     if (m_nativeStatus.num_pieces != oldStatus.num_pieces)

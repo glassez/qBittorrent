@@ -28,60 +28,60 @@
 
 #pragma once
 
+#include <functional>
 #include <memory>
 #include <vector>
 
 #include <libtorrent/address.hpp>
 #include <libtorrent/fwd.hpp>
 #include <libtorrent/portmap.hpp>
+#include <libtorrent/session.hpp>
 #include <libtorrent/torrent_handle.hpp>
 
-#include <QHash>
 #include <QObject>
 #include <QSet>
 
 class Executor;
-class NativeSessionExtension;
 
 namespace BitTorrent
 {
     class TorrentBackend;
+    class TorrentID;
 
-    class SessionBackend final : public QObject
+    class SessionBackend : public QObject
     {
         Q_OBJECT
         Q_DISABLE_COPY_MOVE(SessionBackend)
 
     public:
-        SessionBackend(Executor *executor, lt::session *ltSession, QObject *parent = nullptr);
+        using AddTorrentAlertHandler = std::function<void (const lt::add_torrent_alert *alert)>;
+
+        using QObject::QObject;
 
         // Sync API
-        std::shared_ptr<TorrentBackend> createTorrentBackend(lt::torrent_handle ltTorrentHandle) const;
-        void getPendingAlerts(std::vector<lt::alert *> &alerts, const lt::time_duration time = lt::time_duration::zero()) const;
-        bool isSessionListening() const;
-        lt::session_proxy *abort();
+        virtual std::shared_ptr<TorrentBackend> createTorrentBackend(lt::torrent_handle ltTorrentHandle) = 0;
+        virtual void getPendingAlerts(std::vector<lt::alert *> &alerts, const lt::time_duration time = lt::time_duration::zero()) const = 0;
+        virtual bool isSessionListening() const = 0;
+        virtual lt::session_proxy *abort() = 0;
 
         // Async API
-        void pause();
-        void resume();
-        void addTorrentAsync(lt::add_torrent_params ltAddTorrentParams);
-        void removeTorrent(lt::torrent_handle ltTorrentHandle);
-        void blockIP(boost::asio::ip::address addr);
-        void setIPFilter(lt::ip_filter ipFilter);
-        void setPeerFilters(lt::ip_filter classFilter, lt::peer_class_type_filter classTypeFilter);
-        void setPortMappingEnabled(bool enabled);
-        void addMappedPorts(QSet<quint16> ports);
-        void removeMappedPorts(QSet<quint16> ports);
-        void applySettings(lt::settings_pack settingsPack);
-        void postTorrentUpdates(lt::status_flags_t flags = lt::status_flags_t::all());
-        void postSessionStats();
+        virtual void pause() = 0;
+        virtual void resume() = 0;
+        virtual void addTorrentAsync(lt::add_torrent_params ltAddTorrentParams, AddTorrentAlertHandler handler) = 0;
+        virtual void removeTorrent(lt::torrent_handle ltTorrentHandle) = 0;
+        virtual void blockIP(boost::asio::ip::address addr) = 0;
+        virtual void setIPFilter(lt::ip_filter ipFilter) = 0;
+        virtual void setPeerFilters(lt::ip_filter classFilter, lt::peer_class_type_filter classTypeFilter) = 0;
+        virtual void setPortMappingEnabled(bool enabled) = 0;
+        virtual void addMappedPorts(QSet<quint16> ports) = 0;
+        virtual void removeMappedPorts(QSet<quint16> ports) = 0;
+        virtual void applySettings(lt::settings_pack settingsPack) = 0;
+        virtual void postTorrentUpdates(lt::status_flags_t flags = lt::status_flags_t::all()) = 0;
+        virtual void postSessionStats() = 0;
 
-    private:
-        Executor *m_executor = nullptr;
-        lt::session *m_ltSession = nullptr;
-        NativeSessionExtension *m_nativeSessionExtension = nullptr;
+        static SessionBackend *create(Executor *executor, lt::session *ltSession);
 
-        bool m_isPortMappingEnabled = false;
-        QHash<quint16, std::vector<lt::port_mapping_t>> m_mappedPorts;
+    signals:
+        void torrentsUpdated(const QList<TorrentID> &torrents);
     };
 }

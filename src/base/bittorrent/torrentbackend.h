@@ -28,7 +28,6 @@
 
 #pragma once
 
-#include <memory>
 #include <vector>
 
 #include <libtorrent/fwd.hpp>
@@ -37,15 +36,12 @@
 #include <QtContainerFwd>
 #include <QFuture>
 #include <QObject>
-#include <QReadWriteLock>
 
 #include "base/pathfwd.h"
 #include "infohash.h"
 #include "torrentoperatingmode.h"
 
 class QUrl;
-
-class Executor;
 
 namespace BitTorrent
 {
@@ -55,65 +51,58 @@ namespace BitTorrent
     struct SSLParameters;
     struct TrackerEntry;
 
-    class TorrentBackend final : public QObject, public std::enable_shared_from_this<TorrentBackend>
+    class TorrentBackend : public QObject
     {
         Q_OBJECT
         Q_DISABLE_COPY_MOVE(TorrentBackend)
 
     public:
-        TorrentBackend(Executor *executor, lt::session *ltSession, lt::torrent_handle ltTorrentHandle, QObject *parent = nullptr);
-        ~TorrentBackend() override;
+        using QObject::QObject;
 
-        lt::torrent_handle ltTorrentHandle() const; // thread-safe
-        InfoHash infoHash() const; // thread-safe
+        virtual InfoHash infoHash() const = 0; // thread-safe
 
-        void start(TorrentOperatingMode mode);
-        void stop();
-        void forceRecheck();
-        void forceAnnounce(int index, int seconds = 0, lt::reannounce_flags_t flags = {});
-        void forceDHTAnnounce();
-        void addTrackers(QList<TrackerEntry> trackers);
-        void replaceTrackers(QList<TrackerEntry> trackers);
-        void addUrlSeeds(QList<QUrl> urlSeeds);
-        void removeUrlSeeds(QList<QUrl> urlSeeds);
-        void connectPeer(PeerAddress peerAddress);
-        void clearPeers();
-        void setMaxConnections(int max);
-        void setMaxUploads(int max);
-        void setMetadata(TorrentInfo torrentInfo);
-        void setSequentialDownload(bool enable);
-        void setSuperSeeding(bool enable);
-        void setDHTDisabled(bool enable);
-        void setPEXDisabled(bool disable);
-        void setLSDDisabled(bool disable);
-        void setSSLParameters(SSLParameters sslParameters);
-        void setDownloadLimit(int limit);
-        void setUploadLimit(int limit);
-        void flushCache();
-        void renameFile(lt::file_index_t index, Path path);
-        void prioritizeFiles(std::vector<lt::download_priority_t> filePriorities);
-        void prioritizePieces(std::vector<lt::download_priority_t> piecePriorities);
-        void queuePositionUp();
-        void queuePositionDown();
-        void queuePositionTop();
-        void queuePositionBottom();
-        void requestResumeData(lt::resume_data_flags_t flags);
-        void reload(lt::add_torrent_params ltAddTorrentParams, bool isStopped, TorrentOperatingMode operatingMode);
+        virtual void start(TorrentOperatingMode mode) = 0;
+        virtual void stop() = 0;
+        virtual void forceRecheck() = 0;
+        virtual void forceAnnounce(int index, int seconds = 0, lt::reannounce_flags_t flags = {}) = 0;
+        virtual void forceDHTAnnounce() = 0;
+        virtual void addTrackers(QList<TrackerEntry> trackers) = 0;
+        virtual void replaceTrackers(QList<TrackerEntry> trackers) = 0;
+        virtual void addUrlSeeds(QList<QUrl> urlSeeds) = 0;
+        virtual void removeUrlSeeds(QList<QUrl> urlSeeds) = 0;
+        virtual void connectPeer(PeerAddress peerAddress) = 0;
+        virtual void clearPeers() = 0;
+        virtual void setMaxConnections(int max) = 0;
+        virtual void setMaxUploads(int max) = 0;
+        virtual void setMetadata(TorrentInfo torrentInfo) = 0;
+        virtual void setSequentialDownload(bool enable) = 0;
+        virtual void setSuperSeeding(bool enable) = 0;
+        virtual void setDHTDisabled(bool enable) = 0;
+        virtual void setPEXDisabled(bool disable) = 0;
+        virtual void setLSDDisabled(bool disable) = 0;
+        virtual void setSSLParameters(SSLParameters sslParameters) = 0;
+        virtual void setDownloadLimit(int limit) = 0;
+        virtual void setUploadLimit(int limit) = 0;
+        virtual void flushCache() = 0;
+        virtual void renameFile(lt::file_index_t index, Path path) = 0;
+        virtual void prioritizeFiles(std::vector<lt::download_priority_t> filePriorities) = 0;
+        virtual void prioritizePieces(std::vector<lt::download_priority_t> piecePriorities) = 0;
+        virtual void queuePositionUp() = 0;
+        virtual void queuePositionDown() = 0;
+        virtual void queuePositionTop() = 0;
+        virtual void queuePositionBottom() = 0;
+        virtual void requestResumeData(lt::resume_data_flags_t flags) = 0;
+        virtual void reload(lt::add_torrent_params ltAddTorrentParams, bool isStopped, TorrentOperatingMode operatingMode) = 0;
 
-        QFuture<QList<PeerInfo>> fetchPeerInfo();
-        QFuture<QList<int>> fetchDownloadingPieces();
-        QFuture<QList<int>> fetchPieceAvailability();
-        QFuture<QList<QUrl>> fetchURLSeeds();
-        QFuture<std::vector<lt::announce_entry>> fetchAnnounceEntries();
-        QFuture<std::shared_ptr<const libtorrent::torrent_info>> fetchTorrentFileWithHashes();
+        virtual QFuture<QList<PeerInfo>> fetchPeerInfo() = 0;
+        virtual QFuture<QList<int>> fetchDownloadingPieces() = 0;
+        virtual QFuture<QList<int>> fetchPieceAvailability() = 0;
+        virtual QFuture<QList<QUrl>> fetchURLSeeds() = 0;
+        virtual QFuture<std::vector<lt::announce_entry>> fetchAnnounceEntries() = 0;
+        virtual QFuture<std::shared_ptr<const libtorrent::torrent_info>> fetchTorrentFileWithHashes() = 0;
 
     signals:
+        void stateUpdated(const lt::torrent_status &torrentStatus);
         void reloaded(const lt::torrent_status &torrentStatus);
-
-    private:
-        Executor *m_executor = nullptr;
-        lt::session *m_ltSession = nullptr;
-        lt::torrent_handle m_ltTorrentHandle;
-        mutable QReadWriteLock m_torrentHandleLock;
     };
 }
