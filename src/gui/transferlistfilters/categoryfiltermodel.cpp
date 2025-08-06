@@ -154,6 +154,22 @@ public:
         increaseTorrentsCount(item->torrentsCount());
     }
 
+    QIcon icon() const
+    {
+        if (!m_icon.isNull())
+            return m_icon;
+
+        if (parent())
+            return parent()->icon();
+
+        return UIThemeManager::instance()->getIcon(u"view-categories"_s, u"inode-directory"_s);
+    }
+
+    void setIcon(const QIcon &icon)
+    {
+        m_icon = icon;
+    }
+
     void clear()
     {
         // use copy of m_children for qDeleteAll
@@ -168,6 +184,7 @@ private:
     int m_torrentsCount = 0;
     QHash<QString, CategoryModelItem *> m_children;
     QStringList m_childUids;
+    QIcon m_icon;
 };
 
 namespace
@@ -217,27 +234,25 @@ int CategoryFilterModel::columnCount(const QModelIndex &) const
 
 QVariant CategoryFilterModel::data(const QModelIndex &index, int role) const
 {
-    if (!index.isValid())
+    if (!index.isValid() || (index.column() != 0))
         return {};
 
     const auto *item = static_cast<const CategoryModelItem *>(index.internalPointer());
 
-    if ((index.column() == 0) && (role == Qt::DecorationRole))
+    switch (role)
     {
-        return UIThemeManager::instance()->getIcon(u"view-categories"_s, u"inode-directory"_s);
-    }
+    case Qt::DecorationRole:
+        return item->icon();
 
-    if ((index.column() == 0) && (role == Qt::DisplayRole))
-    {
+    case Qt::DisplayRole:
         return u"%1 (%2)"_s.arg(item->name(), QString::number(item->torrentsCount()));
-    }
 
-    if ((index.column() == 0) && (role == Qt::UserRole))
-    {
+    case Qt::UserRole:
         return item->torrentsCount();
-    }
 
-    return {};
+    default:
+        return {};
+    }
 }
 
 Qt::ItemFlags CategoryFilterModel::flags(const QModelIndex &index) const
