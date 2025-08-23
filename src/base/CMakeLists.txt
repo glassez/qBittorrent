@@ -52,7 +52,9 @@ add_library(qbt_base STATIC
     bittorrent/trackerentry.h
     bittorrent/trackerentrystatus.h
     concepts/explicitlyconvertibleto.h
+    concepts/qflags.h
     concepts/stringable.h
+    datastorage.h
     digest32.h
     exceptions.h
     freediskspacechecker.h
@@ -119,6 +121,7 @@ add_library(qbt_base STATIC
     utils/sslkey.h
     utils/string.h
     utils/thread.h
+    utils/variant.h
     utils/version.h
     version.h
 
@@ -160,6 +163,7 @@ add_library(qbt_base STATIC
     bittorrent/tracker.cpp
     bittorrent/trackerentry.cpp
     bittorrent/trackerentrystatus.cpp
+    datastorage.cpp
     exceptions.cpp
     freediskspacechecker.cpp
     http/connection.cpp
@@ -216,6 +220,7 @@ add_library(qbt_base STATIC
     utils/sslkey.cpp
     utils/string.cpp
     utils/thread.cpp
+    utils/variant.cpp
     utils/version.cpp
 )
 

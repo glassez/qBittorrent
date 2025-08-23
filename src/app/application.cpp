@@ -67,6 +67,7 @@
 #include "base/bittorrent/infohash.h"
 #include "base/bittorrent/session.h"
 #include "base/bittorrent/torrent.h"
+#include "base/datastorage.h"
 #include "base/exceptions.h"
 #include "base/global.h"
 #include "base/logger.h"
@@ -290,6 +291,8 @@ Application::Application(int &argc, char **argv)
 
     SettingsStorage::initInstance();
     Preferences::initInstance();
+
+    DataStorage::initInstance();
 
     const bool firstTimeUser = SettingsStorage::instance()->isEmpty();
     if (firstTimeUser)
@@ -1396,6 +1399,7 @@ void Application::cleanup()
     Net::GeoIPManager::freeInstance();
     Net::DownloadManager::freeInstance();
     Net::ProxyConfigurationManager::freeInstance();
+    DataStorage::freeInstance();
     Preferences::freeInstance();
     SettingsStorage::freeInstance();
     SearchPluginManager::freeInstance();

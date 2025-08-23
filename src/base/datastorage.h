@@ -1,8 +1,6 @@
 /*
  * Bittorrent Client using Qt and libtorrent.
- * Copyright (C) 2023  Mike Tzou (Chocobo1)
- * Copyright (C) 2016  Vladimir Golovnev <glassez@yandex.ru>
- * Copyright (C) 2014  sledgehammer999 <hammered999@gmail.com>
+ * Copyright (C) 2025  Vladimir Golovnev <glassez@yandex.ru>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -30,11 +28,11 @@
 
 #pragma once
 
+#include <optional>
 #include <type_traits>
 
+#include <QFuture>
 #include <QObject>
-#include <QReadWriteLock>
-#include <QTimer>
 #include <QVariant>
 #include <QVariantHash>
 
@@ -42,87 +40,94 @@
 #include "base/concepts/stringable.h"
 #include "utils/string.h"
 
-// There are 2 ways for class `T` provide serialization support into `SettingsStorage`:
+// There are 2 ways for class `T` provide serialization support into `DataStorage`:
 // 1. If the `T` state is intended for users to edit (via a text editor), then
 //    `T` should satisfy `Stringable` concept
 // 2. Otherwise, use `Q_DECLARE_METATYPE(T)` and let `QMetaType` handle the serialization
-class SettingsStorage final : public QObject
+class DataStorage final : public QObject
 {
     Q_OBJECT
-    Q_DISABLE_COPY_MOVE(SettingsStorage)
+    Q_DISABLE_COPY_MOVE(DataStorage)
 
-    SettingsStorage();
-    ~SettingsStorage();
+    DataStorage(const QString &storageName);
+    ~DataStorage() override;
 
 public:
     static void initInstance();
     static void freeInstance();
-    static SettingsStorage *instance();
+    static DataStorage *instance();
+
+    QFuture<std::optional<QVariant>> fetchValue(const QString &key) const
+    {
+        return fetchValueImpl(key);
+    }
 
     template <typename T>
-    T loadValue(const QString &key, const T &defaultValue = {}) const
+    QFuture<std::optional<T>> fetchValue(const QString &key) const
     {
-        if constexpr (std::same_as<T, QVariant>)
+        if constexpr (Stringable<T>)
         {
-            // fast path for loading QVariant
-            return loadValueImpl(key, defaultValue);
-        }
-        else if constexpr (Stringable<T>)
-        {
-            const QString value = loadValue(key, defaultValue.toString());
-            return T {value};
+            return fetchValue<QString>(key).then([](const std::optional<QString> &value) -> std::optional<T>
+            {
+                if (value)
+                    return T {*value};
+                return std::nullopt;
+            });
         }
         else if constexpr (std::is_enum_v<T>)
         {
-            const auto value = loadValue<QString>(key);
-            return Utils::String::toEnum(value, defaultValue);
+            return fetchValue<QString>(key).then([](const std::optional<QString> &value) -> std::optional<T>
+            {
+                if (value)
+                    return Utils::String::toEnum<T>(*value);
+                return std::nullopt;
+            });
         }
         else if constexpr (IsQFlags<T>)
         {
-            const typename T::Int value = loadValue(key, static_cast<typename T::Int>(defaultValue));
-            return T {value};
+            return fetchValue<typename T::Int>(key).then([](const std::optional<typename T::Int> &value) -> std::optional<T>
+            {
+                if (value)
+                    return T {*value};
+                return std::nullopt;
+            });
         }
         else
         {
-            const QVariant value = loadValueImpl(key);
-            // check if retrieved value is convertible to T
-            return value.template canConvert<T>() ? value.template value<T>() : defaultValue;
+            return fetchValueImpl(key).then([](const std::optional<QVariant> &value) -> std::optional<T>
+            {
+                // check if retrieved value is convertible to T
+                if (value && value->template canConvert<T>())
+                    return value->template value<T>();
+                return std::nullopt;
+            });
         }
     }
 
     template <typename T>
-    void storeValue(const QString &key, const T &value)
+    void storeValue(const QString &key, T &&value)
     {
         if constexpr (std::same_as<T, QVariant>)
-            storeValueImpl(key, value);
+            storeValueImpl(key, std::forward<T>(value));
         else if constexpr (Stringable<T>)
-            storeValueImpl(key, value.toString());
+            storeValueImpl(key, std::forward<T>(value).toString());
         else if constexpr (std::is_enum_v<T>)
-            storeValueImpl(key, Utils::String::fromEnum(value));
+            storeValueImpl(key, Utils::String::fromEnum(std::forward<T>(value)));
         else if constexpr (IsQFlags<T>)
-            storeValueImpl(key, static_cast<typename T::Int>(value));
+            storeValueImpl(key, static_cast<typename T::Int>(std::forward<T>(value)));
         else
-            storeValueImpl(key, QVariant::fromValue(value));
+            storeValueImpl(key, QVariant::fromValue(std::forward<T>(value)));
     }
 
     void removeValue(const QString &key);
-    bool hasKey(const QString &key) const;
-    bool isEmpty() const;
-
-public slots:
-    bool save();
 
 private:
-    QVariant loadValueImpl(const QString &key, const QVariant &defaultValue = {}) const;
+    QFuture<std::optional<QVariant>> fetchValueImpl(const QString &key) const;
     void storeValueImpl(const QString &key, const QVariant &value);
-    void readNativeSettings();
-    bool writeNativeSettings() const;
+    void storeValueImpl(const QString &key, QVariant &&value);
 
-    static SettingsStorage *m_instance;
+    static DataStorage *m_instance;
 
-    const QString m_nativeSettingsName;
-    bool m_dirty = false;
-    QVariantHash m_data;
-    QTimer m_timer;
-    mutable QReadWriteLock m_lock;
+    class Worker;
+    Worker *m_asyncWorker = nullptr;
 };

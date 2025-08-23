@@ -118,4 +118,16 @@ namespace Utils::String
         const T value = static_cast<T>(metaEnum.keyToValue(serializedValue.toLatin1().constData(), &ok));
         return (ok ? value : defaultValue);
     }
+
+    template <typename T>
+    std::optional<T> toEnum(const QString &serializedValue)
+        requires std::is_enum_v<T>
+    {
+        const auto metaEnum = QMetaEnum::fromType<T>();
+        bool ok = false;
+        const T value = static_cast<T>(metaEnum.keyToValue(serializedValue.toLatin1().constData(), &ok));
+        if (ok)
+            return value;
+        return std::nullopt;
+    }
 }
