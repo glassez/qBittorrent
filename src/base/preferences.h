@@ -378,12 +378,6 @@ public:
     void setPropVisible(bool visible);
     QByteArray getTrackerListState() const;
     void setTrackerListState(const QByteArray &state);
-    QStringList getRssOpenFolders() const;
-    void setRssOpenFolders(const QStringList &folders);
-    QByteArray getRssSideSplitterState() const;
-    void setRssSideSplitterState(const QByteArray &state);
-    QByteArray getRssMainSplitterState() const;
-    void setRssMainSplitterState(const QByteArray &state);
     QByteArray getSearchTabHeaderState() const;
     void setSearchTabHeaderState(const QByteArray &state);
     bool getRegexAsFilteringPatternForSearchJob() const;

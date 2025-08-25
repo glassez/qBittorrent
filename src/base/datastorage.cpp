@@ -335,6 +335,8 @@ namespace
 
     void FetchValueJob::perform(QSqlDatabase db)
     {
+        m_promise.start();
+
         const QString selectStatement = u"SELECT `%1` FROM `%2` WHERE `%3` = :%3;"_s
                 .arg(DB_COLUMN_VALUE, DB_TABLE_NAME, DB_COLUMN_KEY);
 

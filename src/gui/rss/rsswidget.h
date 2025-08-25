@@ -1,6 +1,6 @@
 /*
  * Bittorrent Client using Qt and libtorrent.
- * Copyright (C) 2017-2023  Vladimir Golovnev <glassez@yandex.ru>
+ * Copyright (C) 2017-2025  Vladimir Golovnev <glassez@yandex.ru>
  * Copyright (C) 2006  Christophe Dumez <chris@qbittorrent.org>
  * Copyright (C) 2006  Arnaud Demaiziere <arnaud@qbittorrent.org>
  *
@@ -77,11 +77,9 @@ private slots:
     void handleCurrentArticleItemChanged(QListWidgetItem *currentItem, QListWidgetItem *previousItem);
     void openSelectedArticlesUrls();
     void downloadSelectedTorrents();
-    void saveSlidersPosition();
-    void restoreSlidersPosition();
+    void saveState();
+    void restoreState();
     void askNewFolder();
-    void saveFoldersOpenState();
-    void loadFoldersOpenState();
     void on_rssDownloaderBtn_clicked();
     void handleSessionProcessingStateChanged(bool enabled);
     void handleUnreadCountChanged();

@@ -110,6 +110,7 @@ add_library(qbt_base STATIC
     utils/datetime.h
     utils/foreignapps.h
     utils/fs.h
+    utils/future.h
     utils/gzip.h
     utils/io.h
     utils/misc.h

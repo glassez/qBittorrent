@@ -29,11 +29,15 @@
 #include "upgrade.h"
 
 #include <QtSystemDetection>
+#include <QByteArray>
 #include <QCoreApplication>
+#include <QDataStream>
 #include <QMetaEnum>
+#include <QVariant>
 
 #include "base/bittorrent/sharelimitaction.h"
 #include "base/bittorrent/torrentcontentlayout.h"
+#include "base/datastorage.h"
 #include "base/global.h"
 #include "base/logger.h"
 #include "base/net/proxyconfigurationmanager.h"
@@ -478,6 +482,73 @@ namespace
         settingsStorage->storeValue(newKey, settingsStorage->loadValue<bool>(oldKey));
         settingsStorage->removeValue(oldKey);
     }
+
+    std::optional<QList<int>> parseSplitterState(QByteArray stateData)
+    {
+        if (stateData.isEmpty())
+            return std::nullopt;
+
+        const int version = 1;
+        QDataStream stream {&stateData, QIODevice::ReadOnly};
+        stream.setVersion(QDataStream::Qt_5_0);
+
+        {
+            qint32 marker;
+            qint32 v;
+
+            stream >> marker;
+            stream >> v;
+            if ((marker != 0xff) || (v > version))
+                return std::nullopt;
+        }
+
+        QList<int> list;
+
+        stream >> list;
+        return list;
+    }
+
+    void migrateData()
+    {
+        enum class MigrationMode
+        {
+            AsIs,
+            SplitterState
+        };
+
+        const std::tuple<QString, QString, MigrationMode> mappings[] =
+        {
+            {u"GUI/RSSWidget/OpenedFolders"_s, u"GUI/RSSWidget/FeedListOpenedFolders"_s, MigrationMode::AsIs},
+            {u"GUI/Qt6/RSSWidget/SideSplitterState"_s, u"GUI/RSSWidget/SideSplitterState"_s, MigrationMode::AsIs},
+
+            {u"GUI/Qt6/RSSWidget/MainSplitterState"_s, u"GUI/RSSWidget/MainSplitterState"_s, MigrationMode::SplitterState},
+            {u"GUI/Qt6/RSSWidget/SideSplitterState"_s, u"GUI/RSSWidget/SideSplitterState"_s, MigrationMode::SplitterState},
+        };
+
+        auto *settingsStorage = SettingsStorage::instance();
+        auto *dataStorage = DataStorage::instance();
+
+        for (const auto &[oldKey, newKey, mode] : mappings)
+        {
+            switch (mode)
+            {
+            case MigrationMode::AsIs:
+            default:
+                if (const auto value = settingsStorage->loadValue<QVariant>(oldKey); value.isValid())
+                    dataStorage->storeValue(newKey, value);
+                break;
+
+            case MigrationMode::SplitterState:
+                if (const std::optional<QList<int>> value = parseSplitterState(settingsStorage->loadValue<QByteArray>(oldKey)))
+                {
+                    dataStorage->storeValue(newKey, *value);
+                }
+                break;
+            }
+
+            settingsStorage->removeValue(oldKey);
+        }
+    }
 }
 
 bool upgrade()
@@ -521,6 +592,9 @@ bool upgrade()
 
         if (version < 8)
             migrateAddPausedSetting();
+
+        if (version < 9)
+            migrateData();
 
         version = MIGRATION_VERSION;
     }

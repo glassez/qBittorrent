@@ -1716,45 +1716,6 @@ void Preferences::setTrackerListState(const QByteArray &state)
     setValue(u"GUI/Qt6/TorrentProperties/TrackerListState"_s, state);
 }
 
-QStringList Preferences::getRssOpenFolders() const
-{
-    return value<QStringList>(u"GUI/RSSWidget/OpenedFolders"_s);
-}
-
-void Preferences::setRssOpenFolders(const QStringList &folders)
-{
-    if (folders == getRssOpenFolders())
-        return;
-
-    setValue(u"GUI/RSSWidget/OpenedFolders"_s, folders);
-}
-
-QByteArray Preferences::getRssSideSplitterState() const
-{
-    return value<QByteArray>(u"GUI/Qt6/RSSWidget/SideSplitterState"_s);
-}
-
-void Preferences::setRssSideSplitterState(const QByteArray &state)
-{
-    if (state == getRssSideSplitterState())
-        return;
-
-    setValue(u"GUI/Qt6/RSSWidget/SideSplitterState"_s, state);
-}
-
-QByteArray Preferences::getRssMainSplitterState() const
-{
-    return value<QByteArray>(u"GUI/Qt6/RSSWidget/MainSplitterState"_s);
-}
-
-void Preferences::setRssMainSplitterState(const QByteArray &state)
-{
-    if (state == getRssMainSplitterState())
-        return;
-
-    setValue(u"GUI/Qt6/RSSWidget/MainSplitterState"_s, state);
-}
-
 QByteArray Preferences::getSearchTabHeaderState() const
 {
     return value<QByteArray>(u"GUI/Qt6/SearchTab/HeaderState"_s);

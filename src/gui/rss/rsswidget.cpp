@@ -1,6 +1,6 @@
 /*
  * Bittorrent Client using Qt and libtorrent.
- * Copyright (C) 2017  Vladimir Golovnev <glassez@yandex.ru>
+ * Copyright (C) 2017-2025  Vladimir Golovnev <glassez@yandex.ru>
  * Copyright (C) 2006  Christophe Dumez <chris@qbittorrent.org>
  * Copyright (C) 2006  Arnaud Demaiziere <arnaud@qbittorrent.org>
  *
@@ -39,14 +39,15 @@
 #include <QShortcut>
 #include <QString>
 
+#include "base/datastorage.h"
 #include "base/global.h"
 #include "base/logger.h"
 #include "base/net/downloadmanager.h"
-#include "base/preferences.h"
 #include "base/rss/rss_article.h"
 #include "base/rss/rss_feed.h"
 #include "base/rss/rss_folder.h"
 #include "base/rss/rss_session.h"
+#include "base/utils/future.h"
 #include "gui/autoexpandabledialog.h"
 #include "gui/interfaces/iguiapplication.h"
 #include "gui/uithememanager.h"
@@ -56,6 +57,11 @@
 #include "feedlistwidget.h"
 #include "rssfeeddialog.h"
 #include "ui_rsswidget.h"
+
+const QString DATA_FEEDLISTSORTORDER = u"GUI/RSSWidget/FeedListSortOrder"_s;
+const QString DATA_FEEDLISTOPENEDFOLDERS = u"GUI/RSSWidget/FeedListOpenedFolders"_s;
+const QString DATA_MAINSPLITTERSTATE = u"GUI/RSSWidget/MainSplitterState"_s;
+const QString DATA_SIDESPLITTERSTATE = u"GUI/RSSWidget/SideSplitterState"_s;
 
 namespace
 {
@@ -130,6 +136,8 @@ RSSWidget::RSSWidget(IGUIApplication *app, QWidget *parent)
     m_ui->rssDownloaderBtn->setIcon(UIThemeManager::instance()->getIcon(u"downloading"_s, u"download"_s));
 #endif
 
+    restoreState();
+
     connect(m_ui->articleListWidget, &ArticleListWidget::customContextMenuRequested, this, &RSSWidget::displayItemsListMenu);
     connect(m_ui->articleListWidget, &ArticleListWidget::currentItemChanged, this, &RSSWidget::handleCurrentArticleItemChanged);
     connect(m_ui->articleListWidget, &ArticleListWidget::itemDoubleClicked, this, &RSSWidget::downloadSelectedTorrents);
@@ -137,7 +145,7 @@ RSSWidget::RSSWidget(IGUIApplication *app, QWidget *parent)
     connect(m_ui->feedListWidget, &QAbstractItemView::doubleClicked, this, &RSSWidget::renameSelectedRSSItem);
     connect(m_ui->feedListWidget, &QTreeWidget::currentItemChanged, this, &RSSWidget::handleCurrentFeedItemChanged);
     connect(m_ui->feedListWidget, &QWidget::customContextMenuRequested, this, &RSSWidget::displayRSSListMenu);
-    loadFoldersOpenState();
+
     m_ui->feedListWidget->setCurrentItem(m_ui->feedListWidget->stickyUnreadItem());
 
     const auto *editHotkey = new QShortcut(Qt::Key_F2, m_ui->feedListWidget, nullptr, nullptr, Qt::WidgetShortcut);
@@ -161,14 +169,9 @@ RSSWidget::RSSWidget(IGUIApplication *app, QWidget *parent)
     connect(m_ui->actionOpenNewsURL, &QAction::triggered, this, &RSSWidget::openSelectedArticlesUrls);
     connect(m_ui->actionDownloadTorrent, &QAction::triggered, this, &RSSWidget::downloadSelectedTorrents);
 
-    // Restore sliders position
-    restoreSlidersPosition();
-    // Bind saveSliders slots
-    connect(m_ui->splitterMain, &QSplitter::splitterMoved, this, &RSSWidget::saveSlidersPosition);
-    connect(m_ui->splitterSide, &QSplitter::splitterMoved, this, &RSSWidget::saveSlidersPosition);
-
     if (RSS::Session::instance()->isProcessingEnabled())
         m_ui->labelWarn->hide();
+
     connect(RSS::Session::instance(), &RSS::Session::processingStateChanged
             , this, &RSSWidget::handleSessionProcessingStateChanged);
     connect(RSS::Session::instance()->rootFolder(), &RSS::Folder::unreadCountChanged
@@ -183,7 +186,7 @@ RSSWidget::~RSSWidget()
     // as read without having additional code
     m_ui->articleListWidget->clear();
 
-    saveFoldersOpenState();
+    saveState();
 
     delete m_ui;
 }
@@ -381,9 +384,19 @@ void RSSWidget::deleteSelectedItems()
             RSS::Session::instance()->removeItem(m_ui->feedListWidget->itemPath(item));
 }
 
-void RSSWidget::loadFoldersOpenState()
+void RSSWidget::restoreState()
 {
-    const QStringList openedFolders = Preferences::instance()->getRssOpenFolders();
+    auto *dataStorage = DataStorage::instance();
+
+    auto sortOrderFuture = dataStorage->fetchValue<Qt::SortOrder>(DATA_FEEDLISTSORTORDER);
+    auto openedFoldersFuture = dataStorage->fetchValue<QStringList>(DATA_FEEDLISTOPENEDFOLDERS);
+    auto sideSplitterStateFuture = dataStorage->fetchValue<QList<int>>(DATA_SIDESPLITTERSTATE);
+    auto mainSplitterStateFuture = dataStorage->fetchValue<QList<int>>(DATA_MAINSPLITTERSTATE);
+
+    const Qt::SortOrder sortOrder = Utils::Future::takeResult(sortOrderFuture).value_or(Qt::AscendingOrder);
+    m_ui->feedListWidget->header()->setSortIndicator(0, sortOrder);
+
+    const QStringList openedFolders = Utils::Future::takeResult(openedFoldersFuture).value_or(QStringList());
     for (const QString &varPath : openedFolders)
     {
         QTreeWidgetItem *parent = nullptr;
@@ -402,14 +415,27 @@ void RSSWidget::loadFoldersOpenState()
             }
         }
     }
+
+    if (const std::optional<QList<int>> sideSplitterState = Utils::Future::takeResult(sideSplitterStateFuture))
+        m_ui->splitterSide->setSizes(*sideSplitterState);
+
+    if (const std::optional<QList<int>> mainSplitterState = Utils::Future::takeResult(mainSplitterStateFuture))
+        m_ui->splitterMain->setSizes(*mainSplitterState);
 }
 
-void RSSWidget::saveFoldersOpenState()
+void RSSWidget::saveState()
 {
+    auto *dataStorage = DataStorage::instance();
+
+    dataStorage->storeValue(DATA_MAINSPLITTERSTATE, m_ui->splitterMain->sizes());
+    dataStorage->storeValue(DATA_SIDESPLITTERSTATE, m_ui->splitterSide->sizes());
+
+    dataStorage->storeValue(DATA_FEEDLISTSORTORDER, m_ui->feedListWidget->header()->sortIndicatorOrder());
+
     QStringList openedFolders;
     for (QTreeWidgetItem *item : asConst(m_ui->feedListWidget->getAllOpenedFolders()))
-        openedFolders << m_ui->feedListWidget->itemPath(item);
-    Preferences::instance()->setRssOpenFolders(openedFolders);
+        openedFolders.append(m_ui->feedListWidget->itemPath(item));
+    dataStorage->storeValue(DATA_FEEDLISTOPENEDFOLDERS, openedFolders);
 }
 
 void RSSWidget::refreshAllFeeds()
@@ -598,25 +624,6 @@ void RSSWidget::handleCurrentArticleItemChanged(QListWidgetItem *currentItem, QL
 
     auto *article = m_ui->articleListWidget->getRSSArticle(currentItem);
     renderArticle(article);
-}
-
-void RSSWidget::saveSlidersPosition()
-{
-    // Remember sliders positions
-    Preferences *const pref = Preferences::instance();
-    pref->setRssSideSplitterState(m_ui->splitterSide->saveState());
-    pref->setRssMainSplitterState(m_ui->splitterMain->saveState());
-}
-
-void RSSWidget::restoreSlidersPosition()
-{
-    const Preferences *const pref = Preferences::instance();
-    const QByteArray stateSide = pref->getRssSideSplitterState();
-    if (!stateSide.isEmpty())
-        m_ui->splitterSide->restoreState(stateSide);
-    const QByteArray stateMain = pref->getRssMainSplitterState();
-    if (!stateMain.isEmpty())
-        m_ui->splitterMain->restoreState(stateMain);
 }
 
 void RSSWidget::updateRefreshInterval(int val) const
