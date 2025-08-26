@@ -33,6 +33,7 @@
 #include <numeric>
 #include <optional>
 #include <string_view>
+#include <type_traits>
 
 #include <QChar>
 #include <QMetaEnum>
@@ -104,20 +105,14 @@ namespace Utils::String
     QString fromEnum(const T &value)
         requires std::is_enum_v<T>
     {
-        static_assert(std::is_same_v<int, typename std::underlying_type_t<T>>,
-                      "Enumeration underlying type has to be int.");
-
         const auto metaEnum = QMetaEnum::fromType<T>();
-        return QString::fromLatin1(metaEnum.valueToKey(static_cast<int>(value)));
+        return QString::fromLatin1(metaEnum.valueToKey(static_cast<typename std::underlying_type_t<T>>(value)));
     }
 
     template <typename T>
     T toEnum(const QString &serializedValue, const T &defaultValue)
         requires std::is_enum_v<T>
     {
-        static_assert(std::is_same_v<int, typename std::underlying_type_t<T>>,
-                      "Enumeration underlying type has to be int.");
-
         const auto metaEnum = QMetaEnum::fromType<T>();
         bool ok = false;
         const T value = static_cast<T>(metaEnum.keyToValue(serializedValue.toLatin1().constData(), &ok));
