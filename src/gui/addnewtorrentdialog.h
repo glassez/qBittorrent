@@ -34,8 +34,6 @@
 #include <QDialog>
 
 #include "base/path.h"
-#include "base/settingvalue.h"
-#include "filterpatternformat.h"
 
 class LineEdit;
 
@@ -91,7 +89,7 @@ private:
     void setCurrentContext(std::shared_ptr<Context> context);
     void updateCurrentContext();
     void populateSavePaths();
-    void loadState();
+    void restoreState();
     void saveState();
     void setMetadataProgressIndicator(bool visibleIndicator, const QString &labelText = {});
     void setupTreeview();
@@ -107,11 +105,4 @@ private:
     LineEdit *m_filterLine = nullptr;
 
     std::shared_ptr<Context> m_currentContext;
-
-    SettingValue<QSize> m_storeDialogSize;
-    SettingValue<QString> m_storeDefaultCategory;
-    SettingValue<bool> m_storeRememberLastSavePath;
-    SettingValue<QByteArray> m_storeTreeHeaderState;
-    SettingValue<QByteArray> m_storeSplitterState;
-    SettingValue<FilterPatternFormat> m_storeFilterPatternFormat;
 };

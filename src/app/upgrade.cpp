@@ -520,9 +520,17 @@ namespace
         {
             {u"GUI/RSSWidget/OpenedFolders"_s, u"GUI/RSSWidget/FeedListOpenedFolders"_s, MigrationMode::AsIs},
             {u"GUI/Qt6/RSSWidget/SideSplitterState"_s, u"GUI/RSSWidget/SideSplitterState"_s, MigrationMode::AsIs},
-
             {u"GUI/Qt6/RSSWidget/MainSplitterState"_s, u"GUI/RSSWidget/MainSplitterState"_s, MigrationMode::SplitterState},
             {u"GUI/Qt6/RSSWidget/SideSplitterState"_s, u"GUI/RSSWidget/SideSplitterState"_s, MigrationMode::SplitterState},
+
+            {u"AddNewTorrentDialog/DialogSize"_s, u"GUI/AddNewTorrentDialog/DialogSize"_s, MigrationMode::AsIs},
+            {u"AddNewTorrentDialog/DefaultCategory"_s, u"GUI/AddNewTorrentDialog/DefaultCategory"_s, MigrationMode::AsIs},
+            {u"AddNewTorrentDialog/RememberLastSavePath"_s, u"GUI/AddNewTorrentDialog/RememberLastSavePath"_s, MigrationMode::AsIs},
+            {u"AddNewTorrentDialog/SavePathHistory"_s, u"GUI/AddNewTorrentDialog/SavePathHistory"_s, MigrationMode::AsIs},
+            {u"AddNewTorrentDialog/DownloadPathHistory"_s, u"GUI/AddNewTorrentDialog/DownloadPathHistory"_s, MigrationMode::AsIs},
+            {u"GUI/Qt6/AddNewTorrentDialog/TreeHeaderState"_s, u"GUI/AddNewTorrentDialog/TreeHeaderState"_s, MigrationMode::AsIs},
+            {u"GUI/Qt6/AddNewTorrentDialog/SplitterState"_s, u"GUI/AddNewTorrentDialog/SplitterState"_s, MigrationMode::SplitterState},
+            {u"GUI/AddNewTorrentDialog/FilterPatternFormat"_s, u"GUI/AddNewTorrentDialog/FilterPatternFormat"_s, MigrationMode::AsIs},
         };
 
         auto *settingsStorage = SettingsStorage::instance();
