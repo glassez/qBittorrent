@@ -99,8 +99,6 @@ StatusFilterWidget::StatusFilterWidget(QWidget *parent, TransferListWidget *tran
         setCurrentRow(TorrentFilter::All, QItemSelectionModel::SelectCurrent);
     else
         setCurrentRow(storedRow, QItemSelectionModel::SelectCurrent);
-
-    toggleFilter(pref->getStatusFilterState());
 }
 
 StatusFilterWidget::~StatusFilterWidget()
@@ -228,14 +226,15 @@ void StatusFilterWidget::showMenu()
     menu->popup(QCursor::pos());
 }
 
-void StatusFilterWidget::applyFilter(int row)
-{
-    transferList()->applyStatusFilter(row);
-}
-
 void StatusFilterWidget::handleTorrentsLoaded(const QList<BitTorrent::Torrent *> &torrents)
 {
     update(torrents);
+}
+
+std::optional<QSet<BitTorrent::TorrentID>> StatusFilterWidget::getTorrentIDs(int row) const
+{
+    // TODO: Implement me!
+    return std::nullopt;
 }
 
 void StatusFilterWidget::torrentAboutToBeDeleted(BitTorrent::Torrent *const torrent)

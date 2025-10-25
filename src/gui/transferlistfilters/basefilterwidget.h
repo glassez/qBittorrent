@@ -1,6 +1,6 @@
 /*
  * Bittorrent Client using Qt and libtorrent.
- * Copyright (C) 2023  Vladimir Golovnev <glassez@yandex.ru>
+ * Copyright (C) 2023-2025  Vladimir Golovnev <glassez@yandex.ru>
  * Copyright (C) 2006  Christophe Dumez <chris@qbittorrent.org>
  *
  * This program is free software; you can redistribute it and/or
@@ -29,9 +29,12 @@
 
 #pragma once
 
+#include <optional>
+
 #include <QtContainerFwd>
 #include <QListWidget>
 
+#include "base/bittorrent/infohash.h"
 #include "base/bittorrent/torrent.h"
 
 class TransferListWidget;
@@ -49,12 +52,16 @@ public:
 
     TransferListWidget *transferList() const;
 
-public slots:
-    void toggleFilter(bool checked);
+    std::optional<QSet<BitTorrent::TorrentID>> filteredTorrents() const;
+
+signals:
+    void filterChanged(const std::optional<QSet<BitTorrent::TorrentID>> &torrentIDs);
+
+protected:
+    virtual std::optional<QSet<BitTorrent::TorrentID>> getTorrentIDs(int row) const = 0;
 
 private slots:
     virtual void showMenu() = 0;
-    virtual void applyFilter(int row) = 0;
     virtual void handleTorrentsLoaded(const QList<BitTorrent::Torrent *> &torrents) = 0;
     virtual void torrentAboutToBeDeleted(BitTorrent::Torrent *) = 0;
 

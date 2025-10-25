@@ -1,6 +1,6 @@
 /*
  * Bittorrent Client using Qt and libtorrent.
- * Copyright (C) 2023  Vladimir Golovnev <glassez@yandex.ru>
+ * Copyright (C) 2023-2025  Vladimir Golovnev <glassez@yandex.ru>
  * Copyright (C) 2006  Christophe Dumez <chris@qbittorrent.org>
  *
  * This program is free software; you can redistribute it and/or
@@ -32,8 +32,6 @@
 #include "base/bittorrent/session.h"
 #include "gui/utils.h"
 
-constexpr int ALL_ROW = 0;
-
 BaseFilterWidget::BaseFilterWidget(QWidget *parent, TransferListWidget *transferList)
     : QListWidget(parent)
     , m_transferList {transferList}
@@ -53,7 +51,10 @@ BaseFilterWidget::BaseFilterWidget(QWidget *parent, TransferListWidget *transfer
 
     setContextMenuPolicy(Qt::CustomContextMenu);
     connect(this, &BaseFilterWidget::customContextMenuRequested, this, &BaseFilterWidget::showMenu);
-    connect(this, &BaseFilterWidget::currentRowChanged, this, &BaseFilterWidget::applyFilter);
+    connect(this, &BaseFilterWidget::currentRowChanged, this, [this](const int row)
+    {
+        emit filterChanged(getTorrentIDs(row));
+    });
 
     connect(BitTorrent::Session::instance(), &BitTorrent::Session::torrentsLoaded
             , this, &BaseFilterWidget::handleTorrentsLoaded);
@@ -82,11 +83,7 @@ TransferListWidget *BaseFilterWidget::transferList() const
     return m_transferList;
 }
 
-void BaseFilterWidget::toggleFilter(const bool checked)
+std::optional<QSet<BitTorrent::TorrentID>> BaseFilterWidget::filteredTorrents() const
 {
-    setVisible(checked);
-    if (checked)
-        applyFilter(currentRow());
-    else
-        applyFilter(ALL_ROW);
+    return getTorrentIDs(currentRow());
 }

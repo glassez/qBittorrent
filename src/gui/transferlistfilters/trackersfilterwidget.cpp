@@ -146,7 +146,6 @@ TrackersFilterWidget::TrackersFilterWidget(QWidget *parent, TransferListWidget *
     handleTorrentsLoaded(BitTorrent::Session::instance()->torrents());
 
     setCurrentRow(0, QItemSelectionModel::SelectCurrent);
-    toggleFilter(Preferences::instance()->getTrackerFilterState());
 }
 
 TrackersFilterWidget::~TrackersFilterWidget()
@@ -222,7 +221,7 @@ void TrackersFilterWidget::refreshTrackers(const BitTorrent::Torrent *torrent)
     if (const int row = currentRow(); (row == OTHERERROR_ROW)
         || (row == TRACKERERROR_ROW) || (row == WARNING_ROW))
     {
-        applyFilter(row);
+        emit filterChanged(getTorrentIDs(row));
     }
 
     updateGeometry();
@@ -260,8 +259,8 @@ void TrackersFilterWidget::addItems(const QString &trackerURL, const QList<BitTo
     trackerItem->setText(formatItemText(host, torrentIDs.size()));
     if (exists)
     {
-        if (item(currentRow()) == trackerItem)
-            applyFilter(currentRow());
+        if (currentItem() == trackerItem)
+            emit filterChanged(getTorrentIDs(currentRow()));
         return;
     }
 
@@ -302,7 +301,7 @@ void TrackersFilterWidget::removeItem(const QString &trackerURL, const BitTorren
                 m_errors.erase(errorHashesIt);
                 item(OTHERERROR_ROW)->setText(formatItemText(OTHERERROR_ROW, m_errors.size()));
                 if (currentRow() == OTHERERROR_ROW)
-                    applyFilter(OTHERERROR_ROW);
+                    emit filterChanged(getTorrentIDs(OTHERERROR_ROW));
             }
         }
 
@@ -316,7 +315,7 @@ void TrackersFilterWidget::removeItem(const QString &trackerURL, const BitTorren
                 m_trackerErrors.erase(trackerErrorHashesIt);
                 item(TRACKERERROR_ROW)->setText(formatItemText(TRACKERERROR_ROW, m_trackerErrors.size()));
                 if (currentRow() == TRACKERERROR_ROW)
-                    applyFilter(TRACKERERROR_ROW);
+                    emit filterChanged(getTorrentIDs(TRACKERERROR_ROW));
             }
         }
 
@@ -330,7 +329,7 @@ void TrackersFilterWidget::removeItem(const QString &trackerURL, const BitTorren
                 m_warnings.erase(warningHashesIt);
                 item(WARNING_ROW)->setText(formatItemText(WARNING_ROW, m_warnings.size()));
                 if (currentRow() == WARNING_ROW)
-                    applyFilter(WARNING_ROW);
+                    emit filterChanged(getTorrentIDs(WARNING_ROW));
             }
         }
 
@@ -358,7 +357,7 @@ void TrackersFilterWidget::removeItem(const QString &trackerURL, const BitTorren
     m_trackers.insert(host, {torrentIDs, trackerItem});
 
     if (currentItem() == trackerItem)
-        applyFilter(currentRow());
+        emit filterChanged(getTorrentIDs(currentRow()));
 }
 
 void TrackersFilterWidget::setDownloadTrackerFavicon(bool value)
@@ -480,7 +479,7 @@ void TrackersFilterWidget::handleTrackerStatusesUpdated(const BitTorrent::Torren
     if (const int row = currentRow(); (row == OTHERERROR_ROW)
         || (row == TRACKERERROR_ROW) || (row == WARNING_ROW))
     {
-        applyFilter(row);
+        emit filterChanged(getTorrentIDs(row));
     }
 }
 
@@ -607,14 +606,6 @@ void TrackersFilterWidget::showMenu()
     menu->popup(QCursor::pos());
 }
 
-void TrackersFilterWidget::applyFilter(const int row)
-{
-    if (row == ALL_ROW)
-        transferList()->applyTrackerFilterAll();
-    else if (isVisible())
-        transferList()->applyTrackerFilter(getTorrentIDs(row));
-}
-
 void TrackersFilterWidget::handleTorrentsLoaded(const QList<BitTorrent::Torrent *> &torrents)
 {
     QHash<QString, QList<BitTorrent::TorrentID>> torrentsPerTracker;
@@ -702,18 +693,20 @@ int TrackersFilterWidget::rowFromTracker(const QString &tracker) const
     return -1;
 }
 
-QSet<BitTorrent::TorrentID> TrackersFilterWidget::getTorrentIDs(const int row) const
+std::optional<QSet<BitTorrent::TorrentID>> TrackersFilterWidget::getTorrentIDs(const int row) const
 {
     switch (row)
     {
+    case ALL_ROW:
+        return std::nullopt;
     case TRACKERLESS_ROW:
         return m_trackers.value(NULL_HOST).torrents;
     case OTHERERROR_ROW:
-        return {m_errors.keyBegin(), m_errors.keyEnd()};
+        return QSet<BitTorrent::TorrentID>(m_errors.keyBegin(), m_errors.keyEnd());
     case TRACKERERROR_ROW:
-        return {m_trackerErrors.keyBegin(), m_trackerErrors.keyEnd()};
+        return QSet<BitTorrent::TorrentID>(m_trackerErrors.keyBegin(), m_trackerErrors.keyEnd());
     case WARNING_ROW:
-        return {m_warnings.keyBegin(), m_warnings.keyEnd()};
+        return QSet<BitTorrent::TorrentID>(m_warnings.keyBegin(), m_warnings.keyEnd());
     default:
         return m_trackers.value(trackerFromRow(row)).torrents;
     }

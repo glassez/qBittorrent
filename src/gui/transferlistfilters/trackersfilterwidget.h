@@ -1,6 +1,6 @@
 /*
  * Bittorrent Client using Qt and libtorrent.
- * Copyright (C) 2023  Vladimir Golovnev <glassez@yandex.ru>
+ * Copyright (C) 2023-2025  Vladimir Golovnev <glassez@yandex.ru>
  * Copyright (C) 2006  Christophe Dumez <chris@qbittorrent.org>
  *
  * This program is free software; you can redistribute it and/or
@@ -28,6 +28,8 @@
  */
 
 #pragma once
+
+#include <optional>
 
 #include <QtContainerFwd>
 #include <QHash>
@@ -68,12 +70,13 @@ private slots:
     void handleFavicoDownloadFinished(const Net::DownloadResult &result);
 
 private:
-    // These 4 methods are virtual slots in the base class.
+    // These 3 methods are virtual slots in the base class.
     // No need to redeclare them here as slots.
     void showMenu() override;
-    void applyFilter(int row) override;
     void handleTorrentsLoaded(const QList<BitTorrent::Torrent *> &torrents) override;
     void torrentAboutToBeDeleted(BitTorrent::Torrent *torrent) override;
+
+    std::optional<QSet<BitTorrent::TorrentID>> getTorrentIDs(int row) const override;
 
     void onRemoveTrackerTriggered();
 
@@ -81,7 +84,6 @@ private:
     void removeItem(const QString &trackerURL, const BitTorrent::TorrentID &id);
     QString trackerFromRow(int row) const;
     int rowFromTracker(const QString &tracker) const;
-    QSet<BitTorrent::TorrentID> getTorrentIDs(int row) const;
     void downloadFavicon(const QString &trackerHost, const QString &faviconURL);
     void removeTracker(const QString &tracker);
 

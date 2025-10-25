@@ -110,7 +110,9 @@ TransferListFiltersWidget::TransferListFiltersWidget(QWidget *parent, TransferLi
     mainWidgetLayout->addWidget(statusLabel);
 
     auto *statusFilters = new StatusFilterWidget(this, transferList);
-    connect(statusLabel, &QCheckBox::toggled, statusFilters, &StatusFilterWidget::toggleFilter);
+    connect(m_trackersFilterWidget, &StatusFilterWidget::filterChanged, this, &TransferListFiltersWidget::updateFilter);
+    statusFilters->setVisible(statusLabel->isChecked());
+    connect(statusLabel, &QCheckBox::toggled, statusFilters, &QWidget::setVisible);
     mainWidgetLayout->addWidget(statusFilters);
 
     QCheckBox *categoryLabel = new ArrowCheckBox(tr("Categories"), this);
@@ -157,7 +159,9 @@ TransferListFiltersWidget::TransferListFiltersWidget(QWidget *parent, TransferLi
     mainWidgetLayout->addWidget(trackerLabel);
 
     m_trackersFilterWidget = new TrackersFilterWidget(this, transferList, downloadFavicon);
-    connect(trackerLabel, &QCheckBox::toggled, m_trackersFilterWidget, &TrackersFilterWidget::toggleFilter);
+    connect(m_trackersFilterWidget, &TrackersFilterWidget::filterChanged, this, &TransferListFiltersWidget::updateFilter);
+    m_trackersFilterWidget->setVisible(trackerLabel->isChecked());
+    connect(trackerLabel, &QCheckBox::toggled, m_trackersFilterWidget, &QWidget::setVisible);
     mainWidgetLayout->addWidget(m_trackersFilterWidget);
 
     auto *scroll = new QScrollArea(this);
@@ -219,4 +223,11 @@ void TransferListFiltersWidget::toggleTagFilter(bool enabled)
 {
     m_tagFilterWidget->setVisible(enabled);
     m_transferList->applyTagFilter(enabled ? m_tagFilterWidget->currentTag() : std::nullopt);
+}
+
+void TransferListFiltersWidget::updateFilter()
+{
+    // TODO: Implement me!
+
+    emit filterChanged(std::nullopt);
 }

@@ -1,5 +1,6 @@
 /*
  * Bittorrent Client using Qt and libtorrent.
+ * Copyright (C) 2025  Vladimir Golovnev <glassez@yandex.ru>
  * Copyright (C) 2013  Nick Tiskov <daymansmail@gmail.com>
  *
  * This program is free software; you can redistribute it and/or
@@ -28,6 +29,8 @@
 
 #pragma once
 
+#include <optional>
+
 #include <QSortFilterProxyModel>
 
 #include "base/settingvalue.h"
@@ -54,8 +57,7 @@ public:
     void disableCategoryFilter();
     void setTagFilter(const Tag &tag);
     void disableTagFilter();
-    void setTrackerFilter(const QSet<BitTorrent::TorrentID> &torrentIDs);
-    void disableTrackerFilter();
+    void setTorrentIDFilter(const std::optional<QSet<BitTorrent::TorrentID>> &torrentIDs);
 
 private:
     int compare(const QModelIndex &left, const QModelIndex &right) const;

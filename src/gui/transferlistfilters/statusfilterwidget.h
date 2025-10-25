@@ -49,12 +49,13 @@ public:
 private:
     QSize sizeHint() const override;
 
-    // These 4 methods are virtual slots in the base class.
+    // These 3 methods are virtual slots in the base class.
     // No need to redeclare them here as slots.
     void showMenu() override;
-    void applyFilter(int row) override;
     void handleTorrentsLoaded(const QList<BitTorrent::Torrent *> &torrents) override;
     void torrentAboutToBeDeleted(BitTorrent::Torrent *) override;
+
+    std::optional<QSet<BitTorrent::TorrentID>> getTorrentIDs(int row) const override;
 
     void configure();
 

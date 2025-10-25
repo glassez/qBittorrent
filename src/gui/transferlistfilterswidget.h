@@ -29,9 +29,12 @@
 
 #pragma once
 
+#include <optional>
+
 #include <QtContainerFwd>
 #include <QWidget>
 
+#include "base/bittorrent/infohash.h"
 #include "base/bittorrent/trackerentry.h"
 
 class CategoryFilterWidget;
@@ -62,6 +65,9 @@ public slots:
     void trackerEntryStatusesUpdated(const BitTorrent::Torrent *torrent
             , const QHash<QString, BitTorrent::TrackerEntryStatus> &updatedTrackers);
 
+signals:
+    void filterChanged(const std::optional<QSet<BitTorrent::TorrentID>> &torrentIDs);
+
 private slots:
     void onCategoryFilterStateChanged(bool enabled);
     void onTagFilterStateChanged(bool enabled);
@@ -69,6 +75,7 @@ private slots:
 private:
     void toggleCategoryFilter(bool enabled);
     void toggleTagFilter(bool enabled);
+    void updateFilter();
 
     TransferListWidget *m_transferList = nullptr;
     TrackersFilterWidget *m_trackersFilterWidget = nullptr;

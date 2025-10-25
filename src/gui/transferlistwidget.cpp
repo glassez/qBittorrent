@@ -1342,21 +1342,16 @@ void TransferListWidget::applyTagFilter(const std::optional<Tag> &tag)
         m_sortFilterModel->setTagFilter(*tag);
 }
 
-void TransferListWidget::applyTrackerFilterAll()
+void TransferListWidget::applyTorrentIDFilter(const std::optional<QSet<BitTorrent::TorrentID>> &torrentIDs)
 {
-    m_sortFilterModel->disableTrackerFilter();
-}
-
-void TransferListWidget::applyTrackerFilter(const QSet<BitTorrent::TorrentID> &torrentIDs)
-{
-    m_sortFilterModel->setTrackerFilter(torrentIDs);
+    m_sortFilterModel->setTorrentIDFilter(torrentIDs);
 }
 
 void TransferListWidget::applyFilter(const QString &name, const TransferListModel::Column &type)
 {
     m_sortFilterModel->setFilterKeyColumn(type);
     const QString pattern = (Preferences::instance()->getRegexAsFilteringPatternForTransferList()
-                ? name : Utils::String::wildcardToRegexPattern(name));
+            ? name : Utils::String::wildcardToRegexPattern(name));
     m_sortFilterModel->setFilterRegularExpression(QRegularExpression(pattern, QRegularExpression::CaseInsensitiveOption));
 }
 

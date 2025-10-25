@@ -486,7 +486,7 @@ MainWindow::MainWindow(IGUIApplication *app, const WindowState initialState, con
         m_transferListWidget->applyStatusFilter(pref->getTransSelFilter());
         m_transferListWidget->applyCategoryFilter(QString());
         m_transferListWidget->applyTagFilter(std::nullopt);
-        m_transferListWidget->applyTrackerFilterAll();
+        m_transferListWidget->applyTorrentIDFilter(std::nullopt);
     }
 
     // Start watching the executable for updates

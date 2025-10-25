@@ -1,5 +1,6 @@
 /*
  * Bittorrent Client using Qt and libtorrent.
+ * Copyright (C) 2025  Vladimir Golovnev <glassez@yandex.ru>
  * Copyright (C) 2013  Nick Tiskov <daymansmail@gmail.com>
  *
  * This program is free software; you can redistribute it and/or
@@ -184,7 +185,7 @@ void TransferListSortModel::disableTagFilter()
 #endif
 }
 
-void TransferListSortModel::setTrackerFilter(const QSet<BitTorrent::TorrentID> &torrentIDs)
+void TransferListSortModel::setTorrentIDFilter(const std::optional<QSet<BitTorrent::TorrentID>> &torrentIDs)
 {
 #if QT_VERSION >= QT_VERSION_CHECK(6, 10, 0)
     beginFilterChange();
@@ -192,18 +193,6 @@ void TransferListSortModel::setTrackerFilter(const QSet<BitTorrent::TorrentID> &
     endFilterChange(Direction::Rows);
 #else
     if (m_filter.setTorrentIDSet(torrentIDs))
-        invalidateRowsFilter();
-#endif
-}
-
-void TransferListSortModel::disableTrackerFilter()
-{
-#if QT_VERSION >= QT_VERSION_CHECK(6, 10, 0)
-    beginFilterChange();
-    m_filter.setTorrentIDSet(TorrentFilter::AnyID);
-    endFilterChange(Direction::Rows);
-#else
-    if (m_filter.setTorrentIDSet(TorrentFilter::AnyID))
         invalidateRowsFilter();
 #endif
 }
