@@ -75,6 +75,7 @@
 #include "peeraddress.h"
 #include "peerinfo.h"
 #include "sessionimpl.h"
+#include "torrentcategoryimpl.h"
 #include "trackerentry.h"
 
 #if defined(Q_OS_MACOS) || defined(Q_OS_WIN)
@@ -299,10 +300,11 @@ namespace
 
 // TorrentImpl
 
-TorrentImpl::TorrentImpl(SessionImpl *session, const lt::torrent_handle &nativeHandle, LoadTorrentParams params)
+TorrentImpl::TorrentImpl(SessionImpl *session, const lt::torrent_handle &nativeHandle, TorrentCategoryImpl *category, LoadTorrentParams params)
     : Torrent(session)
     , m_session(session)
     , m_nativeHandle(nativeHandle)
+    , m_category(category)
 #ifdef QBT_USES_LIBTORRENT2
     , m_infoHash(m_nativeHandle.info_hashes())
 #else
@@ -311,7 +313,6 @@ TorrentImpl::TorrentImpl(SessionImpl *session, const lt::torrent_handle &nativeH
     , m_name(params.name)
     , m_savePath(params.savePath)
     , m_downloadPath(params.downloadPath)
-    , m_category(params.category)
     , m_tags(params.tags)
     , m_ratioLimit(params.ratioLimit)
     , m_seedingTimeLimit(params.seedingTimeLimit)
@@ -496,7 +497,7 @@ QString TorrentImpl::currentTracker() const
 
 Path TorrentImpl::savePath() const
 {
-    return isAutoTMMEnabled() ? m_session->categorySavePath(category()) : m_savePath;
+    return isAutoTMMEnabled() ? category()->savePath() : m_savePath;
 }
 
 void TorrentImpl::setSavePath(const Path &path)
@@ -506,7 +507,7 @@ void TorrentImpl::setSavePath(const Path &path)
         return;
 
     const Path basePath = m_session->useCategoryPathsInManualMode()
-            ? m_session->categorySavePath(category()) : m_session->savePath();
+            ? category()->savePath() : m_session->savePath();
     const Path resolvedPath = (path.isAbsolute() ? path : (basePath / path));
     if (resolvedPath == savePath())
         return;
@@ -525,7 +526,7 @@ void TorrentImpl::setSavePath(const Path &path)
 
 Path TorrentImpl::downloadPath() const
 {
-    return isAutoTMMEnabled() ? m_session->categoryDownloadPath(category()) : m_downloadPath;
+    return isAutoTMMEnabled() ? category()->downloadPath() : m_downloadPath;
 }
 
 void TorrentImpl::setDownloadPath(const Path &path)
@@ -535,7 +536,7 @@ void TorrentImpl::setDownloadPath(const Path &path)
         return;
 
     const Path basePath = m_session->useCategoryPathsInManualMode()
-            ? m_session->categoryDownloadPath(category()) : m_session->downloadPath();
+            ? category()->downloadPath() : m_session->downloadPath();
     const Path resolvedPath = (path.isEmpty() || path.isAbsolute()) ? path : (basePath / path);
     if (resolvedPath == m_downloadPath)
         return;
@@ -590,8 +591,8 @@ void TorrentImpl::setAutoTMMEnabled(bool enabled)
     m_useAutoTMM = enabled;
     if (!m_useAutoTMM)
     {
-        m_savePath = m_session->categorySavePath(category());
-        m_downloadPath = m_session->categoryDownloadPath(category());
+        m_savePath = category()->savePath();
+        m_downloadPath = category()->downloadPath();
     }
 
     deferredRequestResumeData();
@@ -921,20 +922,9 @@ qreal TorrentImpl::progress() const
     return progress;
 }
 
-QString TorrentImpl::category() const
+TorrentCategory *TorrentImpl::category() const
 {
     return m_category;
-}
-
-bool TorrentImpl::belongsToCategory(const QString &category) const
-{
-    if (m_category.isEmpty())
-        return category.isEmpty();
-
-    if (m_category == category)
-        return true;
-
-    return m_category.startsWith(category + u'/');
 }
 
 TagSet TorrentImpl::tags() const
@@ -1482,7 +1472,7 @@ qreal TorrentImpl::distributedCopies() const
 qreal TorrentImpl::effectiveRatioLimit() const
 {
     if (m_ratioLimit == DEFAULT_RATIO_LIMIT)
-        return m_session->categoryRatioLimit(category());
+        return category()->ratioLimit();
 
     return m_ratioLimit;
 }
@@ -1490,7 +1480,7 @@ qreal TorrentImpl::effectiveRatioLimit() const
 int TorrentImpl::effectiveSeedingTimeLimit() const
 {
     if (m_seedingTimeLimit == DEFAULT_SEEDING_TIME_LIMIT)
-        return m_session->categorySeedingTimeLimit(category());
+        return category()->seedingTimeLimit();
 
     return m_seedingTimeLimit;
 }
@@ -1498,7 +1488,7 @@ int TorrentImpl::effectiveSeedingTimeLimit() const
 int TorrentImpl::effectiveInactiveSeedingTimeLimit() const
 {
     if (m_inactiveSeedingTimeLimit == DEFAULT_SEEDING_TIME_LIMIT)
-        return m_session->categoryInactiveSeedingTimeLimit(category());
+        return category()->inactiveSeedingTimeLimit();
 
     return m_inactiveSeedingTimeLimit;
 }
@@ -1506,7 +1496,7 @@ int TorrentImpl::effectiveInactiveSeedingTimeLimit() const
 ShareLimitAction TorrentImpl::effectiveShareLimitAction() const
 {
     if (m_shareLimitAction == ShareLimitAction::Default)
-        return m_session->categoryShareLimitAction(category());
+        return category()->shareLimitAction();
 
     return m_shareLimitAction;
 }
@@ -1624,28 +1614,25 @@ void TorrentImpl::setName(const QString &name)
     }
 }
 
-bool TorrentImpl::setCategory(const QString &category)
+bool TorrentImpl::setCategory(TorrentCategory *category)
 {
-    if (m_category != category)
+    if (m_category == category)
+        return true;
+
+    if (m_session->isDisableAutoTMMWhenCategoryChanged())
     {
-        if (!category.isEmpty() && !m_session->categories().contains(category))
-            return false;
-
-        if (m_session->isDisableAutoTMMWhenCategoryChanged())
-        {
-            // This should be done before changing the category name
-            // to prevent the torrent from being moved at the path of new category.
-            setAutoTMMEnabled(false);
-        }
-
-        const QString oldCategory = m_category;
-        m_category = category;
-        deferredRequestResumeData();
-        m_session->handleTorrentCategoryChanged(this, oldCategory);
-
-        if (m_useAutoTMM)
-            adjustStorageLocation();
+        // This should be done before changing the category name
+        // to prevent the torrent from being moved at the path of new category.
+        setAutoTMMEnabled(false);
     }
+
+    const TorrentCategoryImpl *oldCategory = m_category;
+    m_category = static_cast<TorrentCategoryImpl *>(category);
+    deferredRequestResumeData();
+    m_session->handleTorrentCategoryChanged(this, oldCategory);
+
+    if (m_useAutoTMM)
+        adjustStorageLocation();
 
     return true;
 }
@@ -2251,7 +2238,7 @@ void TorrentImpl::prepareResumeData(lt::add_torrent_params params)
     {
         .ltAddTorrentParams = m_ltAddTorrentParams,
         .name = m_name,
-        .category = m_category,
+        .category = m_category->fullName(),
         .tags = m_tags,
         .savePath = (!m_useAutoTMM ? m_savePath : Path()),
         .downloadPath = (!m_useAutoTMM ? m_downloadPath : Path()),

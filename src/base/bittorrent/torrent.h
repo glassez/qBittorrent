@@ -55,6 +55,7 @@ namespace BitTorrent
     class InfoHash;
     class PeerInfo;
     class Session;
+    class TorrentCategory;
     class TorrentID;
     class TorrentInfo;
 
@@ -195,9 +196,8 @@ namespace BitTorrent
         virtual void setDownloadPath(const Path &downloadPath) = 0;
         virtual Path rootPath() const = 0;
         virtual Path contentPath() const = 0;
-        virtual QString category() const = 0;
-        virtual bool belongsToCategory(const QString &category) const = 0;
-        virtual bool setCategory(const QString &category) = 0;
+        virtual TorrentCategory *category() const = 0;
+        virtual bool setCategory(TorrentCategory *category) = 0;
 
         virtual TagSet tags() const = 0;
         virtual bool hasTag(const Tag &tag) const = 0;

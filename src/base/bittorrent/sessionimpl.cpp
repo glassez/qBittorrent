@@ -107,6 +107,7 @@
 #include "nativesessionextension.h"
 #include "portforwarderimpl.h"
 #include "resumedatastorage.h"
+#include "torrentcategoryimpl.h"
 #include "torrentcontentremover.h"
 #include "torrentdescriptor.h"
 #include "torrentimpl.h"
@@ -5252,7 +5253,7 @@ void SessionImpl::handleTorrentSavePathChanged(TorrentImpl *const torrent)
     emit torrentSavePathChanged(torrent);
 }
 
-void SessionImpl::handleTorrentCategoryChanged(TorrentImpl *const torrent, const QString &oldCategory)
+void SessionImpl::handleTorrentCategoryChanged(TorrentImpl *const torrent, const TorrentCategoryImpl *oldCategory)
 {
     emit torrentCategoryChanged(torrent, oldCategory);
 }

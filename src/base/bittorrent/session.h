@@ -48,6 +48,7 @@ namespace BitTorrent
 {
     class InfoHash;
     class Torrent;
+    class TorrentCategory;
     class TorrentDescriptor;
     class TorrentID;
     class TorrentInfo;
@@ -506,7 +507,7 @@ namespace BitTorrent
         void tagRemoved(const Tag &tag);
         void torrentAboutToBeRemoved(Torrent *torrent);
         void torrentAdded(Torrent *torrent);
-        void torrentCategoryChanged(Torrent *torrent, const QString &oldCategory);
+        void torrentCategoryChanged(Torrent *torrent, const TorrentCategory *oldCategory);
         void torrentFinished(Torrent *torrent);
         void torrentFinishedChecking(Torrent *torrent);
         void torrentMetadataReceived(Torrent *torrent);

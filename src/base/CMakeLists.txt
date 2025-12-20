@@ -38,6 +38,8 @@ add_library(qbt_base STATIC
     bittorrent/speedmonitor.h
     bittorrent/sslparameters.h
     bittorrent/torrent.h
+    bittorrent/torrentcategory.h
+    bittorrent/torrentcategoryimpl.h
     bittorrent/torrentannouncestatus.h
     bittorrent/torrentcontenthandler.h
     bittorrent/torrentcontentlayout.h
@@ -151,6 +153,7 @@ add_library(qbt_base STATIC
     bittorrent/speedmonitor.cpp
     bittorrent/sslparameters.cpp
     bittorrent/torrent.cpp
+    bittorrent/torrentcategoryimpl.cpp
     bittorrent/torrentcontenthandler.cpp
     bittorrent/torrentcontentremover.cpp
     bittorrent/torrentcreationmanager.cpp

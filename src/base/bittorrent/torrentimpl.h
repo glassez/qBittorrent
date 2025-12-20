@@ -60,6 +60,7 @@
 namespace BitTorrent
 {
     class SessionImpl;
+    class TorrentCategoryImpl;
     struct LoadTorrentParams;
 
     enum class MoveStorageMode
@@ -94,7 +95,7 @@ namespace BitTorrent
         Q_DISABLE_COPY_MOVE(TorrentImpl)
 
     public:
-        TorrentImpl(SessionImpl *session, const lt::torrent_handle &nativeHandle, LoadTorrentParams params);
+        TorrentImpl(SessionImpl *session, const lt::torrent_handle &nativeHandle, TorrentCategoryImpl *category, LoadTorrentParams params);
         ~TorrentImpl() override;
 
         bool isValid() const;
@@ -124,9 +125,8 @@ namespace BitTorrent
         Path actualStorageLocation() const override;
         Path rootPath() const override;
         Path contentPath() const override;
-        QString category() const override;
-        bool belongsToCategory(const QString &category) const override;
-        bool setCategory(const QString &category) override;
+        TorrentCategory *category() const override;
+        bool setCategory(TorrentCategory *category) override;
 
         TagSet tags() const override;
         bool hasTag(const Tag &tag) const override;
@@ -321,6 +321,7 @@ namespace BitTorrent
 
         SessionImpl *const m_session = nullptr;
         lt::torrent_handle m_nativeHandle;
+        TorrentCategoryImpl *m_category;
         mutable lt::torrent_status m_nativeStatus;
         TorrentState m_state = TorrentState::Unknown;
         TorrentInfo m_torrentInfo;
@@ -359,7 +360,6 @@ namespace BitTorrent
         QString m_name;
         Path m_savePath;
         Path m_downloadPath;
-        QString m_category;
         TagSet m_tags;
         qreal m_ratioLimit = 0;
         int m_seedingTimeLimit = 0;

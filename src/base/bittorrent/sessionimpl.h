@@ -80,6 +80,7 @@ namespace BitTorrent
     class InfoHash;
     class ResumeDataStorage;
     class Torrent;
+    class TorrentCategoryImpl;
     class TorrentContentRemover;
     class TorrentDescriptor;
     class TorrentImpl;
@@ -465,7 +466,7 @@ namespace BitTorrent
         void handleTorrentShareLimitChanged(TorrentImpl *torrent);
         void handleTorrentNameChanged(TorrentImpl *torrent);
         void handleTorrentSavePathChanged(TorrentImpl *torrent);
-        void handleTorrentCategoryChanged(TorrentImpl *torrent, const QString &oldCategory);
+        void handleTorrentCategoryChanged(TorrentImpl *torrent, const TorrentCategoryImpl *oldCategory);
         void handleTorrentTagAdded(TorrentImpl *torrent, const Tag &tag);
         void handleTorrentTagRemoved(TorrentImpl *torrent, const Tag &tag);
         void handleTorrentSavingModeChanged(TorrentImpl *torrent);
