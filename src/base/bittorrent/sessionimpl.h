@@ -855,7 +855,14 @@ namespace BitTorrent
         QTimer *m_recentErroredTorrentsTimer = nullptr;
 
         SessionMetricIndices m_metricIndices;
-        lt::time_point m_statsLastTimestamp = lt::clock_type::now();
+        QDateTime m_statsBeginDateTime = QDateTime::currentDateTime();
+        mutable QDateTime m_statsLastDateTime = m_statsBeginDateTime;
+        lt::time_point m_statsBeginTimestamp = lt::clock_type::now();
+        lt::time_point m_statsLastTimestamp = m_statsBeginTimestamp;
+        mutable qint64 m_statsThisDayDownloaded = 0;
+        mutable qint64 m_statsThisDayUploaded = 0;
+        mutable qint64 m_statsDownloadedDelta = 0;
+        mutable qint64 m_statsUploadedDelta = 0;
 
         SessionStatus m_status;
         CacheStatus m_cacheStatus;

@@ -6552,11 +6552,31 @@ void SessionImpl::saveStatistics() const
     if (!m_isStatisticsDirty)
         return;
 
+    const int64_t secsFromBegin = lt::total_seconds(m_statsLastTimestamp - m_statsBeginTimestamp);
+    const QDateTime statsCurrentDateTime = m_statsBeginDateTime.addSecs(secsFromBegin);
+    const bool isSameDay = (m_statsLastDateTime.daysTo(statsCurrentDateTime) == 0);
+    qDebug() << "Last statistics datetime:" << m_statsLastDateTime.toString();
+    qDebug() << "Current statistics datetime:" << statsCurrentDateTime.toString();
+    qDebug() << "Same day:" << (isSameDay ? "YES" : "NO");
+
+    if (!isSameDay)
+    {
+        m_statsDownloadedDelta = m_statsThisDayDownloaded;
+        m_statsUploadedDelta = m_statsThisDayUploaded;
+    }
+
+    m_statsThisDayDownloaded = m_status.totalDownload - m_statsDownloadedDelta;
+    m_statsThisDayUploaded = m_status.totalUpload - m_statsUploadedDelta;
+    qDebug() << "Downloaded on this day:" << m_statsThisDayDownloaded;
+    qDebug() << "Uploaded on this day:" << m_statsThisDayUploaded;
+
     const QVariantHash stats {
         {u"AlltimeDL"_s, m_status.allTimeDownload},
         {u"AlltimeUL"_s, m_status.allTimeUpload}};
     std::unique_ptr<QSettings> settings = Profile::instance()->applicationSettings(u"qBittorrent-data"_s);
     settings->setValue(u"Stats/AllStats"_s, stats);
+
+    m_statsLastDateTime = statsCurrentDateTime;
 
     m_statisticsLastUpdateTimer.start();
     m_isStatisticsDirty = false;
