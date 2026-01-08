@@ -1,6 +1,6 @@
 /*
  * Bittorrent Client using Qt and libtorrent.
- * Copyright (C) 2015-2025  Vladimir Golovnev <glassez@yandex.ru>
+ * Copyright (C) 2015-2026  Vladimir Golovnev <glassez@yandex.ru>
  * Copyright (C) 2006  Christophe Dumez <chris@qbittorrent.org>
  *
  * This program is free software; you can redistribute it and/or
@@ -84,6 +84,7 @@ namespace BitTorrent
     class TorrentDescriptor;
     class TorrentImpl;
     class Tracker;
+    class TrafficStatsStorage;
 
     struct LoadTorrentParams;
     struct TrackerEntry;
@@ -856,13 +857,9 @@ namespace BitTorrent
 
         SessionMetricIndices m_metricIndices;
         QDateTime m_statsBeginDateTime = QDateTime::currentDateTime();
-        mutable QDateTime m_statsLastDateTime = m_statsBeginDateTime;
         lt::time_point m_statsBeginTimestamp = lt::clock_type::now();
         lt::time_point m_statsLastTimestamp = m_statsBeginTimestamp;
-        mutable qint64 m_statsThisDayDownloaded = 0;
-        mutable qint64 m_statsThisDayUploaded = 0;
-        mutable qint64 m_statsDownloadedDelta = 0;
-        mutable qint64 m_statsUploadedDelta = 0;
+        TrafficStatsStorage *m_trafficStatsStorage = nullptr;
 
         SessionStatus m_status;
         CacheStatus m_cacheStatus;

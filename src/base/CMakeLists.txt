@@ -52,6 +52,7 @@ add_library(qbt_base STATIC
     bittorrent/tracker.h
     bittorrent/trackerentry.h
     bittorrent/trackerentrystatus.h
+    bittorrent/trafficstatsstorage.h
     concepts/explicitlyconvertibleto.h
     concepts/stringable.h
     digest32.h
@@ -162,6 +163,7 @@ add_library(qbt_base STATIC
     bittorrent/tracker.cpp
     bittorrent/trackerentry.cpp
     bittorrent/trackerentrystatus.cpp
+    bittorrent/trafficstatsstorage.cpp
     exceptions.cpp
     freediskspacechecker.cpp
     http/connection.cpp

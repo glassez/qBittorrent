@@ -1,6 +1,6 @@
 /*
  * Bittorrent Client using Qt and libtorrent.
- * Copyright (C) 2015-2025  Vladimir Golovnev <glassez@yandex.ru>
+ * Copyright (C) 2015-2026  Vladimir Golovnev <glassez@yandex.ru>
  * Copyright (C) 2006  Christophe Dumez <chris@qbittorrent.org>
  *
  * This program is free software; you can redistribute it and/or
@@ -113,6 +113,7 @@
 #include "tracker.h"
 #include "trackerentry.h"
 #include "trackerentrystatus.h"
+#include "trafficstatsstorage.h"
 
 using namespace std::chrono_literals;
 using namespace BitTorrent;
@@ -586,6 +587,7 @@ SessionImpl::SessionImpl(QObject *parent)
     , m_ioThread {new QThread}
     , m_asyncWorker {new QThreadPool(this)}
     , m_recentErroredTorrentsTimer {new QTimer(this)}
+    , m_trafficStatsStorage {new TrafficStatsStorage(this)}
     , m_freeDiskSpaceChecker {new FreeDiskSpaceChecker(savePath())}
     , m_freeDiskSpaceCheckingTimer {new QTimer(this)}
 {
@@ -6552,31 +6554,15 @@ void SessionImpl::saveStatistics() const
     if (!m_isStatisticsDirty)
         return;
 
-    const int64_t secsFromBegin = lt::total_seconds(m_statsLastTimestamp - m_statsBeginTimestamp);
-    const QDateTime statsCurrentDateTime = m_statsBeginDateTime.addSecs(secsFromBegin);
-    const bool isSameDay = (m_statsLastDateTime.daysTo(statsCurrentDateTime) == 0);
-    qDebug() << "Last statistics datetime:" << m_statsLastDateTime.toString();
-    qDebug() << "Current statistics datetime:" << statsCurrentDateTime.toString();
-    qDebug() << "Same day:" << (isSameDay ? "YES" : "NO");
-
-    if (!isSameDay)
-    {
-        m_statsDownloadedDelta = m_statsThisDayDownloaded;
-        m_statsUploadedDelta = m_statsThisDayUploaded;
-    }
-
-    m_statsThisDayDownloaded = m_status.totalDownload - m_statsDownloadedDelta;
-    m_statsThisDayUploaded = m_status.totalUpload - m_statsUploadedDelta;
-    qDebug() << "Downloaded on this day:" << m_statsThisDayDownloaded;
-    qDebug() << "Uploaded on this day:" << m_statsThisDayUploaded;
-
     const QVariantHash stats {
         {u"AlltimeDL"_s, m_status.allTimeDownload},
         {u"AlltimeUL"_s, m_status.allTimeUpload}};
     std::unique_ptr<QSettings> settings = Profile::instance()->applicationSettings(u"qBittorrent-data"_s);
     settings->setValue(u"Stats/AllStats"_s, stats);
 
-    m_statsLastDateTime = statsCurrentDateTime;
+    const int64_t secsFromBegin = lt::total_seconds(m_statsLastTimestamp - m_statsBeginTimestamp);
+    const QDateTime statsCurrentDateTime = m_statsBeginDateTime.addSecs(secsFromBegin);
+    m_trafficStatsStorage->updateSessionStats(statsCurrentDateTime, m_status.totalDownload, m_status.totalUpload);
 
     m_statisticsLastUpdateTimer.start();
     m_isStatisticsDirty = false;
