@@ -1,7 +1,6 @@
 /*
  * Bittorrent Client using Qt and libtorrent.
- * Copyright (C) 2014-2026  Vladimir Golovnev <glassez@yandex.ru>
- * Copyright (C) 2006  Ishan Arora and Christophe Dumez <chris@qbittorrent.org>
+ * Copyright (C) 2026  Vladimir Golovnev <glassez@yandex.ru>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -27,41 +26,41 @@
  * exception statement from your version.
  */
 
-
 #pragma once
 
-#include <QSet>
-#include <QSslConfiguration>
-#include <QTcpServer>
+#include <QObject>
+
+#include "environment.h"
+#include "request.h"
 
 namespace Http
 {
-    class Connection;
-    class RequestDispatcher;
+    class ResponseWriter;
 
-    class Server final : public QTcpServer
+    class RequestHandler : public QObject
     {
         Q_OBJECT
-        Q_DISABLE_COPY_MOVE(Server)
+        Q_DISABLE_COPY_MOVE(RequestHandler)
 
     public:
-        explicit Server(RequestDispatcher *requestDispatcher, QObject *parent = nullptr);
+        RequestHandler(const Request &request, const Environment &env
+            , ResponseWriter *responseWriter, QObject *parent = nullptr);
 
-        bool setupHttps(const QByteArray &certificates, const QByteArray &privateKey);
-        void disableHttps();
-        bool isHttps() const;
+        Request request() const;
+        Environment env() const;
 
-    private slots:
-        void dropTimedOutConnection();
+        virtual void processRequest() = 0;
+
+    signals:
+        void finished(QPrivateSignal);
+
+    protected:
+        ResponseWriter *responseWriter() const;
 
     private:
-        void incomingConnection(qintptr socketDescriptor) override;
-        void removeConnection(Connection *connection);
+        Request m_request;
+        Environment m_env;
 
-        RequestDispatcher *m_requestDispatcher = nullptr;
-        QSet<Connection *> m_connections;  // for tracking persistent connections
-
-        bool m_https = false;
-        QSslConfiguration m_sslConfig;
+        ResponseWriter *m_responseWriter = nullptr;
     };
 }

@@ -1,7 +1,6 @@
 /*
  * Bittorrent Client using Qt and libtorrent.
- * Copyright (C) 2014  Vladimir Golovnev <glassez@yandex.ru>
- * Copyright (C) 2006  Ishan Arora and Christophe Dumez <chris@qbittorrent.org>
+ * Copyright (C) 2026  Vladimir Golovnev <glassez@yandex.ru>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -27,17 +26,36 @@
  * exception statement from your version.
  */
 
+#include "requesthandler.h"
 
-#pragma once
+#include "responsewriter.h"
 
-class QByteArray;
-class QString;
-
-namespace Http
+Http::RequestHandler::RequestHandler(const Request &request, const Environment &env
+        , ResponseWriter *responseWriter, QObject *parent)
+    : QObject(parent)
+    , m_request {request}
+    , m_env {env}
+    , m_responseWriter {responseWriter}
 {
-    struct Response;
+    Q_ASSERT(m_responseWriter);
+    connect(m_responseWriter, &ResponseWriter::finished, this, [this]
+    {
+        emit finished(QPrivateSignal());
+    });
+    connect(this, &QObject::destroyed, m_responseWriter, &QObject::deleteLater);
+}
 
-    QByteArray toByteArray(Response response);
-    QString httpDate();
-    void compressContent(Response &response);
+Http::ResponseWriter *Http::RequestHandler::responseWriter() const
+{
+    return m_responseWriter;
+}
+
+Http::Request Http::RequestHandler::request() const
+{
+    return m_request;
+}
+
+Http::Environment Http::RequestHandler::env() const
+{
+    return m_env;
 }

@@ -1,7 +1,7 @@
 /*
  * Bittorrent Client using Qt and libtorrent.
+ * Copyright (C) 2014-2026  Vladimir Golovnev <glassez@yandex.ru>
  * Copyright (C) 2018  Mike Tzou (Chocobo1)
- * Copyright (C) 2014  Vladimir Golovnev <glassez@yandex.ru>
  * Copyright (C) 2006  Ishan Arora and Christophe Dumez <chris@qbittorrent.org>
  *
  * This program is free software; you can redistribute it and/or
@@ -30,22 +30,27 @@
 
 #include "connection.h"
 
+#include <QMetaObject>
 #include <QTcpSocket>
 
 #include "constants.h"
 #include "environment.h"
-#include "irequesthandler.h"
+#include "requestdispatcher.h"
+#include "requesthandler.h"
 #include "requestparser.h"
-#include "response.h"
-#include "responsegenerator.h"
+#include "responsewriter.h"
+#include "utils.h"
 
 using namespace Http;
 
-Connection::Connection(QTcpSocket *socket, IRequestHandler *requestHandler, QObject *parent)
+Connection::Connection(QTcpSocket *socket, RequestDispatcher *requestDispatcher, QObject *parent)
     : QObject(parent)
-    , m_socket(socket)
-    , m_requestHandler(requestHandler)
+    , m_socket {socket}
+    , m_requestDispatcher {requestDispatcher}
 {
+    Q_ASSERT(socket);
+    Q_ASSERT(requestDispatcher);
+
     m_socket->setParent(this);
     connect(m_socket, &QAbstractSocket::disconnected, this, &Connection::closed);
 
@@ -55,12 +60,12 @@ Connection::Connection(QTcpSocket *socket, IRequestHandler *requestHandler, QObj
 
     // reset timer when there are activity
     m_idleTimer.start();
-    connect(m_socket, &QIODevice::readyRead, this, [this]()
+    connect(m_socket, &QIODevice::readyRead, this, [this]
     {
         m_idleTimer.start();
         read();
     });
-    connect(m_socket, &QIODevice::bytesWritten, this, [this]()
+    connect(m_socket, &QIODevice::bytesWritten, this, [this]
     {
         m_idleTimer.start();
     });
@@ -68,114 +73,123 @@ Connection::Connection(QTcpSocket *socket, IRequestHandler *requestHandler, QObj
 
 void Connection::read()
 {
-    // reuse existing buffer and avoid unnecessary memory allocation/relocation
-    const qsizetype previousSize = m_receivedData.size();
-    const qint64 bytesAvailable = m_socket->bytesAvailable();
-    m_receivedData.resize(previousSize + bytesAvailable);
-    const qint64 bytesRead = m_socket->read((m_receivedData.data() + previousSize), bytesAvailable);
-    if (bytesRead < 0) [[unlikely]]
-    {
-        m_socket->close();
+    if (m_isProcessingRequest)
         return;
-    }
-    if (bytesRead < bytesAvailable) [[unlikely]]
-        m_receivedData.chop(bytesAvailable - bytesRead);
 
-    while (!m_receivedData.isEmpty())
+    const qint64 bytesAvailable = m_socket->bytesAvailable();
+    if (bytesAvailable > 0)
     {
-        const RequestParser::ParseResult result = RequestParser::parse(m_receivedData);
-
-        switch (result.status)
+        // reuse existing buffer and avoid unnecessary memory allocation/relocation
+        const qsizetype previousSize = m_receivedData.size();
+        m_receivedData.resize(previousSize + bytesAvailable);
+        const qint64 bytesRead = m_socket->read((m_receivedData.data() + previousSize), bytesAvailable);
+        if (bytesRead < 0) [[unlikely]]
         {
-        case RequestParser::ParseStatus::Incomplete:
-            {
-                const long bufferLimit = RequestParser::MAX_CONTENT_SIZE * 1.1;  // some margin for headers
-                if (m_receivedData.size() > bufferLimit)
-                {
-                    qWarning("%s", qUtf8Printable(tr("Http request size exceeds limitation, closing socket. Limit: %1, IP: %2")
-                        .arg(QString::number(bufferLimit), m_socket->peerAddress().toString())));
-
-                    const Response resp {
-                            .status = {.code = 413, .text = u"Payload Too Large"_s},
-                            .headers = {{HEADER_CONNECTION, u"close"_s}}};
-                    sendResponse(resp);
-                    m_socket->close();
-                }
-            }
-            return;
-
-        case RequestParser::ParseStatus::BadMethod:
-            {
-                qWarning("%s", qUtf8Printable(tr("Bad Http request method, closing socket. IP: %1. Method: \"%2\"")
-                    .arg(m_socket->peerAddress().toString(), result.request.method)));
-
-                const Response resp {
-                        .status = {.code = 501, .text = u"Not Implemented"_s},
-                        .headers = {{HEADER_CONNECTION, u"close"_s}}};
-                sendResponse(resp);
-                m_socket->close();
-            }
-            return;
-
-        case RequestParser::ParseStatus::BadRequest:
-            {
-                qWarning("%s", qUtf8Printable(tr("Bad Http request, closing socket. IP: %1")
-                    .arg(m_socket->peerAddress().toString())));
-
-                const Response resp {
-                        .status = {.code = 400, .text = u"Bad Request"_s},
-                        .headers = {{HEADER_CONNECTION, u"close"_s}}};
-                sendResponse(resp);
-                m_socket->close();
-            }
-            return;
-
-        case RequestParser::ParseStatus::OK:
-            {
-                const Environment env {m_socket->localAddress(), m_socket->localPort(), m_socket->peerAddress(), m_socket->peerPort()};
-
-                if (result.request.method == HEADER_REQUEST_METHOD_HEAD)
-                {
-                    Request getRequest = result.request;
-                    getRequest.method = HEADER_REQUEST_METHOD_GET;
-
-                    Response resp = m_requestHandler->processRequest(getRequest, env);
-
-                    resp.headers[HEADER_CONNECTION] = u"keep-alive"_s;
-                    resp.headers[HEADER_CONTENT_LENGTH] = QString::number(resp.content.length());
-                    resp.content.clear();
-
-                    sendResponse(resp);
-                }
-                else
-                {
-                    Response resp = m_requestHandler->processRequest(result.request, env);
-
-                    if (acceptsGzipEncoding(result.request.headers.value(u"accept-encoding"_s)))
-                        resp.headers[HEADER_CONTENT_ENCODING] = u"gzip"_s;
-                    resp.headers[HEADER_CONNECTION] = u"keep-alive"_s;
-
-                    sendResponse(resp);
-                }
-
-#if QT_VERSION >= QT_VERSION_CHECK(6, 8, 0)
-                m_receivedData.slice(result.frameSize);
-#else
-                m_receivedData.remove(0, result.frameSize);
-#endif
-            }
-            break;
-
-        default:
-            Q_UNREACHABLE();
+            m_socket->close();
             return;
         }
+
+        if (bytesRead < bytesAvailable) [[unlikely]]
+            m_receivedData.chop(bytesAvailable - bytesRead);
+    }
+
+    if (!m_receivedData.isEmpty())
+    {
+        if (!processRequest())
+            return;
     }
 }
 
-void Connection::sendResponse(const Response &response) const
+bool Connection::processRequest()
 {
-    m_socket->write(toByteArray(response));
+    Q_ASSERT(!m_isProcessingRequest);
+    if (m_isProcessingRequest) [[unlikely]]
+        return false;
+
+    const RequestParser::ParseResult result = RequestParser::parse(m_receivedData);
+    switch (result.status)
+    {
+    case RequestParser::ParseStatus::OK:
+        {
+#if QT_VERSION >= QT_VERSION_CHECK(6, 8, 0)
+            m_receivedData.slice(result.frameSize);
+#else
+            m_receivedData.remove(0, result.frameSize);
+#endif
+
+            const Environment env {m_socket->localAddress(), m_socket->localPort(), m_socket->peerAddress(), m_socket->peerPort()};
+
+            auto *responseWriter = new ResponseWriter(*m_socket, result.request);
+            if (RequestHandler *requestHandler = m_requestDispatcher->dispatchRequest(result.request, env, responseWriter))
+            {
+                connect(requestHandler, &RequestHandler::finished, this, [this, requestHandler]
+                {
+                    requestHandler->deleteLater();
+                    m_isProcessingRequest = false;
+                    read(); // try to fetch next request
+                });
+                m_isProcessingRequest = true;
+                QMetaObject::invokeMethod(requestHandler, &RequestHandler::processRequest, Qt::QueuedConnection);
+            }
+            else
+            {
+                delete responseWriter;
+                QMetaObject::invokeMethod(this, &Connection::read, Qt::QueuedConnection);
+            }
+        }
+        break;
+
+    case RequestParser::ParseStatus::Incomplete:
+        if (m_receivedData.size() > (RequestParser::MAX_CONTENT_SIZE * 1.1))  // some margin for headers
+            sendErrorResponse(413, "Payload Too Large");
+        return false;
+
+    case RequestParser::ParseStatus::BadMethod:
+        sendErrorResponse(501, "Not Implemented");
+        return false;
+
+    case RequestParser::ParseStatus::BadRequest:
+        sendErrorResponse(400, "Bad Request");
+        return false;
+
+    default:
+        Q_UNREACHABLE();
+        return false;
+    }
+
+    return true;
+}
+
+void Connection::sendErrorResponse(const quint16 statusCode, const QByteArray &statusText) const
+{
+    QByteArray buf;
+    buf.reserve(1024);
+
+    // Status Line
+    buf.append("HTTP/1.1 ")  // TODO: depends on request
+        .append(QByteArray::number(statusCode))
+        .append(' ')
+        .append(statusText)
+        .append(CRLF);
+
+    const HeaderMap headers {
+        {HEADER_DATE, httpDate()},
+        {HEADER_CONNECTION, u"close"_s}
+    };
+
+    for (auto i = headers.constBegin(); i != headers.constEnd(); ++i)
+    {
+        buf.append(i.key().toLatin1())
+            .append(": ")
+            .append(i.value().toLatin1())
+            .append(CRLF);
+    }
+
+    // the first empty line
+    buf.append(CRLF);
+
+    m_socket->write(buf);
+    m_socket->close();
 }
 
 bool Connection::hasExpired(const qint64 timeout) const
@@ -183,47 +197,4 @@ bool Connection::hasExpired(const qint64 timeout) const
     return (m_socket->bytesAvailable() == 0)
         && (m_socket->bytesToWrite() == 0)
         && m_idleTimer.hasExpired(timeout);
-}
-
-bool Connection::acceptsGzipEncoding(QString codings)
-{
-    // [rfc7231] 5.3.4. Accept-Encoding
-
-    const auto isCodingAvailable = [](const QList<QStringView> &list, const QStringView encoding) -> bool
-    {
-        for (const QStringView &str : list)
-        {
-            if (!str.startsWith(encoding))
-                continue;
-
-            // without quality values
-            if (str == encoding)
-                return true;
-
-            // [rfc7231] 5.3.1. Quality Values
-            const QStringView substr = str.mid(encoding.size() + 3);  // ex. skip over "gzip;q="
-
-            bool ok = false;
-            const double qvalue = substr.toDouble(&ok);
-            if (!ok || (qvalue <= 0))
-                return false;
-
-            return true;
-        }
-        return false;
-    };
-
-    const QList<QStringView> list = QStringView(codings.remove(u' ').remove(u'\t')).split(u',', Qt::SkipEmptyParts);
-    if (list.isEmpty())
-        return false;
-
-    const bool canGzip = isCodingAvailable(list, u"gzip"_s);
-    if (canGzip)
-        return true;
-
-    const bool canAny = isCodingAvailable(list, u"*"_s);
-    if (canAny)
-        return true;
-
-    return false;
 }

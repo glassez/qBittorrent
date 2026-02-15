@@ -27,41 +27,20 @@
  * exception statement from your version.
  */
 
+#include "utils.h"
 
-#pragma once
+#include <QDateTime>
+#include <QList>
+#include <QString>
+#include <QStringView>
 
-#include <QSet>
-#include <QSslConfiguration>
-#include <QTcpServer>
+using namespace Qt::Literals::StringLiterals;
 
-namespace Http
+QString Http::httpDate()
 {
-    class Connection;
-    class RequestDispatcher;
+    // [RFC 7231] 7.1.1.1. Date/Time Formats
+    // example: "Sun, 06 Nov 1994 08:49:37 GMT"
 
-    class Server final : public QTcpServer
-    {
-        Q_OBJECT
-        Q_DISABLE_COPY_MOVE(Server)
-
-    public:
-        explicit Server(RequestDispatcher *requestDispatcher, QObject *parent = nullptr);
-
-        bool setupHttps(const QByteArray &certificates, const QByteArray &privateKey);
-        void disableHttps();
-        bool isHttps() const;
-
-    private slots:
-        void dropTimedOutConnection();
-
-    private:
-        void incomingConnection(qintptr socketDescriptor) override;
-        void removeConnection(Connection *connection);
-
-        RequestDispatcher *m_requestDispatcher = nullptr;
-        QSet<Connection *> m_connections;  // for tracking persistent connections
-
-        bool m_https = false;
-        QSslConfiguration m_sslConfig;
-    };
+    return QLocale::c().toString(QDateTime::currentDateTimeUtc(), u"ddd, dd MMM yyyy HH:mm:ss"_s)
+        .append(u" GMT");
 }

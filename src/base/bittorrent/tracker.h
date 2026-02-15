@@ -39,8 +39,8 @@
 
 #include "base/bittorrent/infohash.h"
 #include "base/http/environment.h"
-#include "base/http/irequesthandler.h"
 #include "base/http/request.h"
+#include "base/http/requestdispatcher.h"
 #include "base/http/response.h"
 
 namespace Http
@@ -69,7 +69,7 @@ namespace BitTorrent
     // *Basic* Bittorrent tracker implementation
     // [BEP-3] The BitTorrent Protocol Specification
     // also see: https://wiki.theory.org/index.php/BitTorrentSpecification#Tracker_HTTP.2FHTTPS_Protocol
-    class Tracker final : public QObject, public Http::IRequestHandler
+    class Tracker final : public QObject, public Http::RequestDispatcher
     {
         Q_OBJECT
         Q_DISABLE_COPY_MOVE(Tracker)
@@ -89,9 +89,12 @@ namespace BitTorrent
         explicit Tracker(QObject *parent = nullptr);
 
         bool start();
+        Http::Response processRequest(const Http::Request &request, const Http::Environment &env);
 
     private:
-        Http::Response processRequest(const Http::Request &request, const Http::Environment &env) override;
+        Http::RequestHandler *dispatchRequest(const Http::Request &request
+                , const Http::Environment &env, Http::ResponseWriter *responseWriter) override;
+
         void processAnnounceRequest();
 
         void registerPeer(const TrackerAnnounceRequest &announceReq);

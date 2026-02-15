@@ -1,6 +1,6 @@
 /*
  * Bittorrent Client using Qt and libtorrent.
- * Copyright (C) 2014  Vladimir Golovnev <glassez@yandex.ru>
+ * Copyright (C) 2014-2026  Vladimir Golovnev <glassez@yandex.ru>
  * Copyright (C) 2006  Christophe Dumez <chris@qbittorrent.org>
  * Copyright (C) 2006  Ishan Arora <ishan@qbittorrent.org>
  *
@@ -48,6 +48,7 @@
 #include "base/utils/net.h"
 #include "base/utils/sslkey.h"
 #include "connection.h"
+#include "requestdispatcher.h"
 
 using namespace std::chrono_literals;
 
@@ -98,11 +99,13 @@ namespace
 
 using namespace Http;
 
-Server::Server(IRequestHandler *requestHandler, QObject *parent)
+Server::Server(RequestDispatcher *requestDispatcher, QObject *parent)
     : QTcpServer(parent)
-    , m_requestHandler(requestHandler)
+    , m_requestDispatcher {requestDispatcher}
     , m_sslConfig {QSslConfiguration::defaultConfiguration()}
 {
+    Q_ASSERT(requestDispatcher);
+
     setProxy(QNetworkProxy::NoProxy);
 
     m_sslConfig.setCiphers(safeCipherList());
@@ -134,7 +137,7 @@ void Server::incomingConnection(const qintptr socketDescriptor)
             sslSocket->startServerEncryption();
         }
 
-        auto *connection = new Connection(serverSocket.release(), m_requestHandler, this);
+        auto *connection = new Connection(serverSocket.release(), m_requestDispatcher, this);
         m_connections.insert(connection);
         connect(connection, &Connection::closed, this, [this, connection] { removeConnection(connection); });
     }

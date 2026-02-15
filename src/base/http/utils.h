@@ -30,38 +30,9 @@
 
 #pragma once
 
-#include <QSet>
-#include <QSslConfiguration>
-#include <QTcpServer>
+class QString;
 
 namespace Http
 {
-    class Connection;
-    class RequestDispatcher;
-
-    class Server final : public QTcpServer
-    {
-        Q_OBJECT
-        Q_DISABLE_COPY_MOVE(Server)
-
-    public:
-        explicit Server(RequestDispatcher *requestDispatcher, QObject *parent = nullptr);
-
-        bool setupHttps(const QByteArray &certificates, const QByteArray &privateKey);
-        void disableHttps();
-        bool isHttps() const;
-
-    private slots:
-        void dropTimedOutConnection();
-
-    private:
-        void incomingConnection(qintptr socketDescriptor) override;
-        void removeConnection(Connection *connection);
-
-        RequestDispatcher *m_requestDispatcher = nullptr;
-        QSet<Connection *> m_connections;  // for tracking persistent connections
-
-        bool m_https = false;
-        QSslConfiguration m_sslConfig;
-    };
+    QString httpDate();
 }

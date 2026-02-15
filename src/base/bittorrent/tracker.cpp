@@ -39,6 +39,7 @@
 #include "base/global.h"
 #include "base/http/constants.h"
 #include "base/http/httperror.h"
+#include "base/http/responsewriter.h"
 #include "base/http/server.h"
 #include "base/logger.h"
 #include "base/preferences.h"
@@ -188,7 +189,7 @@ bool Tracker::TorrentStats::removePeer(const Peer &peer)
 // Tracker
 Tracker::Tracker(QObject *parent)
     : QObject(parent)
-    , m_server(new Http::Server(this, this))
+    , m_server {new Http::Server(this, this)}
 {
 }
 
@@ -269,6 +270,15 @@ Http::Response Tracker::processRequest(const Http::Request &request, const Http:
     }
 
     return m_response;
+}
+
+Http::RequestHandler *Tracker::dispatchRequest(const Http::Request &request
+        , const Http::Environment &env, Http::ResponseWriter *responseWriter)
+{
+    const Http::Response response = processRequest(request, env);
+    responseWriter->setResponse(response.status.code, response.status.text, response.headers, response.content);
+
+    return nullptr;
 }
 
 void Tracker::processAnnounceRequest()
@@ -358,7 +368,7 @@ void Tracker::processAnnounceRequest()
         || (announceReq.event == ANNOUNCE_REQUEST_EVENT_COMPLETED)
         || (announceReq.event == ANNOUNCE_REQUEST_EVENT_STARTED)
         || (announceReq.event == ANNOUNCE_REQUEST_EVENT_PAUSED))
-        {
+    {
         // [BEP-21] Extension for partial seeds
         // (partial support - we don't support BEP-48 so the part that concerns that is not supported)
         registerPeer(announceReq);

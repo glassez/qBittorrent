@@ -64,12 +64,14 @@ add_library(qbt_base STATIC
     http/header.h
     http/headermap.h
     http/httperror.h
-    http/irequesthandler.h
     http/request.h
-    http/response.h
+    http/requestdispatcher.h
+    http/requesthandler.h
     http/requestparser.h
-    http/responsegenerator.h
+    http/response.h
+    http/responsewriter.h
     http/server.h
+    http/utils.h
     indexrange.h
     interfaces/iapplication.h
     logger.h
@@ -170,9 +172,11 @@ add_library(qbt_base STATIC
     freediskspacechecker.cpp
     http/connection.cpp
     http/httperror.cpp
+    http/requesthandler.cpp
     http/requestparser.cpp
-    http/responsegenerator.cpp
+    http/responsewriter.cpp
     http/server.cpp
+    http/utils.cpp
     logger.cpp
     net/dnsupdater.cpp
     net/downloadhandlerimpl.cpp
