@@ -116,6 +116,7 @@ private:
     void openParentFolder(const QModelIndex &index);
     void openSelectedFile();
     void renameSelectedFile();
+    void removeSelectedFolder();
     void applyPriorities(BitTorrent::DownloadPriority priority);
     void applyPrioritiesByOrder();
     Path getFullPath(const QModelIndex &index) const;

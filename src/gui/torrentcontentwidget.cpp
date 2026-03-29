@@ -1,6 +1,6 @@
 /*
  * Bittorrent Client using Qt and libtorrent.
- * Copyright (C) 2022-2024  Vladimir Golovnev <glassez@yandex.ru>
+ * Copyright (C) 2022-2026  Vladimir Golovnev <glassez@yandex.ru>
  * Copyright (C) 2014  Ivan Sorokin <vanyacpp@gmail.com>
  *
  * This program is free software; you can redistribute it and/or
@@ -41,6 +41,7 @@
 
 #include "base/bittorrent/torrentcontenthandler.h"
 #include "base/path.h"
+#include "base/exceptions.h"
 #include "base/utils/string.h"
 #include "autoexpandabledialog.h"
 #include "raisedmessagebox.h"
@@ -292,6 +293,36 @@ void TorrentContentWidget::renameSelectedFile()
     model()->setData(modelIndex, newName);
 }
 
+void TorrentContentWidget::removeSelectedFolder()
+{
+    const QModelIndexList selectedIndexes = selectionModel()->selectedRows(0);
+    if (selectedIndexes.size() != 1)
+        return;
+
+    const QPersistentModelIndex modelIndex = selectedIndexes.first();
+    if (!modelIndex.isValid())
+        return;
+
+    Q_ASSERT(m_filterModel->itemType(modelIndex) == TorrentContentModelItem::FolderType);
+    if (m_filterModel->itemType(modelIndex) != TorrentContentModelItem::FolderType) [[unlikely]]
+        return;
+
+    const QMessageBox::StandardButton btn = RaisedMessageBox::question(this, tr("Folder remove")
+            , tr("Are you sure you want to remove folder from the torrent content layout? This doesn't remove files but moves them to parent folder.")
+            , (QMessageBox::Yes | QMessageBox::No), QMessageBox::No);
+    if ((btn != QMessageBox::Yes) || !modelIndex.isValid())
+        return;
+
+    try
+    {
+        contentHandler()->removeFolder(getItemPath(modelIndex));
+    }
+    catch (const RuntimeError &error)
+    {
+        RaisedMessageBox::warning(this, tr("Remove error"), error.message(), QMessageBox::Ok);
+    }
+}
+
 void TorrentContentWidget::applyPriorities(const BitTorrent::DownloadPriority priority)
 {
     const QList<QPersistentModelIndex> selectedRows = toPersistentIndexes(selectionModel()->selectedRows(Priority));
@@ -427,6 +458,11 @@ void TorrentContentWidget::displayContextMenu()
         }
         menu->addAction(UIThemeManager::instance()->getIcon(u"edit-rename"_s), tr("Rename...")
                         , this, &TorrentContentWidget::renameSelectedFile);
+        if (m_filterModel->itemType(index) == TorrentContentModelItem::FolderType)
+        {
+            menu->addAction(UIThemeManager::instance()->getIcon(u"edit-clear"_s, u"list-remove"_s), tr("Remove folder")
+                    , this, &TorrentContentWidget::removeSelectedFolder);
+        }
         menu->addSeparator();
 
         QMenu *subMenu = menu->addMenu(tr("Priority"));

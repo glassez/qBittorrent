@@ -51,5 +51,8 @@ namespace BitTorrent
 
         void renameFile(const Path &oldPath, const Path &newPath);
         void renameFolder(const Path &oldFolderPath, const Path &newFolderPath);
+
+        // Move files out from the folder
+        void removeFolder(const Path &folderPath);
     };
 }

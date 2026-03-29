@@ -93,3 +93,31 @@ void BitTorrent::AbstractFileStorage::renameFolder(const Path &oldFolderPath, co
         renameFile(index, newFilePath);
     }
 }
+
+void BitTorrent::AbstractFileStorage::removeFolder(const Path &folderPath)
+{
+    if (!folderPath.isValid())
+        throw RuntimeError(tr("The path is invalid: '%1'.").arg(folderPath.toString()));
+
+    QList<int> renamingFileIndexes;
+    renamingFileIndexes.reserve(filesCount());
+
+    for (int i = 0; i < filesCount(); ++i)
+    {
+        const Path path = filePath(i);
+
+        if (path.hasAncestor(folderPath))
+            renamingFileIndexes.append(i);
+    }
+
+    if (renamingFileIndexes.isEmpty())
+        throw RuntimeError(tr("No such folder: '%1'.").arg(folderPath.toString()));
+
+    const Path newFolderPath = folderPath.parentPath();
+
+    for (const int index : renamingFileIndexes)
+    {
+        const Path newFilePath = newFolderPath / folderPath.relativePathOf(filePath(index));
+        renameFile(index, newFilePath);
+    }
+}
