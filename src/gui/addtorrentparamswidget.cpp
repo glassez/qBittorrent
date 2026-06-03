@@ -94,9 +94,9 @@ AddTorrentParamsWidget::AddTorrentParamsWidget(BitTorrent::AddTorrentParams addT
     m_ui->contentLayoutComboBox->addItem(tr("Don't create subfolder"), QVariant::fromValue(BitTorrent::TorrentContentLayout::NoSubfolder));
 
     m_ui->stopConditionComboBox->addItem(tr("Default"));
-    m_ui->stopConditionComboBox->addItem(tr("None"), QVariant::fromValue(BitTorrent::Torrent::StopCondition::None));
-    m_ui->stopConditionComboBox->addItem(tr("Metadata received"), QVariant::fromValue(BitTorrent::Torrent::StopCondition::MetadataReceived));
-    m_ui->stopConditionComboBox->addItem(tr("Files checked"), QVariant::fromValue(BitTorrent::Torrent::StopCondition::FilesChecked));
+    m_ui->stopConditionComboBox->addItem(tr("None"), QVariant::fromValue(BitTorrent::TorrentStopCondition::None));
+    m_ui->stopConditionComboBox->addItem(tr("Metadata received"), QVariant::fromValue(BitTorrent::TorrentStopCondition::MetadataReceived));
+    m_ui->stopConditionComboBox->addItem(tr("Files checked"), QVariant::fromValue(BitTorrent::TorrentStopCondition::FilesChecked));
 
     m_ui->startTorrentComboBox->addItem(tr("Default"));
     m_ui->startTorrentComboBox->addItem(tr("Yes"), true);
@@ -236,7 +236,7 @@ void AddTorrentParamsWidget::populate()
         if (!data.isValid())
             m_addTorrentParams.stopCondition = std::nullopt;
         else
-            m_addTorrentParams.stopCondition = data.value<BitTorrent::Torrent::StopCondition>();
+            m_addTorrentParams.stopCondition = data.value<BitTorrent::TorrentStopCondition>();
     });
 
     m_ui->tagsLineEdit->setText(Utils::String::joinIntoString(m_addTorrentParams.tags, u", "_s));

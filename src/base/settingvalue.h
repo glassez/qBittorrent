@@ -48,6 +48,14 @@ public:
         return SettingsStorage::instance()->loadValue(m_keyName, defaultValue);
     }
 
+    // The signature of the ProxyFunc should be equivalent to the following:
+    // T proxyFunc(const T &a);
+    template <typename ProxyFunc>
+    T get(const T &defaultValue, ProxyFunc &&proxyFunc) const
+    {
+        return proxyFunc(get(defaultValue));
+    }
+
     operator T() const
     {
         return get();
@@ -78,7 +86,7 @@ public:
     template <typename ProxyFunc>
     explicit CachedSettingValue(const QString &keyName, const T &defaultValue, ProxyFunc &&proxyFunc)
         : m_setting {keyName}
-        , m_cache {proxyFunc(m_setting.get(defaultValue))}
+        , m_cache {m_setting.get(defaultValue, std::forward<ProxyFunc>(proxyFunc))}
     {
     }
 

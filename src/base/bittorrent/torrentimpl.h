@@ -1,6 +1,6 @@
 /*
  * Bittorrent Client using Qt and libtorrent.
- * Copyright (C) 2015-2025  Vladimir Golovnev <glassez@yandex.ru>
+ * Copyright (C) 2015-2026  Vladimir Golovnev <glassez@yandex.ru>
  * Copyright (C) 2006  Christophe Dumez <chris@qbittorrent.org>
  *
  * This program is free software; you can redistribute it and/or
@@ -237,8 +237,8 @@ namespace BitTorrent
         void clearPeers() override;
         void setMetadata(const TorrentInfo &torrentInfo) override;
 
-        StopCondition stopCondition() const override;
-        void setStopCondition(StopCondition stopCondition) override;
+        TorrentStopCondition stopCondition() const override;
+        void setStopCondition(TorrentStopCondition stopCondition) override;
         SSLParameters getSSLParameters() const override;
         void setSSLParameters(const SSLParameters &sslParams) override;
         bool applySSLParameters();
@@ -380,7 +380,7 @@ namespace BitTorrent
         bool m_hasFirstLastPiecePriority = false;
         bool m_useAutoTMM = false;
         bool m_isStopped = false;
-        StopCondition m_stopCondition = StopCondition::None;
+        TorrentStopCondition m_stopCondition = TorrentStopCondition::None;
         SSLParameters m_sslParams;
 
         bool m_unchecked = false;

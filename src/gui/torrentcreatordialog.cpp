@@ -359,7 +359,7 @@ void TorrentCreatorDialog::handleCreationSuccess(const BitTorrent::TorrentCreato
             params.contentLayout = BitTorrent::TorrentContentLayout::Original;
             params.savePath = result.savePath;
             params.skipChecking = true;
-            params.stopCondition = BitTorrent::Torrent::StopCondition::None;
+            params.stopCondition = BitTorrent::TorrentStopCondition::None;
             params.useAutoTMM = false;  // otherwise if it is on by default, it will overwrite `savePath` to the default save path
             params.useDownloadPath = false;
 

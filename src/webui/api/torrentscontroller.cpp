@@ -1104,9 +1104,9 @@ void TorrentsController::addAction()
     const std::optional<bool> autoTMM = parseBool(params()[u"autoTMM"_s]);
 
     const QString stopConditionParam = params()[u"stopCondition"_s];
-    const std::optional<BitTorrent::Torrent::StopCondition> stopCondition = (!stopConditionParam.isEmpty()
-            ? Utils::String::toEnum(stopConditionParam, BitTorrent::Torrent::StopCondition::None)
-            : std::optional<BitTorrent::Torrent::StopCondition> {});
+    const std::optional<BitTorrent::TorrentStopCondition> stopCondition = (!stopConditionParam.isEmpty()
+            ? Utils::String::toEnum(stopConditionParam, BitTorrent::TorrentStopCondition::None)
+            : std::optional<BitTorrent::TorrentStopCondition> {});
 
     const QString contentLayoutParam = params()[u"contentLayout"_s];
     const std::optional<BitTorrent::TorrentContentLayout> contentLayout = (!contentLayoutParam.isEmpty()

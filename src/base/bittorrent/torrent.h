@@ -40,6 +40,7 @@
 #include "sharelimits.h"
 #include "torrentannouncestatus.h"
 #include "torrentcontenthandler.h"
+#include "torrentstopcondition.h"
 
 class QBitArray;
 class QByteArray;
@@ -117,14 +118,6 @@ namespace BitTorrent
         Q_DISABLE_COPY_MOVE(Torrent)
 
     public:
-        enum class StopCondition
-        {
-            None = 0,
-            MetadataReceived = 1,
-            FilesChecked = 2
-        };
-        Q_ENUM(StopCondition)
-
         static const qreal MAX_RATIO;
 
         using TorrentContentHandler::TorrentContentHandler;
@@ -299,8 +292,8 @@ namespace BitTorrent
         virtual void clearPeers() = 0;
         virtual void setMetadata(const TorrentInfo &torrentInfo) = 0;
 
-        virtual StopCondition stopCondition() const = 0;
-        virtual void setStopCondition(StopCondition stopCondition) = 0;
+        virtual TorrentStopCondition stopCondition() const = 0;
+        virtual void setStopCondition(TorrentStopCondition stopCondition) = 0;
         virtual SSLParameters getSSLParameters() const = 0;
         virtual void setSSLParameters(const SSLParameters &sslParams) = 0;
 

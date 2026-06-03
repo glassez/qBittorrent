@@ -1,6 +1,6 @@
 /*
  * Bittorrent Client using Qt and libtorrent.
- * Copyright (C) 2018  Vladimir Golovnev <glassez@yandex.ru>
+ * Copyright (C) 2018-2026  Vladimir Golovnev <glassez@yandex.ru>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -34,10 +34,12 @@
 #include "base/bittorrent/peeraddress.h"
 #include "base/bittorrent/peerinfo.h"
 #include "base/bittorrent/session.h"
+#include "base/bittorrent/sessionsettings.h"
 #include "base/bittorrent/sessionstatus.h"
-#include "base/global.h"
 #include "base/utils/string.h"
 #include "apierror.h"
+
+using namespace Qt::Literals::StringLiterals;
 
 const QString KEY_TRANSFER_DLSPEED = u"dl_info_speed"_s;
 const QString KEY_TRANSFER_DLDATA = u"dl_info_data"_s;
@@ -104,10 +106,12 @@ void TransferController::downloadLimitAction()
 void TransferController::setUploadLimitAction()
 {
     requireParams({u"limit"_s});
-    qlonglong limit = params()[u"limit"_s].toLongLong();
-    if (limit == 0) limit = -1;
+    const qint64 limit = params()[u"limit"_s].toLongLong();
 
-    BitTorrent::Session::instance()->setUploadSpeedLimit(limit);
+    auto *btSession = BitTorrent::Session::instance();
+    BitTorrent::SessionSettings sessionSettings = btSession->settings();
+    (btSession->isAltGlobalSpeedLimitEnabled() ? sessionSettings.altGlobalUploadSpeedLimit : sessionSettings.globalUploadSpeedLimit) = limit;
+    btSession->setSettings(sessionSettings);
 
     setResult(QString());
 }
@@ -115,10 +119,12 @@ void TransferController::setUploadLimitAction()
 void TransferController::setDownloadLimitAction()
 {
     requireParams({u"limit"_s});
-    qlonglong limit = params()[u"limit"_s].toLongLong();
-    if (limit == 0) limit = -1;
+    const qint64 limit = params()[u"limit"_s].toLongLong();
 
-    BitTorrent::Session::instance()->setDownloadSpeedLimit(limit);
+    auto *btSession = BitTorrent::Session::instance();
+    BitTorrent::SessionSettings sessionSettings = btSession->settings();
+    (btSession->isAltGlobalSpeedLimitEnabled() ? sessionSettings.altGlobalDownloadSpeedLimit : sessionSettings.globalDownloadSpeedLimit) = limit;
+    btSession->setSettings(sessionSettings);
 
     setResult(QString());
 }
@@ -126,12 +132,13 @@ void TransferController::setDownloadLimitAction()
 void TransferController::getSpeedLimitsAction()
 {
     const auto *session = BitTorrent::Session::instance();
+    const BitTorrent::SessionSettings &sessionSettings = session->settings();
 
     const QJsonObject dict {
-        {KEY_TRANSFER_UP_LIMIT, session->globalUploadSpeedLimit()},
-        {KEY_TRANSFER_DL_LIMIT, session->globalDownloadSpeedLimit()},
-        {KEY_TRANSFER_ALT_UP_LIMIT, session->altGlobalUploadSpeedLimit()},
-        {KEY_TRANSFER_ALT_DL_LIMIT, session->altGlobalDownloadSpeedLimit()}
+        {KEY_TRANSFER_UP_LIMIT, sessionSettings.globalUploadSpeedLimit},
+        {KEY_TRANSFER_DL_LIMIT, sessionSettings.globalDownloadSpeedLimit},
+        {KEY_TRANSFER_ALT_UP_LIMIT, sessionSettings.altGlobalUploadSpeedLimit},
+        {KEY_TRANSFER_ALT_DL_LIMIT, sessionSettings.altGlobalDownloadSpeedLimit}
     };
 
     setResult(dict);
@@ -142,11 +149,14 @@ void TransferController::setSpeedLimitsAction()
     requireParams({KEY_TRANSFER_UP_LIMIT, KEY_TRANSFER_DL_LIMIT, KEY_TRANSFER_ALT_UP_LIMIT, KEY_TRANSFER_ALT_DL_LIMIT});
 
     BitTorrent::Session *const session = BitTorrent::Session::instance();
+    BitTorrent::SessionSettings sessionSettings = session->settings();
 
-    session->setGlobalUploadSpeedLimit(params().value(KEY_TRANSFER_UP_LIMIT).toInt());
-    session->setGlobalDownloadSpeedLimit(params().value(KEY_TRANSFER_DL_LIMIT).toInt());
-    session->setAltGlobalUploadSpeedLimit(params().value(KEY_TRANSFER_ALT_UP_LIMIT).toInt());
-    session->setAltGlobalDownloadSpeedLimit(params().value(KEY_TRANSFER_ALT_DL_LIMIT).toInt());
+    sessionSettings.globalUploadSpeedLimit = params().value(KEY_TRANSFER_UP_LIMIT).toInt();
+    sessionSettings.globalDownloadSpeedLimit = params().value(KEY_TRANSFER_DL_LIMIT).toInt();
+    sessionSettings.altGlobalUploadSpeedLimit = params().value(KEY_TRANSFER_ALT_UP_LIMIT).toInt();
+    sessionSettings.altGlobalDownloadSpeedLimit = params().value(KEY_TRANSFER_ALT_DL_LIMIT).toInt();
+
+    session->setSettings(sessionSettings);
 }
 
 void TransferController::toggleSpeedLimitsModeAction()

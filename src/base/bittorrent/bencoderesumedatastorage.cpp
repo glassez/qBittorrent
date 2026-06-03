@@ -286,7 +286,7 @@ BitTorrent::LoadResumeDataResult BitTorrent::BencodeResumeDataStorage::loadTorre
     // === END REPLACEMENT CODE === //
 
     torrentParams.stopCondition = Utils::String::toEnum(
-            fromLTString(resumeDataRoot.dict_find_string_value("qBt-stopCondition")), Torrent::StopCondition::None);
+            fromLTString(resumeDataRoot.dict_find_string_value("qBt-stopCondition")), TorrentStopCondition::None);
     torrentParams.sslParameters =
     {
         .certificate = QSslCertificate(toByteArray(resumeDataRoot.dict_find_string_value(KEY_SSL_CERTIFICATE))),
@@ -364,7 +364,7 @@ BitTorrent::LoadResumeDataResult BitTorrent::BencodeResumeDataStorage::loadTorre
     if (p.flags & lt::torrent_flags::stop_when_ready)
     {
         p.flags &= ~lt::torrent_flags::stop_when_ready;
-        torrentParams.stopCondition = Torrent::StopCondition::FilesChecked;
+        torrentParams.stopCondition = TorrentStopCondition::FilesChecked;
     }
 
     const bool hasMetadata = (p.ti && p.ti->is_valid());

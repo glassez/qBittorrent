@@ -1713,7 +1713,7 @@ void TorrentImpl::forceRecheck()
     {
         // When "force recheck" is applied on Stopped torrent, we start them to perform checking
         start();
-        m_stopCondition = StopCondition::FilesChecked;
+        m_stopCondition = TorrentStopCondition::FilesChecked;
     }
 }
 
@@ -1902,9 +1902,9 @@ void TorrentImpl::endReceivedMetadataHandling(const Path &savePath, const PathLi
     p.save_path = savePath.toString().toStdString();
     p.ti = metadata;
 
-    if (stopCondition() == StopCondition::MetadataReceived)
+    if (stopCondition() == TorrentStopCondition::MetadataReceived)
     {
-        m_stopCondition = StopCondition::None;
+        m_stopCondition = TorrentStopCondition::None;
 
         m_isStopped = true;
         p.flags |= lt::torrent_flags::paused;
@@ -1981,7 +1981,7 @@ void TorrentImpl::stop()
 {
     if (!m_isStopped)
     {
-        m_stopCondition = StopCondition::None;
+        m_stopCondition = TorrentStopCondition::None;
         m_isStopped = true;
         deferredRequestResumeData();
         m_session->handleTorrentStopped(this);
@@ -2121,7 +2121,7 @@ void TorrentImpl::handleTorrentChecked()
         return;
     }
 
-    if (stopCondition() == StopCondition::FilesChecked)
+    if (stopCondition() == TorrentStopCondition::FilesChecked)
         stop();
 
     m_statusUpdatedTriggers.enqueue([this]()
@@ -2588,12 +2588,12 @@ void TorrentImpl::setMetadata(const TorrentInfo &torrentInfo)
     });
 }
 
-Torrent::StopCondition TorrentImpl::stopCondition() const
+TorrentStopCondition TorrentImpl::stopCondition() const
 {
     return m_stopCondition;
 }
 
-void TorrentImpl::setStopCondition(const StopCondition stopCondition)
+void TorrentImpl::setStopCondition(const TorrentStopCondition stopCondition)
 {
     if (stopCondition == m_stopCondition)
         return;
@@ -2601,10 +2601,10 @@ void TorrentImpl::setStopCondition(const StopCondition stopCondition)
     if (isStopped())
         return;
 
-    if ((stopCondition == StopCondition::MetadataReceived) && hasMetadata())
+    if ((stopCondition == TorrentStopCondition::MetadataReceived) && hasMetadata())
         return;
 
-    if ((stopCondition == StopCondition::FilesChecked) && hasMetadata() && !isChecking())
+    if ((stopCondition == TorrentStopCondition::FilesChecked) && hasMetadata() && !isChecking())
         return;
 
     m_stopCondition = stopCondition;

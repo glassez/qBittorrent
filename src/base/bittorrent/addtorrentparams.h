@@ -60,7 +60,7 @@ namespace BitTorrent
         bool addForced = false;
         std::optional<bool> addToQueueTop;
         std::optional<bool> addStopped;
-        std::optional<Torrent::StopCondition> stopCondition;
+        std::optional<TorrentStopCondition> stopCondition;
         PathList filePaths; // used if TorrentInfo is set
         QList<DownloadPriority> filePriorities; // used if TorrentInfo is set
         bool skipChecking = false;

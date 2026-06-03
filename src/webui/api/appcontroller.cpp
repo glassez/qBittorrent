@@ -586,7 +586,7 @@ void AppController::setPreferencesAction()
     if (hasKey(u"add_stopped_enabled"_s))
         session->setAddTorrentStopped(it.value().toBool());
     if (hasKey(u"torrent_stop_condition"_s))
-        session->setTorrentStopCondition(Utils::String::toEnum(it.value().toString(), BitTorrent::Torrent::StopCondition::None));
+        session->setTorrentStopCondition(Utils::String::toEnum(it.value().toString(), BitTorrent::TorrentStopCondition::None));
     if (hasKey(u"merge_trackers"_s))
         session->setMergeTrackersEnabled(it.value().toBool());
     if (hasKey(u"auto_delete_mode"_s))

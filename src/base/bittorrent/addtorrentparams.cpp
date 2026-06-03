@@ -118,7 +118,7 @@ BitTorrent::AddTorrentParams BitTorrent::parseAddTorrentParams(const QJsonObject
         .addForced = (getEnum<TorrentOperatingMode>(jsonObj, PARAM_OPERATINGMODE) == TorrentOperatingMode::Forced),
         .addToQueueTop = getOptionalBool(jsonObj, PARAM_QUEUETOP),
         .addStopped = getOptionalBool(jsonObj, PARAM_STOPPED),
-        .stopCondition = getOptionalEnum<Torrent::StopCondition>(jsonObj, PARAM_STOPCONDITION),
+        .stopCondition = getOptionalEnum<TorrentStopCondition>(jsonObj, PARAM_STOPCONDITION),
         .filePaths = {},
         .filePriorities = {},
         .skipChecking = jsonObj.value(PARAM_SKIPCHECKING).toBool(),

@@ -1,6 +1,6 @@
 /*
  * Bittorrent Client using Qt and libtorrent.
- * Copyright (C) 2020-2026  Vladimir Golovnev <glassez@yandex.ru>
+ * Copyright (C) 2026  Vladimir Golovnev <glassez@yandex.ru>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -35,17 +35,17 @@ namespace BitTorrent
     // Using `Q_ENUM_NS()` without a wrapper namespace in our case is not advised
     // since `Q_NAMESPACE` cannot be used when the same namespace resides at different files.
     // https://www.kdab.com/new-qt-5-8-meta-object-support-namespaces/#comment-143779
-    inline namespace TorrentContentLayoutNS
+    inline namespace TorrentStopConditionNS
     {
         Q_NAMESPACE
 
-        enum class TorrentContentLayout
+        enum class TorrentStopCondition
         {
-            Original,
-            Subfolder,
-            NoSubfolder
+            None = 0,
+            MetadataReceived = 1,
+            FilesChecked = 2
         };
 
-        Q_ENUM_NS(TorrentContentLayout)
+        Q_ENUM_NS(TorrentStopCondition)
     }
 }

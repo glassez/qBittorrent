@@ -655,7 +655,7 @@ LoadResumeDataResult DBResumeDataStorage::parseQueryResultRow(const QSqlQuery &q
         query.value(DB_COLUMN_OPERATING_MODE.name).toString(), TorrentOperatingMode::AutoManaged);
     resumeData.stopped = query.value(DB_COLUMN_STOPPED.name).toBool();
     resumeData.stopCondition = Utils::String::toEnum(
-        query.value(DB_COLUMN_STOP_CONDITION.name).toString(), Torrent::StopCondition::None);
+        query.value(DB_COLUMN_STOP_CONDITION.name).toString(), TorrentStopCondition::None);
     resumeData.sslParameters = {
         .certificate = QSslCertificate(query.value(DB_COLUMN_SSL_CERTIFICATE.name).toByteArray()),
         .privateKey = Utils::SSLKey::load(query.value(DB_COLUMN_SSL_PRIVATE_KEY.name).toByteArray()),
@@ -723,7 +723,7 @@ LoadResumeDataResult DBResumeDataStorage::parseQueryResultRow(const QSqlQuery &q
     if (p.flags & lt::torrent_flags::stop_when_ready)
     {
         p.flags &= ~lt::torrent_flags::stop_when_ready;
-        resumeData.stopCondition = Torrent::StopCondition::FilesChecked;
+        resumeData.stopCondition = TorrentStopCondition::FilesChecked;
     }
 
     return resumeData;

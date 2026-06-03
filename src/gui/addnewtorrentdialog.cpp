@@ -215,8 +215,8 @@ AddNewTorrentDialog::AddNewTorrentDialog(const BitTorrent::TorrentDescriptor &to
             + u" <em>" + tr("Torrents that have metadata initially will be added as stopped.") + u"</em></p><p><b>"
             + tr("Files checked") + u"</b> - " + tr("Torrent will stop after files are initially checked.")
             + u" <em>" + tr("This will also download metadata if it wasn't there initially.") + u"</em></p></body></html>");
-    m_ui->stopConditionComboBox->addItem(tr("None"), QVariant::fromValue(BitTorrent::Torrent::StopCondition::None));
-    m_ui->stopConditionComboBox->addItem(tr("Files checked"), QVariant::fromValue(BitTorrent::Torrent::StopCondition::FilesChecked));
+    m_ui->stopConditionComboBox->addItem(tr("None"), QVariant::fromValue(BitTorrent::TorrentStopCondition::None));
+    m_ui->stopConditionComboBox->addItem(tr("Files checked"), QVariant::fromValue(BitTorrent::TorrentStopCondition::FilesChecked));
 
     m_ui->checkBoxRememberLastSavePath->setChecked(m_storeRememberLastSavePath);
     m_ui->doNotDeleteTorrentCheckBox->setVisible(TorrentFileGuard::autoDeleteMode() != TorrentFileGuard::Never);
@@ -386,14 +386,14 @@ void AddNewTorrentDialog::setCurrentContext(const std::shared_ptr<Context> conte
     const bool hasMetadata = torrentDescr.info().has_value();
 
     if (hasMetadata)
-        m_ui->stopConditionComboBox->removeItem(m_ui->stopConditionComboBox->findData(QVariant::fromValue(BitTorrent::Torrent::StopCondition::MetadataReceived)));
+        m_ui->stopConditionComboBox->removeItem(m_ui->stopConditionComboBox->findData(QVariant::fromValue(BitTorrent::TorrentStopCondition::MetadataReceived)));
     else
-        m_ui->stopConditionComboBox->insertItem(1, tr("Metadata received"), QVariant::fromValue(BitTorrent::Torrent::StopCondition::MetadataReceived));
+        m_ui->stopConditionComboBox->insertItem(1, tr("Metadata received"), QVariant::fromValue(BitTorrent::TorrentStopCondition::MetadataReceived));
     const auto stopCondition = addTorrentParams.stopCondition.value_or(session->torrentStopCondition());
-    if (hasMetadata && (stopCondition == BitTorrent::Torrent::StopCondition::MetadataReceived))
+    if (hasMetadata && (stopCondition == BitTorrent::TorrentStopCondition::MetadataReceived))
     {
         m_ui->startTorrentCheckBox->setChecked(false);
-        m_ui->stopConditionComboBox->setCurrentIndex(m_ui->stopConditionComboBox->findData(QVariant::fromValue(BitTorrent::Torrent::StopCondition::None)));
+        m_ui->stopConditionComboBox->setCurrentIndex(m_ui->stopConditionComboBox->findData(QVariant::fromValue(BitTorrent::TorrentStopCondition::None)));
     }
     else
     {
@@ -445,7 +445,7 @@ void AddNewTorrentDialog::updateCurrentContext()
 
     addTorrentParams.addToQueueTop = m_ui->addToQueueTopCheckBox->isChecked();
     addTorrentParams.addStopped = !m_ui->startTorrentCheckBox->isChecked();
-    addTorrentParams.stopCondition = m_ui->stopConditionComboBox->currentData().value<BitTorrent::Torrent::StopCondition>();
+    addTorrentParams.stopCondition = m_ui->stopConditionComboBox->currentData().value<BitTorrent::TorrentStopCondition>();
     addTorrentParams.contentLayout = static_cast<BitTorrent::TorrentContentLayout>(m_ui->contentLayoutComboBox->currentIndex());
 
     addTorrentParams.sequential = m_ui->sequentialCheckBox->isChecked();
@@ -769,14 +769,14 @@ void AddNewTorrentDialog::updateMetadata(const BitTorrent::TorrentInfo &metadata
     setupTreeview();
     setMetadataProgressIndicator(false, tr("Metadata retrieval complete"));
 
-    if (const auto stopCondition = m_ui->stopConditionComboBox->currentData().value<BitTorrent::Torrent::StopCondition>()
-            ; stopCondition == BitTorrent::Torrent::StopCondition::MetadataReceived)
+    if (const auto stopCondition = m_ui->stopConditionComboBox->currentData().value<BitTorrent::TorrentStopCondition>()
+            ; stopCondition == BitTorrent::TorrentStopCondition::MetadataReceived)
     {
         m_ui->startTorrentCheckBox->setChecked(false);
 
         const auto index = m_ui->stopConditionComboBox->currentIndex();
         m_ui->stopConditionComboBox->setCurrentIndex(m_ui->stopConditionComboBox->findData(
-                QVariant::fromValue(BitTorrent::Torrent::StopCondition::None)));
+                QVariant::fromValue(BitTorrent::TorrentStopCondition::None)));
         m_ui->stopConditionComboBox->removeItem(index);
     }
 

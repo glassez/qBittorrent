@@ -32,6 +32,7 @@ add_library(qbt_base STATIC
     bittorrent/resumedatastorage.h
     bittorrent/session.h
     bittorrent/sessionimpl.h
+    bittorrent/sessionsettings.h
     bittorrent/sessionstatus.h
     bittorrent/sharelimits.h
     bittorrent/speedmonitor.h
@@ -48,6 +49,7 @@ add_library(qbt_base STATIC
     bittorrent/torrentdescriptor.h
     bittorrent/torrentimpl.h
     bittorrent/torrentinfo.h
+    bittorrent/torrentstopcondition.h
     bittorrent/tracker.h
     bittorrent/trackerentry.h
     bittorrent/trackerentrystatus.h
