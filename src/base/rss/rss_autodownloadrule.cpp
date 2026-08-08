@@ -64,27 +64,6 @@ namespace
         return boolValue.has_value() ? *boolValue : QJsonValue {};
     }
 
-    std::optional<bool> addPausedLegacyToOptionalBool(const int val)
-    {
-        switch (val)
-        {
-        case 1:
-            return true; // always
-        case 2:
-            return false; // never
-        default:
-            return std::nullopt; // default
-        }
-    }
-
-    int toAddPausedLegacy(const std::optional<bool> boolValue)
-    {
-        if (!boolValue.has_value())
-            return 0; // default
-
-        return (*boolValue ? 1 /* always */ : 2 /* never */);
-    }
-
     std::optional<BitTorrent::TorrentContentLayout> jsonValueToContentLayout(const QJsonValue &jsonVal)
     {
         const QString str = jsonVal.toString();
@@ -121,109 +100,54 @@ const QString S_CONTENT_LAYOUT = u"torrentContentLayout"_s;
 
 const QString S_TORRENT_PARAMS = u"torrentParams"_s;
 
-namespace RSS
+namespace
 {
-    struct AutoDownloadRuleData : public QSharedData
+    QString computeEpisodeName(const QString &article)
     {
-        QString name;
-        bool enabled = true;
-        int priority = 0;
+        const QRegularExpression episodeRegex = RSS::AutoDownloader::instance()->smartEpisodeRegex();
+        const QRegularExpressionMatch match = episodeRegex.match(article);
 
-        QStringList mustContain;
-        QStringList mustNotContain;
-        QString episodeFilter;
-        QStringList feedURLs;
-        bool useRegex = false;
-        int ignoreDays = 0;
-        QDateTime lastMatch;
+        // See if we can extract an season/episode number or date from the title
+        if (!match.hasMatch())
+            return {};
 
-        BitTorrent::AddTorrentParams addTorrentParams;
-
-        bool smartFilter = false;
-        QStringList previouslyMatchedEpisodes;
-
-        mutable QStringList lastComputedEpisodes;
-        mutable QHash<QString, QRegularExpression> cachedRegexes;
-
-        friend bool operator==(const AutoDownloadRuleData &left, const AutoDownloadRuleData &right)
+        QStringList ret;
+        for (int i = 1; i <= match.lastCapturedIndex(); ++i)
         {
-            return (left.name == right.name)
-                    && (left.enabled == right.enabled)
-                    && (left.priority == right.priority)
-                    && (left.mustContain == right.mustContain)
-                    && (left.mustNotContain == right.mustNotContain)
-                    && (left.episodeFilter == right.episodeFilter)
-                    && (left.feedURLs == right.feedURLs)
-                    && (left.useRegex == right.useRegex)
-                    && (left.ignoreDays == right.ignoreDays)
-                    && (left.lastMatch == right.lastMatch)
-                    && (left.smartFilter == right.smartFilter)
-                    && (left.addTorrentParams == right.addTorrentParams);
+            const QString cap = match.captured(i);
+            if (cap.isEmpty())
+                continue;
+
+            bool isInt = false;
+            const int x = cap.toInt(&isInt);
+
+            ret.append(isInt ? QString::number(x) : cap);
         }
-    };
 
-    bool operator==(const AutoDownloadRule &left, const AutoDownloadRule &right)
-    {
-        return (left.m_dataPtr == right.m_dataPtr) // optimization
-                || (*(left.m_dataPtr) == *(right.m_dataPtr));
+        return ret.join(u'x');
     }
 }
 
-using namespace RSS;
+RSS::AutoDownloadRule::AutoDownloadRule() = default;
 
-QString computeEpisodeName(const QString &article)
-{
-    const QRegularExpression episodeRegex = AutoDownloader::instance()->smartEpisodeRegex();
-    const QRegularExpressionMatch match = episodeRegex.match(article);
-
-    // See if we can extract an season/episode number or date from the title
-    if (!match.hasMatch())
-        return {};
-
-    QStringList ret;
-    for (int i = 1; i <= match.lastCapturedIndex(); ++i)
-    {
-        const QString cap = match.captured(i);
-        if (cap.isEmpty())
-            continue;
-
-        bool isInt = false;
-        const int x = cap.toInt(&isInt);
-
-        ret.append(isInt ? QString::number(x) : cap);
-    }
-
-    return ret.join(u'x');
-}
-
-AutoDownloadRule::AutoDownloadRule(const QString &name)
-    : m_dataPtr(new AutoDownloadRuleData)
-{
-    setName(name);
-}
-
-AutoDownloadRule::AutoDownloadRule(const AutoDownloadRule &other) = default;
-
-AutoDownloadRule::~AutoDownloadRule() = default;
-
-QRegularExpression AutoDownloadRule::cachedRegex(const QString &expression, const bool isRegex) const
+QRegularExpression RSS::AutoDownloadRule::cachedRegex(const QString &expression, const bool isRegex) const
 {
     // Use a cache of regexes so we don't have to continually recompile - big performance increase.
     // The cache is cleared whenever the regex/wildcard, must or must not contain fields or
     // episode filter are modified.
     Q_ASSERT(!expression.isEmpty());
 
-    QRegularExpression &regex = m_dataPtr->cachedRegexes[expression];
+    QRegularExpression &regex = m_cachedRegexes[expression];
     if (regex.pattern().isEmpty())
     {
         const QString pattern = (isRegex ? expression : Utils::String::wildcardToRegexPattern(expression));
-        regex = QRegularExpression {pattern, QRegularExpression::CaseInsensitiveOption};
+        regex = QRegularExpression(pattern, QRegularExpression::CaseInsensitiveOption);
     }
 
     return regex;
 }
 
-bool AutoDownloadRule::matchesExpression(const QString &articleTitle, const QString &expression) const
+bool RSS::AutoDownloadRule::matchesExpression(const QString &articleTitle, const QString &expression) const
 {
     const QRegularExpression whitespace {u"\\s+"_s};
 
@@ -233,9 +157,9 @@ bool AutoDownloadRule::matchesExpression(const QString &articleTitle, const QStr
         return true;
     }
 
-    if (m_dataPtr->useRegex)
+    if (m_useRegex)
     {
-        const QRegularExpression reg(cachedRegex(expression));
+        const QRegularExpression reg = cachedRegex(expression);
         return reg.match(articleTitle).hasMatch();
     }
 
@@ -244,7 +168,7 @@ bool AutoDownloadRule::matchesExpression(const QString &articleTitle, const QStr
     const QStringList wildcards {expression.split(whitespace, Qt::SkipEmptyParts)};
     for (const QString &wildcard : wildcards)
     {
-        const QRegularExpression reg {cachedRegex(wildcard, false)};
+        const QRegularExpression reg = cachedRegex(wildcard, false);
         if (!reg.match(articleTitle).hasMatch())
             return false;
     }
@@ -252,44 +176,44 @@ bool AutoDownloadRule::matchesExpression(const QString &articleTitle, const QStr
     return true;
 }
 
-bool AutoDownloadRule::matchesMustContainExpression(const QString &articleTitle) const
+bool RSS::AutoDownloadRule::matchesMustContainExpression(const QString &articleTitle) const
 {
-    if (m_dataPtr->mustContain.empty())
+    if (m_mustContain.empty())
         return true;
 
     // Each expression is either a regex, or a set of wildcards separated by whitespace.
     // Accept if any complete expression matches.
-    return std::ranges::any_of(asConst(m_dataPtr->mustContain), [this, &articleTitle](const QString &expression)
+    return std::ranges::any_of(asConst(m_mustContain), [this, &articleTitle](const QString &expression)
     {
         // A regex of the form "expr|" will always match, so do the same for wildcards
         return matchesExpression(articleTitle, expression);
     });
 }
 
-bool AutoDownloadRule::matchesMustNotContainExpression(const QString &articleTitle) const
+bool RSS::AutoDownloadRule::matchesMustNotContainExpression(const QString &articleTitle) const
 {
-    if (m_dataPtr->mustNotContain.empty())
+    if (m_mustNotContain.empty())
         return true;
 
     // Each expression is either a regex, or a set of wildcards separated by whitespace.
     // Reject if any complete expression matches.
-    return std::ranges::none_of(asConst(m_dataPtr->mustNotContain), [this, &articleTitle](const QString &expression)
+    return std::ranges::none_of(asConst(m_mustNotContain), [this, &articleTitle](const QString &expression)
     {
         // A regex of the form "expr|" will always match, so do the same for wildcards
         return matchesExpression(articleTitle, expression);
     });
 }
 
-bool AutoDownloadRule::matchesEpisodeFilterExpression(const QString &articleTitle) const
+bool RSS::AutoDownloadRule::matchesEpisodeFilterExpression(const QString &articleTitle) const
 {
     // Reset the lastComputedEpisode, we don't want to leak it between matches
-    m_dataPtr->lastComputedEpisodes.clear();
+    m_lastComputedEpisodes.clear();
 
-    if (m_dataPtr->episodeFilter.isEmpty())
+    if (m_episodeFilter.isEmpty())
         return true;
 
-    const QRegularExpression filterRegex {cachedRegex(u"(^\\d{1,4})x(.*;$)"_s)};
-    const QRegularExpressionMatch matcher {filterRegex.match(m_dataPtr->episodeFilter)};
+    const QRegularExpression filterRegex = cachedRegex(u"(^\\d{1,4})x(.*;$)"_s);
+    const QRegularExpressionMatch matcher = filterRegex.match(m_episodeFilter);
     if (!matcher.hasMatch())
         return false;
 
@@ -364,7 +288,7 @@ bool AutoDownloadRule::matchesEpisodeFilterExpression(const QString &articleTitl
     return false;
 }
 
-bool AutoDownloadRule::matchesSmartEpisodeFilter(const QString &articleTitle) const
+bool RSS::AutoDownloadRule::matchesSmartEpisodeFilter(const QString &articleTitle) const
 {
     if (!useSmartFilter())
         return true;
@@ -374,7 +298,7 @@ bool AutoDownloadRule::matchesSmartEpisodeFilter(const QString &articleTitle) co
         return false; // Don't accept articles with unrecognized episode number
 
     // See if this episode has been downloaded before
-    const bool previouslyMatched = m_dataPtr->previouslyMatchedEpisodes.contains(episodeStr);
+    const bool previouslyMatched = m_previouslyMatchedEpisodes.contains(episodeStr);
     if (previouslyMatched)
     {
         if (!AutoDownloader::instance()->downloadRepacks())
@@ -387,31 +311,29 @@ bool AutoDownloadRule::matchesSmartEpisodeFilter(const QString &articleTitle) co
         if (!isRepack && !isProper)
             return false;
 
-        const QString fullEpisodeStr = u"%1%2%3"_s.arg(episodeStr,
-                                                        isRepack ? u"-REPACK" : u"",
-                                                        isProper ? u"-PROPER" : u"");
-        const bool previouslyMatchedFull = m_dataPtr->previouslyMatchedEpisodes.contains(fullEpisodeStr);
+        const QString fullEpisodeStr = u"%1%2%3"_s.arg(episodeStr, (isRepack ? u"-REPACK" : u""), (isProper ? u"-PROPER" : u""));
+        const bool previouslyMatchedFull = m_previouslyMatchedEpisodes.contains(fullEpisodeStr);
         if (previouslyMatchedFull)
             return false;
 
-        m_dataPtr->lastComputedEpisodes.append(fullEpisodeStr);
+        m_lastComputedEpisodes.append(fullEpisodeStr);
 
         // If this is a REPACK and PROPER download, add the individual entries to the list
         // so we don't download those
         if (isRepack && isProper)
         {
-            m_dataPtr->lastComputedEpisodes.append(episodeStr + u"-REPACK");
-            m_dataPtr->lastComputedEpisodes.append(episodeStr + u"-PROPER");
+            m_lastComputedEpisodes.append(episodeStr + u"-REPACK");
+            m_lastComputedEpisodes.append(episodeStr + u"-PROPER");
         }
 
         return true;
     }
 
-    m_dataPtr->lastComputedEpisodes.append(episodeStr);
+    m_lastComputedEpisodes.append(episodeStr);
     return true;
 }
 
-bool AutoDownloadRule::matches(const QVariantHash &articleData) const
+bool RSS::AutoDownloadRule::matches(const QVariantHash &articleData) const
 {
     const QDateTime articleDate {articleData[Article::KeyDate].toDateTime()};
     if (ignoreDays() > 0)
@@ -433,7 +355,7 @@ bool AutoDownloadRule::matches(const QVariantHash &articleData) const
     return true;
 }
 
-bool AutoDownloadRule::accepts(const QVariantHash &articleData)
+bool RSS::AutoDownloadRule::accepts(const QVariantHash &articleData)
 {
     if (!matches(articleData))
         return false;
@@ -441,66 +363,49 @@ bool AutoDownloadRule::accepts(const QVariantHash &articleData)
     setLastMatch(articleData[Article::KeyDate].toDateTime());
 
     // If there's a matched episode string, add that to the previously matched list
-    if (!m_dataPtr->lastComputedEpisodes.isEmpty())
+    if (!m_lastComputedEpisodes.isEmpty())
     {
-        m_dataPtr->previouslyMatchedEpisodes.append(m_dataPtr->lastComputedEpisodes);
-        m_dataPtr->lastComputedEpisodes.clear();
+        m_previouslyMatchedEpisodes.append(m_lastComputedEpisodes);
+        m_lastComputedEpisodes.clear();
     }
 
     return true;
 }
 
-AutoDownloadRule &AutoDownloadRule::operator=(const AutoDownloadRule &other)
+QJsonObject RSS::AutoDownloadRule::toJsonObject() const
 {
-    if (this != &other)
-    {
-        m_dataPtr = other.m_dataPtr;
-    }
-    return *this;
-}
+    const BitTorrent::AddTorrentParams &addTorrentParams = m_addTorrentParams;
 
-QJsonObject AutoDownloadRule::toJsonObject() const
-{
-    const BitTorrent::AddTorrentParams &addTorrentParams = m_dataPtr->addTorrentParams;
-
-    return {{S_ENABLED, isEnabled()}
-        , {S_PRIORITY, priority()}
-        , {S_USE_REGEX, useRegex()}
-        , {S_MUST_CONTAIN, mustContain()}
-        , {S_MUST_NOT_CONTAIN, mustNotContain()}
-        , {S_EPISODE_FILTER, episodeFilter()}
-        , {S_AFFECTED_FEEDS, QJsonArray::fromStringList(feedURLs())}
-        , {S_LAST_MATCH, lastMatch().toString(Qt::RFC2822Date)}
-        , {S_IGNORE_DAYS, ignoreDays()}
-        , {S_SMART_FILTER, useSmartFilter()}
-        , {S_PREVIOUSLY_MATCHED, QJsonArray::fromStringList(previouslyMatchedEpisodes())}
-
-        // TODO: The following code is deprecated. Replace with the commented one after several releases in 4.6.x.
-        // === BEGIN DEPRECATED CODE === //
-        , {S_ADD_PAUSED, toJsonValue(addTorrentParams.addStopped)}
-        , {S_CONTENT_LAYOUT, contentLayoutToJsonValue(addTorrentParams.contentLayout)}
-        , {S_SAVE_PATH, addTorrentParams.savePath.toString()}
-        , {S_ASSIGNED_CATEGORY, addTorrentParams.category}
-        // === END DEPRECATED CODE === //
-
-        , {S_TORRENT_PARAMS, BitTorrent::serializeAddTorrentParams(addTorrentParams)}
+    return {
+        {S_ENABLED, isEnabled()},
+        {S_PRIORITY, priority()},
+        {S_USE_REGEX, useRegex()},
+        {S_MUST_CONTAIN, mustContain()},
+        {S_MUST_NOT_CONTAIN, mustNotContain()},
+        {S_EPISODE_FILTER, episodeFilter()},
+        {S_AFFECTED_FEEDS, QJsonArray::fromStringList(feedURLs())},
+        {S_LAST_MATCH, lastMatch().toString(Qt::RFC2822Date)},
+        {S_IGNORE_DAYS, ignoreDays()},
+        {S_SMART_FILTER, useSmartFilter()},
+        {S_PREVIOUSLY_MATCHED, QJsonArray::fromStringList(previouslyMatchedEpisodes())},
+        {S_TORRENT_PARAMS, BitTorrent::serializeAddTorrentParams(addTorrentParams)}
     };
 }
 
-AutoDownloadRule AutoDownloadRule::fromJsonObject(const QJsonObject &jsonObj, const QString &name)
+RSS::AutoDownloadRule *RSS::AutoDownloadRule::fromJsonObject(const QJsonObject &jsonObj)
 {
-    AutoDownloadRule rule {(name.isEmpty() ? jsonObj.value(S_NAME).toString() : name)};
+    auto *rule = new AutoDownloadRule;
 
-    rule.setEnabled(jsonObj.value(S_ENABLED).toBool(true));
-    rule.setPriority(jsonObj.value(S_PRIORITY).toInt(0));
+    rule->setEnabled(jsonObj.value(S_ENABLED).toBool(true));
+    rule->setPriority(jsonObj.value(S_PRIORITY).toInt(0));
 
-    rule.setUseRegex(jsonObj.value(S_USE_REGEX).toBool(false));
-    rule.setMustContain(jsonObj.value(S_MUST_CONTAIN).toString());
-    rule.setMustNotContain(jsonObj.value(S_MUST_NOT_CONTAIN).toString());
-    rule.setEpisodeFilter(jsonObj.value(S_EPISODE_FILTER).toString());
-    rule.setLastMatch(QDateTime::fromString(jsonObj.value(S_LAST_MATCH).toString(), Qt::RFC2822Date));
-    rule.setIgnoreDays(jsonObj.value(S_IGNORE_DAYS).toInt());
-    rule.setUseSmartFilter(jsonObj.value(S_SMART_FILTER).toBool(false));
+    rule->setUseRegex(jsonObj.value(S_USE_REGEX).toBool(false));
+    rule->setMustContain(jsonObj.value(S_MUST_CONTAIN).toString());
+    rule->setMustNotContain(jsonObj.value(S_MUST_NOT_CONTAIN).toString());
+    rule->setEpisodeFilter(jsonObj.value(S_EPISODE_FILTER).toString());
+    rule->setLastMatch(QDateTime::fromString(jsonObj.value(S_LAST_MATCH).toString(), Qt::RFC2822Date));
+    rule->setIgnoreDays(jsonObj.value(S_IGNORE_DAYS).toInt());
+    rule->setUseSmartFilter(jsonObj.value(S_SMART_FILTER).toBool(false));
 
     const QJsonValue feedsVal = jsonObj.value(S_AFFECTED_FEEDS);
     QStringList feedURLs;
@@ -508,7 +413,7 @@ AutoDownloadRule AutoDownloadRule::fromJsonObject(const QJsonObject &jsonObj, co
         feedURLs << feedsVal.toString();
     else for (const QJsonValue &urlVal : asConst(feedsVal.toArray()))
         feedURLs << urlVal.toString();
-    rule.setFeedURLs(feedURLs);
+    rule->setFeedURLs(feedURLs);
 
     const QJsonValue previouslyMatchedVal = jsonObj.value(S_PREVIOUSLY_MATCHED);
     QStringList previouslyMatched;
@@ -521,238 +426,148 @@ AutoDownloadRule AutoDownloadRule::fromJsonObject(const QJsonObject &jsonObj, co
         for (const QJsonValue &val : asConst(previouslyMatchedVal.toArray()))
             previouslyMatched << val.toString();
     }
-    rule.setPreviouslyMatchedEpisodes(previouslyMatched);
-
-    // TODO: The following code is deprecated. Replace with the commented one after several releases in 4.6.x.
-    // === BEGIN DEPRECATED CODE === //
-    BitTorrent::AddTorrentParams addTorrentParams;
-    if (auto it = jsonObj.find(S_TORRENT_PARAMS); it != jsonObj.end())
-    {
-        addTorrentParams = BitTorrent::parseAddTorrentParams(it->toObject());
-    }
-    else
-    {
-        addTorrentParams.savePath = Path(jsonObj.value(S_SAVE_PATH).toString());
-        addTorrentParams.category = jsonObj.value(S_ASSIGNED_CATEGORY).toString();
-        addTorrentParams.addStopped = toOptionalBool(jsonObj.value(S_ADD_PAUSED));
-        if (!addTorrentParams.savePath.isEmpty())
-            addTorrentParams.useAutoTMM = false;
-
-        if (jsonObj.contains(S_CONTENT_LAYOUT))
-        {
-            addTorrentParams.contentLayout = jsonValueToContentLayout(jsonObj.value(S_CONTENT_LAYOUT));
-        }
-        else
-        {
-            const std::optional<bool> createSubfolder = toOptionalBool(jsonObj.value(u"createSubfolder"));
-            std::optional<BitTorrent::TorrentContentLayout> contentLayout;
-            if (createSubfolder.has_value())
-            {
-                contentLayout = (*createSubfolder
-                        ? BitTorrent::TorrentContentLayout::Original
-                        : BitTorrent::TorrentContentLayout::NoSubfolder);
-            }
-
-            addTorrentParams.contentLayout = contentLayout;
-        }
-    }
-    rule.setAddTorrentParams(addTorrentParams);
-    // === END DEPRECATED CODE === //
-    // === BEGIN REPLACEMENT CODE === //
-    //    rule.setAddTorrentParams(BitTorrent::parseAddTorrentParams(jsonObj.value(S_TORRENT_PARAMS).object()));
-    // === END REPLACEMENT CODE === //
+    rule->setPreviouslyMatchedEpisodes(previouslyMatched);
+    rule->setAddTorrentParams(BitTorrent::parseAddTorrentParams(jsonObj.value(S_TORRENT_PARAMS).toObject()));
 
     return rule;
 }
 
-QVariantHash AutoDownloadRule::toLegacyDict() const
+void RSS::AutoDownloadRule::setMustContain(const QString &tokens)
 {
-    const BitTorrent::AddTorrentParams &addTorrentParams = m_dataPtr->addTorrentParams;
+    m_cachedRegexes.clear();
 
-    return {{u"name"_s, name()},
-        {u"must_contain"_s, mustContain()},
-        {u"must_not_contain"_s, mustNotContain()},
-        {u"save_path"_s, addTorrentParams.savePath.toString()},
-        {u"affected_feeds"_s, feedURLs()},
-        {u"enabled"_s, isEnabled()},
-        {u"category_assigned"_s, addTorrentParams.category},
-        {u"use_regex"_s, useRegex()},
-        {u"add_paused"_s, toAddPausedLegacy(addTorrentParams.addStopped)},
-        {u"episode_filter"_s, episodeFilter()},
-        {u"last_match"_s, lastMatch()},
-        {u"ignore_days"_s, ignoreDays()}};
-}
-
-AutoDownloadRule AutoDownloadRule::fromLegacyDict(const QVariantHash &dict)
-{
-    BitTorrent::AddTorrentParams addTorrentParams;
-    addTorrentParams.savePath = Path(dict.value(u"save_path"_s).toString());
-    addTorrentParams.category = dict.value(u"category_assigned"_s).toString();
-    addTorrentParams.addStopped = addPausedLegacyToOptionalBool(dict.value(u"add_paused"_s).toInt());
-    if (!addTorrentParams.savePath.isEmpty())
-        addTorrentParams.useAutoTMM = false;
-
-    AutoDownloadRule rule {dict.value(u"name"_s).toString()};
-
-    rule.setUseRegex(dict.value(u"use_regex"_s, false).toBool());
-    rule.setMustContain(dict.value(u"must_contain"_s).toString());
-    rule.setMustNotContain(dict.value(u"must_not_contain"_s).toString());
-    rule.setEpisodeFilter(dict.value(u"episode_filter"_s).toString());
-    rule.setFeedURLs(dict.value(u"affected_feeds"_s).toStringList());
-    rule.setEnabled(dict.value(u"enabled"_s, false).toBool());
-    rule.setLastMatch(dict.value(u"last_match"_s).toDateTime());
-    rule.setIgnoreDays(dict.value(u"ignore_days"_s).toInt());
-    rule.setAddTorrentParams(addTorrentParams);
-
-    return rule;
-}
-
-void AutoDownloadRule::setMustContain(const QString &tokens)
-{
-    m_dataPtr->cachedRegexes.clear();
-
-    if (m_dataPtr->useRegex)
-        m_dataPtr->mustContain = QStringList() << tokens;
+    if (m_useRegex)
+        m_mustContain = QStringList() << tokens;
     else
-        m_dataPtr->mustContain = tokens.split(u'|');
+        m_mustContain = tokens.split(u'|');
 
     // Check for single empty string - if so, no condition
-    if ((m_dataPtr->mustContain.size() == 1) && m_dataPtr->mustContain[0].isEmpty())
-        m_dataPtr->mustContain.clear();
+    if ((m_mustContain.size() == 1) && m_mustContain[0].isEmpty())
+        m_mustContain.clear();
 }
 
-void AutoDownloadRule::setMustNotContain(const QString &tokens)
+void RSS::AutoDownloadRule::setMustNotContain(const QString &tokens)
 {
-    m_dataPtr->cachedRegexes.clear();
+    m_cachedRegexes.clear();
 
-    if (m_dataPtr->useRegex)
-        m_dataPtr->mustNotContain = QStringList() << tokens;
+    if (m_useRegex)
+        m_mustNotContain = QStringList() << tokens;
     else
-        m_dataPtr->mustNotContain = tokens.split(u'|');
+        m_mustNotContain = tokens.split(u'|');
 
     // Check for single empty string - if so, no condition
-    if ((m_dataPtr->mustNotContain.size() == 1) && m_dataPtr->mustNotContain[0].isEmpty())
-        m_dataPtr->mustNotContain.clear();
+    if ((m_mustNotContain.size() == 1) && m_mustNotContain[0].isEmpty())
+        m_mustNotContain.clear();
 }
 
-QStringList AutoDownloadRule::feedURLs() const
+QStringList RSS::AutoDownloadRule::feedURLs() const
 {
-    return m_dataPtr->feedURLs;
+    return m_feedURLs;
 }
 
-void AutoDownloadRule::setFeedURLs(const QStringList &urls)
+void RSS::AutoDownloadRule::setFeedURLs(const QStringList &urls)
 {
-    m_dataPtr->feedURLs = urls;
+    m_feedURLs = urls;
 }
 
-QString AutoDownloadRule::name() const
+BitTorrent::AddTorrentParams RSS::AutoDownloadRule::addTorrentParams() const
 {
-    return m_dataPtr->name;
+    return m_addTorrentParams;
 }
 
-void AutoDownloadRule::setName(const QString &name)
+void RSS::AutoDownloadRule::setAddTorrentParams(BitTorrent::AddTorrentParams addTorrentParams)
 {
-    m_dataPtr->name = name;
+    m_addTorrentParams = std::move(addTorrentParams);
 }
 
-BitTorrent::AddTorrentParams AutoDownloadRule::addTorrentParams() const
+bool RSS::AutoDownloadRule::isEnabled() const
 {
-    return m_dataPtr->addTorrentParams;
+    return m_enabled;
 }
 
-void AutoDownloadRule::setAddTorrentParams(BitTorrent::AddTorrentParams addTorrentParams)
+void RSS::AutoDownloadRule::setEnabled(const bool enable)
 {
-    m_dataPtr->addTorrentParams = std::move(addTorrentParams);
+    m_enabled = enable;
 }
 
-bool AutoDownloadRule::isEnabled() const
+int RSS::AutoDownloadRule::priority() const
 {
-    return m_dataPtr->enabled;
+    return m_priority;
 }
 
-void AutoDownloadRule::setEnabled(const bool enable)
+void RSS::AutoDownloadRule::setPriority(const int value)
 {
-    m_dataPtr->enabled = enable;
+    m_priority = value;
 }
 
-int AutoDownloadRule::priority() const
+QDateTime RSS::AutoDownloadRule::lastMatch() const
 {
-    return m_dataPtr->priority;
+    return m_lastMatch;
 }
 
-void AutoDownloadRule::setPriority(const int value)
+void RSS::AutoDownloadRule::setLastMatch(const QDateTime &lastMatch)
 {
-    m_dataPtr->priority = value;
+    m_lastMatch = lastMatch;
 }
 
-QDateTime AutoDownloadRule::lastMatch() const
+void RSS::AutoDownloadRule::setIgnoreDays(const int d)
 {
-    return m_dataPtr->lastMatch;
+    m_ignoreDays = d;
 }
 
-void AutoDownloadRule::setLastMatch(const QDateTime &lastMatch)
+int RSS::AutoDownloadRule::ignoreDays() const
 {
-    m_dataPtr->lastMatch = lastMatch;
+    return m_ignoreDays;
 }
 
-void AutoDownloadRule::setIgnoreDays(const int d)
+QString RSS::AutoDownloadRule::mustContain() const
 {
-    m_dataPtr->ignoreDays = d;
+    return m_mustContain.join(u'|');
 }
 
-int AutoDownloadRule::ignoreDays() const
+QString RSS::AutoDownloadRule::mustNotContain() const
 {
-    return m_dataPtr->ignoreDays;
+    return m_mustNotContain.join(u'|');
 }
 
-QString AutoDownloadRule::mustContain() const
+bool RSS::AutoDownloadRule::useSmartFilter() const
 {
-    return m_dataPtr->mustContain.join(u'|');
+    return m_useSmartFilter;
 }
 
-QString AutoDownloadRule::mustNotContain() const
+void RSS::AutoDownloadRule::setUseSmartFilter(const bool enabled)
 {
-    return m_dataPtr->mustNotContain.join(u'|');
+    m_useSmartFilter = enabled;
 }
 
-bool AutoDownloadRule::useSmartFilter() const
+bool RSS::AutoDownloadRule::useRegex() const
 {
-    return m_dataPtr->smartFilter;
+    return m_useRegex;
 }
 
-void AutoDownloadRule::setUseSmartFilter(const bool enabled)
+void RSS::AutoDownloadRule::setUseRegex(const bool enabled)
 {
-    m_dataPtr->smartFilter = enabled;
+    m_useRegex = enabled;
+    m_cachedRegexes.clear();
 }
 
-bool AutoDownloadRule::useRegex() const
+QStringList RSS::AutoDownloadRule::previouslyMatchedEpisodes() const
 {
-    return m_dataPtr->useRegex;
+    return m_previouslyMatchedEpisodes;
 }
 
-void AutoDownloadRule::setUseRegex(const bool enabled)
+void RSS::AutoDownloadRule::setPreviouslyMatchedEpisodes(const QStringList &previouslyMatchedEpisodes)
 {
-    m_dataPtr->useRegex = enabled;
-    m_dataPtr->cachedRegexes.clear();
+    m_previouslyMatchedEpisodes = previouslyMatchedEpisodes;
 }
 
-QStringList AutoDownloadRule::previouslyMatchedEpisodes() const
+QString RSS::AutoDownloadRule::episodeFilter() const
 {
-    return m_dataPtr->previouslyMatchedEpisodes;
+    return m_episodeFilter;
 }
 
-void AutoDownloadRule::setPreviouslyMatchedEpisodes(const QStringList &previouslyMatchedEpisodes)
+void RSS::AutoDownloadRule::setEpisodeFilter(const QString &e)
 {
-    m_dataPtr->previouslyMatchedEpisodes = previouslyMatchedEpisodes;
-}
-
-QString AutoDownloadRule::episodeFilter() const
-{
-    return m_dataPtr->episodeFilter;
-}
-
-void AutoDownloadRule::setEpisodeFilter(const QString &e)
-{
-    m_dataPtr->episodeFilter = e;
-    m_dataPtr->cachedRegexes.clear();
+    m_episodeFilter = e;
+    m_cachedRegexes.clear();
 }

@@ -1,6 +1,6 @@
 /*
  * Bittorrent Client using Qt and libtorrent.
- * Copyright (C) 2017-2023  Vladimir Golovnev <glassez@yandex.ru>
+ * Copyright (C) 2017-2026  Vladimir Golovnev <glassez@yandex.ru>
  * Copyright (C) 2010  Christophe Dumez <chris@qbittorrent.org>
  *
  * This program is free software; you can redistribute it and/or
@@ -29,14 +29,7 @@
 
 #pragma once
 
-#include <optional>
-
-#include <QSharedDataPointer>
-#include <QVariant>
-
-#include "base/global.h"
 #include "base/bittorrent/addtorrentparams.h"
-#include "base/pathfwd.h"
 
 class QDateTime;
 class QJsonObject;
@@ -44,19 +37,12 @@ class QRegularExpression;
 
 namespace RSS
 {
-    struct AutoDownloadRuleData;
-
     class AutoDownloadRule
     {
+        Q_DISABLE_COPY_MOVE(AutoDownloadRule)
+
     public:
-        explicit AutoDownloadRule(const QString &name = {});
-        AutoDownloadRule(const AutoDownloadRule &other);
-        ~AutoDownloadRule();
-
-        AutoDownloadRule &operator=(const AutoDownloadRule &other);
-
-        QString name() const;
-        void setName(const QString &name);
+        AutoDownloadRule();
 
         bool isEnabled() const;
         void setEnabled(bool enable);
@@ -90,13 +76,8 @@ namespace RSS
         bool matches(const QVariantHash &articleData) const;
         bool accepts(const QVariantHash &articleData);
 
-        friend bool operator==(const AutoDownloadRule &left, const AutoDownloadRule &right);
-
         QJsonObject toJsonObject() const;
-        static AutoDownloadRule fromJsonObject(const QJsonObject &jsonObj, const QString &name = {});
-
-        QVariantHash toLegacyDict() const;
-        static AutoDownloadRule fromLegacyDict(const QVariantHash &dict);
+        static AutoDownloadRule *fromJsonObject(const QJsonObject &jsonObj);
 
     private:
         bool matchesMustContainExpression(const QString &articleTitle) const;
@@ -106,6 +87,24 @@ namespace RSS
         bool matchesExpression(const QString &articleTitle, const QString &expression) const;
         QRegularExpression cachedRegex(const QString &expression, bool isRegex = true) const;
 
-        QSharedDataPointer<AutoDownloadRuleData> m_dataPtr;
+        QString m_name;
+        bool m_enabled = true;
+        int m_priority = 0;
+
+        QStringList m_mustContain;
+        QStringList m_mustNotContain;
+        QString m_episodeFilter;
+        QStringList m_feedURLs;
+        bool m_useRegex = false;
+        int m_ignoreDays = 0;
+        QDateTime m_lastMatch;
+
+        BitTorrent::AddTorrentParams m_addTorrentParams;
+
+        bool m_useSmartFilter = false;
+        QStringList m_previouslyMatchedEpisodes;
+
+        mutable QStringList m_lastComputedEpisodes;
+        mutable QHash<QString, QRegularExpression> m_cachedRegexes;
     };
 }

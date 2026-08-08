@@ -1,6 +1,6 @@
 /*
  * Bittorrent Client using Qt and libtorrent.
- * Copyright (C) 2017-2023  Vladimir Golovnev <glassez@yandex.ru>
+ * Copyright (C) 2017-2026  Vladimir Golovnev <glassez@yandex.ru>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -27,8 +27,6 @@
  */
 
 #include "rss_autodownloader.h"
-
-#include <queue>
 
 #include <QDataStream>
 #include <QDebug>
@@ -90,6 +88,69 @@ namespace
         }
 
         return rules;
+    }
+
+    std::optional<bool> addPausedLegacyToOptionalBool(const int val)
+    {
+        switch (val)
+        {
+        case 1:
+            return true; // always
+        case 2:
+            return false; // never
+        default:
+            return std::nullopt; // default
+        }
+    }
+
+    int toAddPausedLegacy(const std::optional<bool> boolValue)
+    {
+        if (!boolValue.has_value())
+            return 0; // default
+
+        return (*boolValue ? 1 /* always */ : 2 /* never */);
+    }
+
+    QVariantHash ruleToLegacyDict(const RSS::AutoDownloadRule *rule)
+    {
+        const BitTorrent::AddTorrentParams addTorrentParams = rule->addTorrentParams();
+
+        return {{u"name"_s, rule->name()},
+                {u"must_contain"_s, rule->mustContain()},
+                {u"must_not_contain"_s, rule->mustNotContain()},
+                {u"save_path"_s, addTorrentParams.savePath.toString()},
+                {u"affected_feeds"_s, rule->feedURLs()},
+                {u"enabled"_s, rule->isEnabled()},
+                {u"category_assigned"_s, addTorrentParams.category},
+                {u"use_regex"_s, rule->useRegex()},
+                {u"add_paused"_s, toAddPausedLegacy(addTorrentParams.addStopped)},
+                {u"episode_filter"_s, rule->episodeFilter()},
+                {u"last_match"_s, rule->lastMatch()},
+                {u"ignore_days"_s, rule->ignoreDays()}};
+    }
+
+    RSS::AutoDownloadRule *ruleFromLegacyDict(const QVariantHash &dict, QObject *parent)
+    {
+        BitTorrent::AddTorrentParams addTorrentParams;
+        addTorrentParams.savePath = Path(dict.value(u"save_path"_s).toString());
+        addTorrentParams.category = dict.value(u"category_assigned"_s).toString();
+        addTorrentParams.addStopped = addPausedLegacyToOptionalBool(dict.value(u"add_paused"_s).toInt());
+        if (!addTorrentParams.savePath.isEmpty())
+            addTorrentParams.useAutoTMM = false;
+
+        auto *rule = new RSS::AutoDownloadRule(dict.value(u"name"_s).toString(), parent);
+
+        rule->setUseRegex(dict.value(u"use_regex"_s, false).toBool());
+        rule->setMustContain(dict.value(u"must_contain"_s).toString());
+        rule->setMustNotContain(dict.value(u"must_not_contain"_s).toString());
+        rule->setEpisodeFilter(dict.value(u"episode_filter"_s).toString());
+        rule->setFeedURLs(dict.value(u"affected_feeds"_s).toStringList());
+        rule->setEnabled(dict.value(u"enabled"_s, false).toBool());
+        rule->setLastMatch(dict.value(u"last_match"_s).toDateTime());
+        rule->setIgnoreDays(dict.value(u"ignore_days"_s).toInt());
+        rule->setAddTorrentParams(addTorrentParams);
+
+        return rule;
     }
 }
 
@@ -166,6 +227,8 @@ AutoDownloader::AutoDownloader(IApplication *app)
 AutoDownloader::~AutoDownloader()
 {
     store();
+
+    qDeleteAll(m_rules);
 }
 
 AutoDownloader *AutoDownloader::instance()
@@ -175,18 +238,28 @@ AutoDownloader *AutoDownloader::instance()
 
 bool AutoDownloader::hasRule(const QString &ruleName) const
 {
-    return m_rulesByName.contains(ruleName);
+    return ruleByName(ruleName);
 }
 
-AutoDownloadRule AutoDownloader::ruleByName(const QString &ruleName) const
+AutoDownloadRule *AutoDownloader::ruleByName(const QString &ruleName) const
 {
-    const auto index = m_rulesByName.value(ruleName, -1);
-    return m_rules.value(index, AutoDownloadRule(u"Unknown Rule"_s));
+    return m_rules.value(ruleName);
 }
 
-QList<AutoDownloadRule> AutoDownloader::rules() const
+QHash<QString, AutoDownloadRule *> AutoDownloader::rules() const
 {
     return m_rules;
+}
+
+AutoDownloadRule *AutoDownloader::addRule(const QString &ruleName)
+{
+    if (hasRule(ruleName))
+        return nullptr;
+
+    auto *newRule = new AutoDownloadRule;
+    m_rules.insert(ruleName, newRule);
+
+    return newRule;
 }
 
 void AutoDownloader::setRule(const AutoDownloadRule &rule)
@@ -213,22 +286,24 @@ void AutoDownloader::setRule(const AutoDownloadRule &rule)
     }
 }
 
-bool AutoDownloader::cloneRule(const QString &ruleName, const QString &cloneRuleName)
+AutoDownloadRule *AutoDownloader::cloneRule(const QString &ruleName, const QString &cloneRuleName)
 {
     if (!hasRule(ruleName) || hasRule(cloneRuleName))
-        return false;
+        return nullptr;
 
-    // Copy the existing rule and change its name to the new one
-    AutoDownloadRule clonedRule = ruleByName(ruleName);
-    clonedRule.setName(cloneRuleName);
+    AutoDownloadRule *clonedRule = addRule(cloneRuleName);
+    Q_ASSERT(clonedRule);
+    if (!clonedRule) [[unlikely]]
+        return nullptr;
+
     // Disable the cloned rule by default to prevent accidental downloads
-    clonedRule.setEnabled(false);
+    clonedRule->setEnabled(false);
     // Clear previously matched episodes to allow matching all episodes for the new rule
-    clonedRule.setPreviouslyMatchedEpisodes({});
+    clonedRule->setPreviouslyMatchedEpisodes({});
     // Clear last match time to allow matching old articles for the new rule
-    clonedRule.setLastMatch({});
-    setRule(clonedRule);
-    return true;
+    clonedRule->setLastMatch({});
+
+    return clonedRule;
 }
 
 bool AutoDownloader::renameRule(const QString &ruleName, const QString &newRuleName)
@@ -236,9 +311,7 @@ bool AutoDownloader::renameRule(const QString &ruleName, const QString &newRuleN
     if (!hasRule(ruleName) || hasRule(newRuleName))
         return false;
 
-    const auto index = m_rulesByName.take(ruleName);
-    m_rules[index].setName(newRuleName);
-    m_rulesByName.insert(newRuleName, index);
+    m_rules.insert(newRuleName, m_rules.take(ruleName));
     m_dirty = true;
     store();
     emit ruleRenamed(newRuleName, ruleName);
@@ -247,19 +320,13 @@ bool AutoDownloader::renameRule(const QString &ruleName, const QString &newRuleN
 
 void AutoDownloader::removeRule(const QString &ruleName)
 {
-    if (!hasRule(ruleName))
+    AutoDownloadRule *rule = m_rules.take(ruleName);
+    if (!rule)
         return;
 
     emit ruleAboutToBeRemoved(ruleName);
 
-    const auto index = m_rulesByName.take(ruleName);
-    m_rules.removeAt(index);
-    for (qsizetype i = index; i < m_rules.size(); ++i)
-    {
-        const AutoDownloadRule &rule = m_rules[i];
-        m_rulesByName[rule.name()] = i;
-    }
-
+    delete rule;
     m_dirty = true;
     store();
 }
