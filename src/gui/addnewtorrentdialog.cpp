@@ -196,7 +196,9 @@ public:
     {
         Q_ASSERT((index >= 0) && (index < filesCount()));
         const Path currentFilePath = filePath(index);
-        if (currentFilePath == newFilePath)
+        // We should compare path in a case sensitive manner even on case insensitive
+        // platforms since it can be renamed by only changing case of some character(s)
+        if (currentFilePath.data() == newFilePath.data())
             return;
 
         if (m_filePaths.isEmpty())
