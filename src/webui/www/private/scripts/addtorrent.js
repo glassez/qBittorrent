@@ -38,16 +38,12 @@ window.qBittorrent.AddTorrent ??= (() => {
     };
 
     let table = null;
-    let torrentSizeBytes = null;
-    let freeSpaceBytes = null;
     let defaultSavePath = "";
     let defaultTempPath = "";
     let defaultTempPathEnabled = false;
     let windowId = "";
     let source = "";
     let downloader = "";
-    let sharedMode = false;
-    let urlEntries = [];
 
     const clientData = window.parent.qBittorrent.ClientData;
 
@@ -150,7 +146,6 @@ window.qBittorrent.AddTorrent ??= (() => {
 
             if (isAutoTMMEnabled()) {
                 document.getElementById("savepath").value = defaultSavePath;
-                showFreeSpace(defaultSavePath);
 
                 const downloadPathEnabled = categoryDownloadPathEnabled(categoryName);
                 document.getElementById("useDownloadPath").checked = downloadPathEnabled;
@@ -163,9 +158,7 @@ window.qBittorrent.AddTorrent ??= (() => {
             item.nextElementSibling.value = text;
 
             if (isAutoTMMEnabled()) {
-                const tempCategoryPath = categorySavePath(categoryName);
-                document.getElementById("savepath").value = tempCategoryPath;
-                showFreeSpace(tempCategoryPath);
+                document.getElementById("savepath").value = categorySavePath(categoryName);
 
                 const downloadPathEnabled = categoryDownloadPathEnabled(categoryName);
                 document.getElementById("useDownloadPath").checked = downloadPathEnabled;
@@ -175,7 +168,7 @@ window.qBittorrent.AddTorrent ??= (() => {
     };
 
     const changeTagsSelect = (element) => {
-        const tags = Array.prototype.filter.call(element.options, (opt => opt.selected)).map(opt => opt.value);
+        const tags = [...element.options].filter(opt => opt.selected).map(opt => opt.value);
         document.getElementById("tags").value = tags.join(",");
     };
 
@@ -199,7 +192,6 @@ window.qBittorrent.AddTorrent ??= (() => {
             useDownloadPath.checked = defaultTempPathEnabled;
         }
 
-        showFreeSpace(savepath.value);
         savepath.disabled = autoTMMEnabled;
         useDownloadPath.disabled = autoTMMEnabled;
 
@@ -221,44 +213,6 @@ window.qBittorrent.AddTorrent ??= (() => {
             downloadPath.value = enabled ? defaultTempPath : "";
             downloadPath.disabled = !enabled;
         }
-    };
-
-    const updateDiskInfo = () => {
-        const el = document.getElementById("diskInfo");
-        if (freeSpaceBytes === null)
-            return;
-        const free = window.qBittorrent.Misc.friendlyUnit(freeSpaceBytes, false);
-        if (torrentSizeBytes === null) {
-            el.textContent = "QBT_TR(%1 free)QBT_TR[CONTEXT=AddNewTorrentDialog]".replace("%1", free);
-            el.classList.remove("red");
-        }
-        else {
-            const size = window.qBittorrent.Misc.friendlyUnit(torrentSizeBytes, false);
-            const fits = torrentSizeBytes <= freeSpaceBytes;
-            el.textContent = "QBT_TR(%1 needed · %2 free)QBT_TR[CONTEXT=AddNewTorrentDialog]"
-                .replace("%1", size).replace("%2", free);
-            el.classList.toggle("red", !fits);
-        }
-    };
-
-    const showFreeSpace = (path) => {
-        if (path === "")
-            return;
-
-        const url = new URL("api/v2/app/getFreeSpaceAtPath", window.location);
-        url.search = new URLSearchParams({
-            path: path
-        });
-
-        fetch(url, {
-                method: "GET",
-                cache: "no-store"
-            })
-            .then(async (response) => {
-                freeSpaceBytes = Number(await response.text());
-                updateDiskInfo();
-            })
-            .catch(error => {});
     };
 
     let loadMetadataTimer = -1;
@@ -326,10 +280,8 @@ window.qBittorrent.AddTorrent ??= (() => {
         document.getElementById("infoHashV1").textContent = (metadata.infohash_v1 === undefined) ? notAvailable : (metadata.infohash_v1 || notApplicable);
         document.getElementById("infoHashV2").textContent = (metadata.infohash_v2 === undefined) ? notAvailable : (metadata.infohash_v2 || notApplicable);
 
-        if (metadata.info !== undefined) {
-            torrentSizeBytes = metadata.info.length ?? (metadata.info.files ?? []).reduce((sum, file) => sum + file.length, 0);
-            updateDiskInfo();
-        }
+        if (metadata.info?.length !== undefined)
+            document.getElementById("size").textContent = window.qBittorrent.Misc.friendlyUnit(metadata.info.length, false);
         if ((metadata.creation_date !== undefined) && (metadata.creation_date > 1))
             document.getElementById("createdDate").textContent = window.qBittorrent.Misc.formatDate(new Date(metadata.creation_date * 1000));
         if (metadata.comment !== undefined)
@@ -340,7 +292,7 @@ window.qBittorrent.AddTorrent ??= (() => {
                 index: index,
                 name: file.path,
                 size: file.length,
-                priority: file.priority ?? window.qBittorrent.FileTree.FilePriority.Normal,
+                priority: window.qBittorrent.FileTree.FilePriority.Normal,
             }));
             window.qBittorrent.TorrentContent.updateData(files);
         }
@@ -356,12 +308,10 @@ window.qBittorrent.AddTorrent ??= (() => {
         document.getElementById("dlLimitHidden").value = Number(document.getElementById("dlLimitText").value) * 1024;
         document.getElementById("upLimitHidden").value = Number(document.getElementById("upLimitText").value) * 1024;
 
-        if (table !== null) {
-            document.getElementById("filePriorities").value = table.getFileTreeArray()
-                .filter((node) => !node.isFolder)
-                .sort((node1, node2) => (node1.fileId - node2.fileId))
-                .map((node) => node.priority);
-        }
+        document.getElementById("filePriorities").value = table.getFileTreeArray()
+            .filter((node) => !node.isFolder)
+            .sort((node1, node2) => (node1.fileId - node2.fileId))
+            .map((node) => node.priority);
 
         if (!isAutoTMMEnabled())
             document.getElementById("useDownloadPathHidden").value = document.getElementById("useDownloadPath").checked;
@@ -372,52 +322,12 @@ window.qBittorrent.AddTorrent ??= (() => {
             const category = document.getElementById("category").value.trim();
             clientData.set({ add_torrent_default_category: (category.length > 0) ? category : null }).catch(console.error);
         }
-
-        const form = document.getElementById("uploadForm");
-        form.querySelector("button[type=submit]").disabled = true;
-        const baseFormData = new FormData(form);
-
-        // group URLs by engine
-        const groupedByEngine = new Map();
-        for (const { url, engine } of urlEntries) {
-            if (!groupedByEngine.has(engine))
-                groupedByEngine.set(engine, []);
-            groupedByEngine.get(engine).push(url);
-        }
-
-        const requests = [];
-        for (const [engine, groupUrls] of groupedByEngine) {
-            const groupFormData = new FormData();
-            for (const [key, value] of baseFormData)
-                groupFormData.append(key, value);
-            groupFormData.set("urls", groupUrls.join("\n"));
-            if (engine)
-                groupFormData.set("downloader", engine);
-            requests.push(fetch("api/v2/torrents/add", { method: "POST", body: groupFormData }));
-        }
-
-        Promise.allSettled(requests).then(() => {
-            window.parent.qBittorrent.Client.closeFrameWindow(window);
-        });
     };
 
-    const init = (source, fetchMetadata, sharedModeParam = false, enginesParam = [], totalSizeBytes = null) => {
-        sharedMode = sharedModeParam;
-
-        // pair each URL with its (optional) engine
-        urlEntries = source ? source.split("\n").map((url, i) => ({ url: url, engine: enginesParam[i] || "" })) : [];
-
-        // shared multi-file uploads pass a precomputed total; single/per-torrent adds get size from metadata instead
-        if (totalSizeBytes !== null) {
-            torrentSizeBytes = Number(totalSizeBytes);
-            updateDiskInfo();
-        }
-
-        if (!sharedMode) {
-            table = window.qBittorrent.TorrentContent.init("addTorrentFilesTableDiv", window.qBittorrent.DynamicTable.AddTorrentFilesTable);
-            if (fetchMetadata)
-                loadMetadata(source, enginesParam[0]);
-        }
+    const init = (source, downloader, fetchMetadata) => {
+        table = window.qBittorrent.TorrentContent.init("addTorrentFilesTableDiv", window.qBittorrent.DynamicTable.AddTorrentFilesTable);
+        if (fetchMetadata)
+            loadMetadata(source, downloader);
     };
 
     window.addEventListener("load", async (event) => {
@@ -433,7 +343,6 @@ window.qBittorrent.AddTorrent ??= (() => {
     window.addEventListener("DOMContentLoaded", (event) => {
         document.getElementById("useDownloadPath").addEventListener("change", (e) => changeUseDownloadPath(e.target.checked));
         document.getElementById("tagsSelect").addEventListener("change", (e) => changeTagsSelect(e.target));
-        document.getElementById("savepath").addEventListener("input", (event) => { showFreeSpace(event.target.value); });
     });
 
     return exports();
