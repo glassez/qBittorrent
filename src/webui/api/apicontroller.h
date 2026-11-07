@@ -28,35 +28,16 @@
 
 #pragma once
 
-#include <variant>
-
 #include <QtContainerFwd>
 #include <QObject>
 #include <QString>
-#include <QVariant>
 
 #include "base/applicationcomponent.h"
 #include "base/http/request.h"
-#include "base/path.h"
-#include "apistatus.h"
+#include "apiresult.h"
 
 using DataList = QList<Http::UploadedFile>;
-using StringMap = QHash<QString, QString>;
-
-struct RegularAPIResult
-{
-    QVariant data {};
-    QString mimeType {};
-    QString filename {};
-    APIStatus status = APIStatus::Ok;
-};
-
-struct StreamFileAPIResult
-{
-    Path filePath;
-};
-
-using APIResult = std::variant<RegularAPIResult, StreamFileAPIResult>;
+using APIParams = QHash<QString, QString>;
 
 class APIController : public ApplicationComponent<QObject>
 {
@@ -66,23 +47,8 @@ class APIController : public ApplicationComponent<QObject>
 public:
     explicit APIController(IApplication *app, QObject *parent = nullptr);
 
-    APIResult run(const QString &action, const StringMap &params, const DataList &data = {});
+    APIResult run(const QString &action, const APIParams &params, const DataList &data = {});
 
 protected:
-    const StringMap &params() const;
-    const DataList &data() const;
-    void requireParams(const QList<QString> &requiredParams) const;
-
-    void setResult(const QString &result);
-    void setResult(const QJsonArray &result);
-    void setResult(const QJsonObject &result);
-    void setResult(const QByteArray &result, const QString &mimeType = {}, const QString &filename = {});
-    void setResult(const Path &filePath);
-
-    void setStatus(APIStatus status);
-
-private:
-    StringMap m_params;
-    DataList m_data;
-    APIResult m_result;
+    void requireParams(const APIParams &params, const QList<QString> &requiredParams) const;
 };

@@ -1,5 +1,6 @@
 /*
  * Bittorrent Client using Qt and libtorrent.
+ * Copyright (C) 2026  Vladimir Golovnev <glassez@yandex.ru>
  * Copyright (C) 2025  Thomas Piccirello <thomas@piccirello.com>
  *
  * This program is free software; you can redistribute it and/or
@@ -34,9 +35,10 @@
 
 #include "base/global.h"
 #include "base/interfaces/iapplication.h"
-#include "base/logger.h"
 #include "apierror.h"
 #include "webui/clientdatastorage.h"
+
+using namespace Qt::StringLiterals;
 
 ClientDataController::ClientDataController(ClientDataStorage *clientDataStorage, IApplication *app, QObject *parent)
     : APIController(app, parent)
@@ -44,14 +46,11 @@ ClientDataController::ClientDataController(ClientDataStorage *clientDataStorage,
 {
 }
 
-void ClientDataController::loadAction()
+APIResult ClientDataController::loadAction(const APIParams &params)
 {
-    const QString keysParam {params()[u"keys"_s]};
+    const QString keysParam {params[u"keys"_s]};
     if (keysParam.isEmpty())
-    {
-        setResult(m_clientDataStorage->loadData());
-        return;
-    }
+        return makeAPIResult(m_clientDataStorage->loadData());
 
     QJsonParseError jsonError;
     const auto keysJsonDocument = QJsonDocument::fromJson(keysParam.toUtf8(), &jsonError);
@@ -69,14 +68,14 @@ void ClientDataController::loadAction()
         keys << keysJsonVal.toString();
     }
 
-    setResult(m_clientDataStorage->loadData(keys));
+    return makeAPIResult(m_clientDataStorage->loadData(keys));
 }
 
-void ClientDataController::storeAction()
+APIResult ClientDataController::storeAction(const APIParams &params)
 {
-    requireParams({u"data"_s});
+    requireParams(params, {u"data"_s});
     QJsonParseError jsonError;
-    const auto dataJsonDocument = QJsonDocument::fromJson(params()[u"data"_s].toUtf8(), &jsonError);
+    const auto dataJsonDocument = QJsonDocument::fromJson(params[u"data"_s].toUtf8(), &jsonError);
     if (jsonError.error != QJsonParseError::NoError)
         throw APIError(APIErrorType::BadParams, jsonError.errorString());
     if (!dataJsonDocument.isObject())
@@ -85,4 +84,6 @@ void ClientDataController::storeAction()
     const nonstd::expected<void, QString> result = m_clientDataStorage->storeData(dataJsonDocument.object());
     if (!result)
         throw APIError(APIErrorType::Conflict, result.error());
+
+    return {};
 }

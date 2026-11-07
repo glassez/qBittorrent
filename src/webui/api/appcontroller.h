@@ -1,6 +1,6 @@
 /*
  * Bittorrent Client using Qt and libtorrent.
- * Copyright (C) 2018  Vladimir Golovnev <glassez@yandex.ru>
+ * Copyright (C) 2018-2026  Vladimir Golovnev <glassez@yandex.ru>
  * Copyright (C) 2006-2012  Christophe Dumez <chris@qbittorrent.org>
  * Copyright (C) 2006-2012  Ishan Arora <ishan@qbittorrent.org>
  *
@@ -41,22 +41,22 @@ public:
     using APIController::APIController;
 
 private slots:
-    void webapiVersionAction();
-    void versionAction();
-    void buildInfoAction();
-    void processInfoAction();
-    void shutdownAction();
-    void preferencesAction();
-    void setPreferencesAction();
-    void defaultSavePathAction();
-    void sendTestEmailAction();
-    void getDirectoryContentAction();
-    void getFreeSpaceAtPathAction();
-    void cookiesAction();
-    void setCookiesAction();
-    void rotateAPIKeyAction();
-    void deleteAPIKeyAction();
+    APIResult webapiVersionAction();
+    APIResult versionAction();
+    APIResult buildInfoAction();
+    APIResult processInfoAction();
+    APIResult shutdownAction();
+    APIResult preferencesAction();
+    APIResult setPreferencesAction(const APIParams &params);
+    APIResult defaultSavePathAction();
+    APIResult sendTestEmailAction();
+    APIResult getDirectoryContentAction(const APIParams &params);
+    APIResult getFreeSpaceAtPathAction(const APIParams &params);
+    APIResult cookiesAction();
+    APIResult setCookiesAction(const APIParams &params);
+    APIResult rotateAPIKeyAction();
+    APIResult deleteAPIKeyAction();
 
-    void networkInterfaceListAction();
-    void networkInterfaceAddressListAction();
+    APIResult networkInterfaceListAction();
+    APIResult networkInterfaceAddressListAction(const APIParams &params);
 };
