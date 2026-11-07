@@ -87,17 +87,17 @@ const QString KEY_FILE_METADATA_CREATION_DATE = u"creation_date"_s;
 const QString KEY_FILE_METADATA_LAST_ACCESS_DATE = u"last_access_date"_s;
 const QString KEY_FILE_METADATA_LAST_MODIFICATION_DATE = u"last_modification_date"_s;
 
-void AppController::webapiVersionAction()
+APIResult AppController::webapiVersionAction()
 {
-    setResult(API_VERSION.toString());
+    return makeAPIResult(API_VERSION.toString());
 }
 
-void AppController::versionAction()
+APIResult AppController::versionAction()
 {
-    setResult(QStringLiteral(QBT_VERSION));
+    return makeAPIResult(QStringLiteral(QBT_VERSION));
 }
 
-void AppController::buildInfoAction()
+APIResult AppController::buildInfoAction()
 {
     const QString platformName =
 #ifdef Q_OS_LINUX
@@ -120,19 +120,19 @@ void AppController::buildInfoAction()
         {u"bitness"_s, (QT_POINTER_SIZE * 8)},
         {u"platform"_s, platformName}
     };
-    setResult(versions);
+    return makeAPIResult(versions);
 }
 
-void AppController::processInfoAction()
+APIResult AppController::processInfoAction()
 {
     const QJsonObject info =
     {
         {u"launch_time"_s, app()->launchTimeSecsSinceEpoch()}
     };
-    setResult(info);
+    return makeAPIResult(info);
 }
 
-void AppController::shutdownAction()
+APIResult AppController::shutdownAction()
 {
     // Special handling for shutdown, we
     // need to reply to the WebUI before
@@ -141,10 +141,10 @@ void AppController::shutdownAction()
     {
         QCoreApplication::exit();
     });
-    setResult(QString());
+    return makeAPIResult(QString());
 }
 
-void AppController::preferencesAction()
+APIResult AppController::preferencesAction()
 {
     const auto *pref = Preferences::instance();
     const auto *session = BitTorrent::Session::instance();
@@ -540,16 +540,16 @@ void AppController::preferencesAction()
     // STUN server for WebTorrent NAT traversal
     data[u"webtorrent_stun_server"_s] = session->getWebTorrentSTUNServer();
 
-    setResult(data);
+    return makeAPIResult(data);
 }
 
-void AppController::setPreferencesAction()
+APIResult AppController::setPreferencesAction(const APIParams &params)
 {
-    requireParams({u"json"_s});
+    requireParams(params, {u"json"_s});
 
     auto *pref = Preferences::instance();
     auto *session = BitTorrent::Session::instance();
-    const QVariantHash m = QJsonDocument::fromJson(params()[u"json"_s].toUtf8()).toVariant().toHash();
+    const QVariantHash m = QJsonDocument::fromJson(params[u"json"_s].toUtf8()).toVariant().toHash();
 
     QVariantHash::ConstIterator it;
     const auto hasKey = [&it, &m](const QString &key) -> bool
@@ -1281,25 +1281,25 @@ void AppController::setPreferencesAction()
     // Save preferences
     pref->apply();
 
-    setResult(QString());
+    return makeAPIResult(QString());
 }
 
-void AppController::defaultSavePathAction()
+APIResult AppController::defaultSavePathAction()
 {
-    setResult(BitTorrent::Session::instance()->savePath().toString());
+    return makeAPIResult(BitTorrent::Session::instance()->savePath().toString());
 }
 
-void AppController::sendTestEmailAction()
+APIResult AppController::sendTestEmailAction()
 {
     app()->sendTestEmail();
-    setResult(QString());
+    return makeAPIResult(QString());
 }
 
-void AppController::getDirectoryContentAction()
+APIResult AppController::getDirectoryContentAction(const APIParams &params)
 {
-    requireParams({u"dirPath"_s});
+    requireParams(params, {u"dirPath"_s});
 
-    const QString dirPath = params().value(u"dirPath"_s);
+    const QString dirPath = params.value(u"dirPath"_s);
     if (dirPath.isEmpty() || dirPath.startsWith(u':'))
         throw APIError(APIErrorType::BadParams, tr("Invalid directory path"));
 
@@ -1309,7 +1309,7 @@ void AppController::getDirectoryContentAction()
     if (!dir.exists())
         throw APIError(APIErrorType::NotFound, tr("Directory does not exist"));
 
-    const QString visibility = params().value(u"mode"_s, u"all"_s);
+    const QString visibility = params.value(u"mode"_s, u"all"_s);
 
     const auto parseDirectoryContentMode = [](const QString &visibility) -> QDir::Filters
     {
@@ -1322,7 +1322,7 @@ void AppController::getDirectoryContentAction()
         throw APIError(APIErrorType::BadParams, tr("Invalid mode, allowed values: %1").arg(u"all, dirs, files"_s));
     };
 
-    const bool withMetadata {Utils::String::parseBool(params()[u"withMetadata"_s]).value_or(false)};
+    const bool withMetadata {Utils::String::parseBool(params[u"withMetadata"_s]).value_or(false)};
 
     QJsonArray ret;
     QDirIterator it {dirPath, (QDir::NoDotAndDotDot | parseDirectoryContentMode(visibility))};
@@ -1356,18 +1356,18 @@ void AppController::getDirectoryContentAction()
             ret.append(Path(it.next()).toString());
         }
     }
-    setResult(ret);
+    return makeAPIResult(ret);
 }
 
-void AppController::getFreeSpaceAtPathAction()
+APIResult AppController::getFreeSpaceAtPathAction(const APIParams &params)
 {
-    requireParams({u"path"_s});
-    const Path path {params().value(u"path"_s)};
+    requireParams(params, {u"path"_s});
+    const Path path {params.value(u"path"_s)};
     const qint64 freeSpace = Utils::Fs::freeDiskSpaceOnPath(path);
-    setResult(QString::number(freeSpace));
+    return makeAPIResult(QString::number(freeSpace));
 }
 
-void AppController::cookiesAction()
+APIResult AppController::cookiesAction()
 {
     const QList<QNetworkCookie> cookies = Net::DownloadManager::instance()->allCookies();
     QJsonArray ret;
@@ -1382,13 +1382,13 @@ void AppController::cookiesAction()
         };
     }
 
-    setResult(ret);
+    return makeAPIResult(ret);
 }
 
-void AppController::setCookiesAction()
+APIResult AppController::setCookiesAction(const APIParams &params)
 {
-    requireParams({u"cookies"_s});
-    const QString cookiesParam {params()[u"cookies"_s].trimmed()};
+    requireParams(params, {u"cookies"_s});
+    const QString cookiesParam {params[u"cookies"_s].trimmed()};
 
     QJsonParseError jsonError;
     const auto cookiesJsonDocument = QJsonDocument::fromJson(cookiesParam.toUtf8(), &jsonError);
@@ -1423,10 +1423,10 @@ void AppController::setCookiesAction()
 
     Net::DownloadManager::instance()->setAllCookies(cookies);
 
-    setResult(QString());
+    return makeAPIResult(QString());
 }
 
-void AppController::rotateAPIKeyAction()
+APIResult AppController::rotateAPIKeyAction()
 {
     const QString key = Utils::APIKey::generate();
 
@@ -1434,17 +1434,19 @@ void AppController::rotateAPIKeyAction()
     preferences->setWebUIApiKey(key);
     preferences->apply();
 
-    setResult(QJsonObject {{u"apiKey"_s, key}});
+    return makeAPIResult(QJsonObject {{u"apiKey"_s, key}});
 }
 
-void AppController::deleteAPIKeyAction()
+APIResult AppController::deleteAPIKeyAction()
 {
     auto *preferences = Preferences::instance();
     preferences->setWebUIApiKey({});
     preferences->apply();
+
+    return {};
 }
 
-void AppController::networkInterfaceListAction()
+APIResult AppController::networkInterfaceListAction()
 {
     QJsonArray ifaceList;
     for (const QNetworkInterface &iface : asConst(QNetworkInterface::allInterfaces()))
@@ -1459,14 +1461,14 @@ void AppController::networkInterfaceListAction()
         }
     }
 
-    setResult(ifaceList);
+    return makeAPIResult(ifaceList);
 }
 
-void AppController::networkInterfaceAddressListAction()
+APIResult AppController::networkInterfaceAddressListAction(const APIParams &params)
 {
-    requireParams({u"iface"_s});
+    requireParams(params, {u"iface"_s});
 
-    const QString ifaceName = params().value(u"iface"_s);
+    const QString ifaceName = params.value(u"iface"_s);
     QJsonArray addressList;
 
     const auto appendAddress = [&addressList](const QHostAddress &addr)
@@ -1489,5 +1491,5 @@ void AppController::networkInterfaceAddressListAction()
             appendAddress(entry.ip());
     }
 
-    setResult(addressList);
+    return makeAPIResult(addressList);
 }

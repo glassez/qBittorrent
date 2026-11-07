@@ -1,6 +1,6 @@
 /*
  * Bittorrent Client using Qt and libtorrent.
- * Copyright (C) 2018  Vladimir Golovnev <glassez@yandex.ru>
+ * Copyright (C) 2018-2026  Vladimir Golovnev <glassez@yandex.ru>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -57,17 +57,17 @@ const QString KEY_LOG_PEER_REASON = u"reason"_s;
 //   - warning (bool): include warning messages (default true)
 //   - critical (bool): include critical messages (default true)
 //   - last_known_id (int): exclude messages with id <= 'last_known_id' (default -1)
-void LogController::mainAction()
+APIResult LogController::mainAction(const APIParams &params)
 {
     using Utils::String::parseBool;
 
-    const bool isNormal = parseBool(params()[u"normal"_s]).value_or(true);
-    const bool isInfo = parseBool(params()[u"info"_s]).value_or(true);
-    const bool isWarning = parseBool(params()[u"warning"_s]).value_or(true);
-    const bool isCritical = parseBool(params()[u"critical"_s]).value_or(true);
+    const bool isNormal = parseBool(params[u"normal"_s]).value_or(true);
+    const bool isInfo = parseBool(params[u"info"_s]).value_or(true);
+    const bool isWarning = parseBool(params[u"warning"_s]).value_or(true);
+    const bool isCritical = parseBool(params[u"critical"_s]).value_or(true);
 
     bool ok = false;
-    int lastKnownId = params()[u"last_known_id"_s].toInt(&ok);
+    int lastKnownId = params[u"last_known_id"_s].toInt(&ok);
     if (!ok)
         lastKnownId = -1;
 
@@ -91,7 +91,7 @@ void LogController::mainAction()
         });
     }
 
-    setResult(msgList);
+    return makeAPIResult(msgList);
 }
 
 // Returns the peer log in JSON format.
@@ -104,10 +104,10 @@ void LogController::mainAction()
 //   - "reason": reason of the block
 // GET params:
 //   - last_known_id (int): exclude messages with id <= 'last_known_id' (default -1)
-void LogController::peersAction()
+APIResult LogController::peersAction(const APIParams &params)
 {
     bool ok = false;
-    int lastKnownId = params()[u"last_known_id"_s].toInt(&ok);
+    int lastKnownId = params[u"last_known_id"_s].toInt(&ok);
     if (!ok)
         lastKnownId = -1;
 
@@ -126,5 +126,5 @@ void LogController::peersAction()
         });
     }
 
-    setResult(peerList);
+    return makeAPIResult(peerList);
 }

@@ -39,21 +39,21 @@ public:
     using APIController::APIController;
 
 private slots:
-    void addFolderAction();
-    void addFeedAction();
-    void setFeedURLAction();
-    void setFeedRefreshIntervalAction();
-    void removeItemAction();
-    void moveItemAction();
-    void itemsAction();
-    void markAsReadAction();
-    void refreshItemAction();
-    void setRuleAction();
-    void exportRulesAction();
-    void importRulesAction();
-    void renameRuleAction();
-    void removeRuleAction();
-    void cloneRuleAction();
-    void rulesAction();
-    void matchingArticlesAction();
+    APIResult addFolderAction(const APIParams &params);
+    APIResult addFeedAction(const APIParams &params);
+    APIResult setFeedURLAction(const APIParams &params);
+    APIResult setFeedRefreshIntervalAction(const APIParams &params);
+    APIResult removeItemAction(const APIParams &params);
+    APIResult moveItemAction(const APIParams &params);
+    APIResult itemsAction(const APIParams &params);
+    APIResult markAsReadAction(const APIParams &params);
+    APIResult refreshItemAction(const APIParams &params);
+    APIResult setRuleAction(const APIParams &params);
+    APIResult exportRulesAction();
+    APIResult importRulesAction(const APIParams &params, const DataList &data);
+    APIResult renameRuleAction(const APIParams &params);
+    APIResult removeRuleAction(const APIParams &params);
+    APIResult cloneRuleAction(const APIParams &params);
+    APIResult rulesAction();
+    APIResult matchingArticlesAction(const APIParams &params);
 };

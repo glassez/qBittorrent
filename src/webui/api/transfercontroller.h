@@ -1,6 +1,6 @@
 /*
  * Bittorrent Client using Qt and libtorrent.
- * Copyright (C) 2018  Vladimir Golovnev <glassez@yandex.ru>
+ * Copyright (C) 2018-2026  Vladimir Golovnev <glassez@yandex.ru>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -39,17 +39,17 @@ public:
     using APIController::APIController;
 
 private slots:
-    void infoAction();
-    void speedLimitsModeAction();
-    void setSpeedLimitsModeAction();
-    void toggleSpeedLimitsModeAction();
-    void uploadLimitAction();
-    void downloadLimitAction();
-    void setUploadLimitAction();
-    void setDownloadLimitAction();
-    void getSpeedLimitsAction();
-    void setSpeedLimitsAction();
-    void banPeersAction();
-    void pauseSessionAction();
-    void resumeSessionAction();
+    APIResult infoAction();
+    APIResult speedLimitsModeAction();
+    APIResult setSpeedLimitsModeAction(const APIParams &params);
+    APIResult toggleSpeedLimitsModeAction();
+    APIResult uploadLimitAction();
+    APIResult downloadLimitAction();
+    APIResult setUploadLimitAction(const APIParams &params);
+    APIResult setDownloadLimitAction(const APIParams &params);
+    APIResult getSpeedLimitsAction();
+    APIResult setSpeedLimitsAction(const APIParams &params);
+    APIResult banPeersAction(const APIParams &params);
+    APIResult pauseSessionAction();
+    APIResult resumeSessionAction();
 };

@@ -1,6 +1,6 @@
 /*
  * Bittorrent Client using Qt and libtorrent.
- * Copyright (C) 2024  Vladimir Golovnev <glassez@yandex.ru>
+ * Copyright (C) 2024-2026  Vladimir Golovnev <glassez@yandex.ru>
  * Copyright (C) 2018  Thomas Piccirello <thomas@piccirello.com>
  *
  * This program is free software; you can redistribute it and/or
@@ -49,17 +49,17 @@ public:
     SearchController(SearchJobManager *searchJobManager, IApplication *app, QObject *parent = nullptr);
 
 private slots:
-    void startAction();
-    void stopAction();
-    void statusAction();
-    void resultsAction();
-    void deleteAction();
-    void downloadTorrentAction();
-    void pluginsAction();
-    void installPluginAction();
-    void uninstallPluginAction();
-    void enablePluginAction();
-    void updatePluginsAction();
+    APIResult startAction(const APIParams &params);
+    APIResult stopAction(const APIParams &params);
+    APIResult statusAction(const APIParams &params);
+    APIResult resultsAction(const APIParams &params);
+    APIResult deleteAction(const APIParams &params);
+    APIResult downloadTorrentAction(const APIParams &params);
+    APIResult pluginsAction();
+    APIResult installPluginAction(const APIParams &params);
+    APIResult uninstallPluginAction(const APIParams &params);
+    APIResult enablePluginAction(const APIParams &params);
+    APIResult updatePluginsAction();
 
 private:
     void checkForUpdatesFinished(const QHash<QString, SearchPluginVersion> &updateInfo);

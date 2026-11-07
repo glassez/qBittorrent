@@ -1,6 +1,6 @@
 /*
  * Bittorrent Client using Qt and libtorrent.
- * Copyright (C) 2024  Vladimir Golovnev <glassez@yandex.ru>
+ * Copyright (C) 2024-2026  Vladimir Golovnev <glassez@yandex.ru>
  * Copyright (C) 2024  Radu Carpa <radu.carpa@cern.ch>
  *
  * This program is free software; you can redistribute it and/or
@@ -34,13 +34,14 @@
 #include <QStringList>
 #include <QUrl>
 
-#include "base/global.h"
 #include "base/bittorrent/torrentcreationmanager.h"
 #include "base/preferences.h"
 #include "base/utils/datetime.h"
 #include "base/utils/io.h"
 #include "base/utils/string.h"
 #include "apierror.h"
+
+using namespace Qt::StringLiterals;
 
 const QString KEY_COMMENT = u"comment"_s;
 const QString KEY_ERROR_MESSAGE = u"errorMessage"_s;
@@ -126,41 +127,41 @@ TorrentCreatorController::TorrentCreatorController(BitTorrent::TorrentCreationMa
 {
 }
 
-void TorrentCreatorController::addTaskAction()
+APIResult TorrentCreatorController::addTaskAction(const APIParams &params)
 {
-    requireParams({KEY_SOURCE_PATH});
+    requireParams(params, {KEY_SOURCE_PATH});
 
     const BitTorrent::TorrentCreatorParams createTorrentParams
     {
-        .ignoreDotfiles = parseBool(params()[KEY_IGNORE_DOTFILES]).value_or(true),
-        .isPrivate = parseBool(params()[KEY_PRIVATE]).value_or(false),
+        .ignoreDotfiles = parseBool(params[KEY_IGNORE_DOTFILES]).value_or(true),
+        .isPrivate = parseBool(params[KEY_PRIVATE]).value_or(false),
 #ifdef QBT_USES_LIBTORRENT2
-        .torrentFormat = parseTorrentFormat(params()[KEY_FORMAT].toLower()),
+        .torrentFormat = parseTorrentFormat(params[KEY_FORMAT].toLower()),
 #else
-        .isAlignmentOptimized = parseBool(params()[KEY_OPTIMIZE_ALIGNMENT]).value_or(true),
-        .paddedFileSizeLimit = parseInt(params()[KEY_PADDED_FILE_SIZE_LIMIT]).value_or(-1),
+        .isAlignmentOptimized = parseBool(params[KEY_OPTIMIZE_ALIGNMENT]).value_or(true),
+        .paddedFileSizeLimit = parseInt(params[KEY_PADDED_FILE_SIZE_LIMIT]).value_or(-1),
 #endif
-        .pieceSize = parseInt(params()[KEY_PIECE_SIZE]).value_or(0),
-        .sourcePath = Path(params()[KEY_SOURCE_PATH]),
-        .torrentFilePath = Path(params()[KEY_TORRENT_FILE_PATH]),
-        .comment = params()[KEY_COMMENT],
-        .source = params()[KEY_SOURCE],
-        .trackers = parseUrls(params()[KEY_TRACKERS]),
-        .urlSeeds = parseUrls(params()[KEY_URL_SEEDS])
+        .pieceSize = parseInt(params[KEY_PIECE_SIZE]).value_or(0),
+        .sourcePath = Path(params[KEY_SOURCE_PATH]),
+        .torrentFilePath = Path(params[KEY_TORRENT_FILE_PATH]),
+        .comment = params[KEY_COMMENT],
+        .source = params[KEY_SOURCE],
+        .trackers = parseUrls(params[KEY_TRACKERS]),
+        .urlSeeds = parseUrls(params[KEY_URL_SEEDS])
     };
 
-    const bool startSeeding = parseBool(params()[u"startSeeding"_s]).value_or(createTorrentParams.torrentFilePath.isEmpty());
+    const bool startSeeding = parseBool(params[u"startSeeding"_s]).value_or(createTorrentParams.torrentFilePath.isEmpty());
 
     const auto task = m_torrentCreationManager->createTask(createTorrentParams, startSeeding);
     if (!task)
         throw APIError(APIErrorType::Conflict, tr("Too many active tasks"));
 
-    setResult(QJsonObject {{KEY_TASK_ID, task->id()}});
+    return makeAPIResult(QJsonObject {{KEY_TASK_ID, task->id()}});
 }
 
-void TorrentCreatorController::statusAction()
+APIResult TorrentCreatorController::statusAction(const APIParams &params)
 {
-    const QString id = params()[KEY_TASK_ID];
+    const QString id = params[KEY_TASK_ID];
 
     const auto singleTask = m_torrentCreationManager->getTask(id);
     if (!id.isEmpty() && !singleTask)
@@ -228,13 +229,13 @@ void TorrentCreatorController::statusAction()
         statusArray.append(taskJson);
     }
 
-    setResult(statusArray);
+    return makeAPIResult(statusArray);
 }
 
-void TorrentCreatorController::torrentFileAction()
+APIResult TorrentCreatorController::torrentFileAction(const APIParams &params)
 {
-    requireParams({KEY_TASK_ID});
-    const QString id = params()[KEY_TASK_ID];
+    requireParams(params, {KEY_TASK_ID});
+    const QString id = params[KEY_TASK_ID];
 
     const auto task = m_torrentCreationManager->getTask(id);
     if (!task)
@@ -255,16 +256,16 @@ void TorrentCreatorController::torrentFileAction()
         filename = id;
     filename += u".torrent";
 
-    setResult(readResult.value(), u"application/x-bittorrent"_s, filename);
+    return makeAPIResult(readResult.value(), u"application/x-bittorrent"_s, filename);
 }
 
-void TorrentCreatorController::deleteTaskAction()
+APIResult TorrentCreatorController::deleteTaskAction(const APIParams &params)
 {
-    requireParams({KEY_TASK_ID});
-    const QString id = params()[KEY_TASK_ID];
+    requireParams(params, {KEY_TASK_ID});
+    const QString id = params[KEY_TASK_ID];
 
     if (!m_torrentCreationManager->deleteTask(id))
         throw APIError(APIErrorType::NotFound);
 
-    setResult(QString());
+    return makeAPIResult(QString());
 }

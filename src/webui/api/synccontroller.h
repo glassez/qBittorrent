@@ -52,8 +52,8 @@ public slots:
     void updateFreeDiskSpace(qint64 freeDiskSpace);
 
 private slots:
-    void maindataAction();
-    void torrentPeersAction();
+    APIResult maindataAction(const APIParams &params);
+    APIResult torrentPeersAction(const APIParams &params);
 
 private:
     void makeMaindataSnapshot();

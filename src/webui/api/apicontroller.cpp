@@ -28,11 +28,9 @@
 
 #include "apicontroller.h"
 
-#include <utility>
-
 #include <QHash>
-#include <QJsonDocument>
 #include <QList>
+#include <QMetaMethod>
 #include <QMetaObject>
 #include <QScopeGuard>
 
@@ -45,76 +43,49 @@ APIController::APIController(IApplication *app, QObject *parent)
 {
 }
 
-APIResult APIController::run(const QString &action, const StringMap &params, const DataList &data)
+APIResult APIController::run(const QString &action, const APIParams &params, const DataList &data)
 {
-    m_params = params;
-    m_data = data;
-    [[maybe_unused]] const auto inputsGuard = qScopeGuard([this]
-    {
-        m_params = {};
-        m_data = {};
-    });
-
     const QByteArray methodName = action.toLatin1() + "Action";
-    if (!QMetaObject::invokeMethod(this, methodName.constData()))
-        throw APIError(APIErrorType::NotFound, tr("Endpoint does not exist"));
+    const QMetaObject *thisMetaObject = metaObject();
+    for (int indexOfMethod = 0; indexOfMethod < thisMetaObject->methodCount(); ++indexOfMethod)
+    {
+        QMetaMethod metaMethod = thisMetaObject->method(indexOfMethod);
+        if (metaMethod.name() == methodName)
+        {
+            APIResult result;
+            bool invoked = false;
+            switch (metaMethod.parameterCount())
+            {
+            case 0:
+                invoked = metaMethod.invoke(this, qReturnArg(result));
+                break;
+            case 1:
+                invoked = metaMethod.invoke(this, qReturnArg(result), params);
+                break;
+            case 2:
+                invoked = metaMethod.invoke(this, qReturnArg(result), params, data);
+                break;
+            }
 
-    return std::exchange(m_result, {});
+            Q_ASSERT_X(invoked, Q_FUNC_INFO, "Action method has no valid signature.");
+            return result;
+        }
+    }
+
+    throw APIError(APIErrorType::NotFound, tr("Endpoint does not exist"));
 }
 
-const StringMap &APIController::params() const
-{
-    return m_params;
-}
-
-const DataList &APIController::data() const
-{
-    return m_data;
-}
-
-void APIController::requireParams(const QList<QString> &requiredParams) const
+void APIController::requireParams(const APIParams &params, const QList<QString> &requiredParams) const
 {
     QStringList missingParams;
     missingParams.reserve(requiredParams.size());
 
     for (const QString &requiredParam : requiredParams)
     {
-        if (!params().contains(requiredParam))
+        if (!params.contains(requiredParam))
             missingParams.append(requiredParam);
     }
 
     if (!missingParams.isEmpty())
         throw APIError(APIErrorType::BadParams, tr("Missing required parameters: %1").arg(missingParams.join(u", ")));
-}
-
-void APIController::setResult(const QString &result)
-{
-    m_result = RegularAPIResult {.data = result};
-}
-
-void APIController::setResult(const QJsonArray &result)
-{
-    m_result = RegularAPIResult {.data = QJsonDocument(result)};
-}
-
-void APIController::setResult(const QJsonObject &result)
-{
-    m_result = RegularAPIResult {.data = QJsonDocument(result)};
-}
-
-void APIController::setResult(const QByteArray &result, const QString &mimeType, const QString &filename)
-{
-    m_result = RegularAPIResult {.data = result, .mimeType = mimeType, .filename = filename};
-}
-
-void APIController::setResult(const Path &filePath)
-{
-    m_result = StreamFileAPIResult {.filePath = filePath};
-}
-
-void APIController::setStatus(const APIStatus status)
-{
-    Q_ASSERT(std::holds_alternative<RegularAPIResult>(m_result));
-
-    std::get<RegularAPIResult>(m_result).status = status;
 }

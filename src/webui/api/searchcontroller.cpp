@@ -1,6 +1,6 @@
 /*
  * Bittorrent Client using Qt and libtorrent.
- * Copyright (C) 2024  Vladimir Golovnev <glassez@yandex.ru>
+ * Copyright (C) 2024-2026  Vladimir Golovnev <glassez@yandex.ru>
  * Copyright (C) 2018  Thomas Piccirello <thomas@piccirello.com>
  *
  * This program is free software; you can redistribute it and/or
@@ -97,16 +97,16 @@ SearchController::SearchController(SearchJobManager *searchJobManager, IApplicat
 {
 }
 
-void SearchController::startAction()
+APIResult SearchController::startAction(const APIParams &params)
 {
-    requireParams({u"pattern"_s, u"category"_s, u"plugins"_s});
+    requireParams(params, {u"pattern"_s, u"category"_s, u"plugins"_s});
 
     if (!Utils::ForeignApps::pythonInfo().isValid())
         throw APIError(APIErrorType::Conflict, tr("Python must be installed to use the Search Engine."));
 
-    const QString pattern = params()[u"pattern"_s].trimmed();
-    const QString category = params()[u"category"_s].trimmed();
-    const QStringList plugins = params()[u"plugins"_s].split(u'|');
+    const QString pattern = params[u"pattern"_s].trimmed();
+    const QString category = params[u"category"_s].trimmed();
+    const QStringList plugins = params[u"plugins"_s].split(u'|');
 
     QStringList pluginsToUse;
     if (plugins.size() == 1)
@@ -129,24 +129,24 @@ void SearchController::startAction()
         throw APIError(APIErrorType::Conflict, startSearchResult.error());
 
     const QJsonObject result = {{u"id"_s, *startSearchResult}};
-    setResult(result);
+    return makeAPIResult(result);
 }
 
-void SearchController::stopAction()
+APIResult SearchController::stopAction(const APIParams &params)
 {
-    requireParams({u"id"_s});
+    requireParams(params, {u"id"_s});
 
-    const int id = params()[u"id"_s].toInt();
+    const int id = params[u"id"_s].toInt();
 
     if (!m_searchJobManager->stopSearch(id))
         throw APIError(APIErrorType::NotFound);
 
-    setResult(QString());
+    return makeAPIResult(QString());
 }
 
-void SearchController::statusAction()
+APIResult SearchController::statusAction(const APIParams &params)
 {
-    const int id = params()[u"id"_s].toInt();
+    const int id = params[u"id"_s].toInt();
 
     if (id != 0)
     {
@@ -155,24 +155,23 @@ void SearchController::statusAction()
             throw APIError(APIErrorType::NotFound);
 
         const QJsonArray statusArray {jobInfoToJSON(*jobInfo)};
-        setResult(statusArray);
-        return;
+        return makeAPIResult(statusArray);
     }
 
     QJsonArray statusArray;
     for (const auto &jobInfo : asConst(m_searchJobManager->getAllJobInfos()))
         statusArray << jobInfoToJSON(jobInfo);
 
-    setResult(statusArray);
+    return makeAPIResult(statusArray);
 }
 
-void SearchController::resultsAction()
+APIResult SearchController::resultsAction(const APIParams &params)
 {
-    requireParams({u"id"_s});
+    requireParams(params, {u"id"_s});
 
-    const int id = params()[u"id"_s].toInt();
-    int limit = params()[u"limit"_s].toInt();
-    int offset = params()[u"offset"_s].toInt();
+    const int id = params[u"id"_s].toInt();
+    int limit = params[u"limit"_s].toInt();
+    int offset = params[u"offset"_s].toInt();
 
     const auto jobInfo = m_searchJobManager->getJobInfo(id);
     if (!jobInfo)
@@ -193,29 +192,29 @@ void SearchController::resultsAction()
         limit = -1;
 
     if ((limit > 0) || (offset > 0))
-        setResult(getResults(searchResults.mid(offset, limit), jobInfo->active, size));
+        return makeAPIResult(getResults(searchResults.mid(offset, limit), jobInfo->active, size));
     else
-        setResult(getResults(searchResults, jobInfo->active, size));
+        return makeAPIResult(getResults(searchResults, jobInfo->active, size));
 }
 
-void SearchController::deleteAction()
+APIResult SearchController::deleteAction(const APIParams &params)
 {
-    requireParams({u"id"_s});
+    requireParams(params, {u"id"_s});
 
-    const int id = params()[u"id"_s].toInt();
+    const int id = params[u"id"_s].toInt();
 
     if (!m_searchJobManager->deleteSearch(id))
         throw APIError(APIErrorType::NotFound);
 
-    setResult(QString());
+    return makeAPIResult(QString());
 }
 
-void SearchController::downloadTorrentAction()
+APIResult SearchController::downloadTorrentAction(const APIParams &params)
 {
-    requireParams({u"torrentUrl"_s, u"pluginName"_s});
+    requireParams(params, {u"torrentUrl"_s, u"pluginName"_s});
 
-    const QString torrentUrl = params()[u"torrentUrl"_s];
-    const QString pluginName = params()[u"pluginName"_s];
+    const QString torrentUrl = params[u"torrentUrl"_s];
+    const QString pluginName = params[u"pluginName"_s];
 
     if (torrentUrl.startsWith(u"magnet:", Qt::CaseInsensitive))
     {
@@ -232,51 +231,51 @@ void SearchController::downloadTorrentAction()
         });
     }
 
-    setResult(QString());
+    return makeAPIResult(QString());
 }
 
-void SearchController::pluginsAction()
+APIResult SearchController::pluginsAction()
 {
     const QStringList allPlugins = SearchPluginManager::instance()->allPlugins();
-    setResult(getPluginsInfo(allPlugins));
+    return makeAPIResult(getPluginsInfo(allPlugins));
 }
 
-void SearchController::installPluginAction()
+APIResult SearchController::installPluginAction(const APIParams &params)
 {
-    requireParams({u"sources"_s});
+    requireParams(params, {u"sources"_s});
 
-    const QStringList sources = params()[u"sources"_s].split(u'|');
+    const QStringList sources = params[u"sources"_s].split(u'|');
     for (const QString &source : sources)
         SearchPluginManager::instance()->installPlugin(source);
 
-    setResult(QString());
+    return makeAPIResult(QString());
 }
 
-void SearchController::uninstallPluginAction()
+APIResult SearchController::uninstallPluginAction(const APIParams &params)
 {
-    requireParams({u"names"_s});
+    requireParams(params, {u"names"_s});
 
-    const QStringList names = params()[u"names"_s].split(u'|');
+    const QStringList names = params[u"names"_s].split(u'|');
     for (const QString &name : names)
         SearchPluginManager::instance()->uninstallPlugin(name.trimmed());
 
-    setResult(QString());
+    return makeAPIResult(QString());
 }
 
-void SearchController::enablePluginAction()
+APIResult SearchController::enablePluginAction(const APIParams &params)
 {
-    requireParams({u"names"_s, u"enable"_s});
+    requireParams(params, {u"names"_s, u"enable"_s});
 
-    const QStringList names = params()[u"names"_s].split(u'|');
-    const bool enable = Utils::String::parseBool(params()[u"enable"_s].trimmed()).value_or(false);
+    const QStringList names = params[u"names"_s].split(u'|');
+    const bool enable = Utils::String::parseBool(params[u"enable"_s].trimmed()).value_or(false);
 
     for (const QString &name : names)
         SearchPluginManager::instance()->enablePlugin(name.trimmed(), enable);
 
-    setResult(QString());
+    return makeAPIResult(QString());
 }
 
-void SearchController::updatePluginsAction()
+APIResult SearchController::updatePluginsAction()
 {
     SearchPluginManager *const pluginManager = SearchPluginManager::instance();
 
@@ -284,7 +283,7 @@ void SearchController::updatePluginsAction()
     connect(pluginManager, &SearchPluginManager::checkForUpdatesFailed, this, &SearchController::checkForUpdatesFailed);
     pluginManager->checkForUpdates();
 
-    setResult(QString());
+    return makeAPIResult(QString());
 }
 
 void SearchController::checkForUpdatesFinished(const QHash<QString, SearchPluginVersion> &updateInfo)
@@ -303,8 +302,6 @@ void SearchController::checkForUpdatesFinished(const QHash<QString, SearchPlugin
         LogMsg(tr("Updating plugin %1").arg(pluginName), Log::INFO);
         pluginManager->updatePlugin(pluginName);
     }
-
-    setResult(QString());
 }
 
 void SearchController::checkForUpdatesFailed(const QString &reason)
