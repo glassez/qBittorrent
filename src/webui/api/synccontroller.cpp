@@ -490,7 +490,7 @@ void SyncController::updateFreeDiskSpace(const qint64 freeDiskSpace)
 //  - "free_space_on_disk": Free space on the default save path
 // GET param:
 //   - rid (int): last response id
-void SyncController::maindataAction()
+void SyncController::maindataAction(const StringMap &params)
 {
     if (m_maindataAcceptedID < 0)
     {
@@ -521,7 +521,7 @@ void SyncController::maindataAction()
         connect(btSession, &BitTorrent::Session::trackerEntryStatusesUpdated, this, &SyncController::onTorrentTrackerEntryStatusesUpdated);
     }
 
-    const int acceptedID = params()[u"rid"_s].toInt();
+    const int acceptedID = params[u"rid"_s].toInt();
     bool fullUpdate = true;
     if ((acceptedID > 0) && (m_maindataLastSentID > 0))
     {
@@ -803,9 +803,9 @@ QJsonObject SyncController::generateMaindataSyncData(const int id, const bool fu
 // GET param:
 //   - hash (string): torrent hash (ID)
 //   - rid (int): last response id
-void SyncController::torrentPeersAction()
+void SyncController::torrentPeersAction(const StringMap &params)
 {
-    const auto id = BitTorrent::TorrentID::fromString(params()[u"hash"_s]);
+    const auto id = BitTorrent::TorrentID::fromString(params[u"hash"_s]);
     const BitTorrent::Torrent *torrent = BitTorrent::Session::instance()->getTorrent(id);
     if (!torrent)
         throw APIError(APIErrorType::NotFound);
@@ -898,7 +898,7 @@ void SyncController::torrentPeersAction()
     }
     data[u"peers"_s] = peers;
 
-    const int acceptedResponseId = params()[u"rid"_s].toInt();
+    const int acceptedResponseId = params[u"rid"_s].toInt();
     setResult(generateSyncData(acceptedResponseId, data, m_lastAcceptedPeersResponse, m_lastPeersResponse));
 }
 

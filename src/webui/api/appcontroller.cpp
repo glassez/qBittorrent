@@ -541,13 +541,13 @@ void AppController::preferencesAction()
     setResult(data);
 }
 
-void AppController::setPreferencesAction()
+void AppController::setPreferencesAction(const StringMap &params)
 {
-    requireParams({u"json"_s});
+    requireParams(params, {u"json"_s});
 
     auto *pref = Preferences::instance();
     auto *session = BitTorrent::Session::instance();
-    const QVariantHash m = QJsonDocument::fromJson(params()[u"json"_s].toUtf8()).toVariant().toHash();
+    const QVariantHash m = QJsonDocument::fromJson(params[u"json"_s].toUtf8()).toVariant().toHash();
 
     QVariantHash::ConstIterator it;
     const auto hasKey = [&it, &m](const QString &key) -> bool
@@ -1290,11 +1290,11 @@ void AppController::sendTestEmailAction()
     setResult(QString());
 }
 
-void AppController::getDirectoryContentAction()
+void AppController::getDirectoryContentAction(const StringMap &params)
 {
-    requireParams({u"dirPath"_s});
+    requireParams(params, {u"dirPath"_s});
 
-    const QString dirPath = params().value(u"dirPath"_s);
+    const QString dirPath = params.value(u"dirPath"_s);
     if (dirPath.isEmpty() || dirPath.startsWith(u':'))
         throw APIError(APIErrorType::BadParams, tr("Invalid directory path"));
 
@@ -1304,7 +1304,7 @@ void AppController::getDirectoryContentAction()
     if (!dir.exists())
         throw APIError(APIErrorType::NotFound, tr("Directory does not exist"));
 
-    const QString visibility = params().value(u"mode"_s, u"all"_s);
+    const QString visibility = params.value(u"mode"_s, u"all"_s);
 
     const auto parseDirectoryContentMode = [](const QString &visibility) -> QDir::Filters
     {
@@ -1317,7 +1317,7 @@ void AppController::getDirectoryContentAction()
         throw APIError(APIErrorType::BadParams, tr("Invalid mode, allowed values: %1").arg(u"all, dirs, files"_s));
     };
 
-    const bool withMetadata {Utils::String::parseBool(params()[u"withMetadata"_s]).value_or(false)};
+    const bool withMetadata {Utils::String::parseBool(params[u"withMetadata"_s]).value_or(false)};
 
     QJsonArray ret;
     QDirIterator it {dirPath, (QDir::NoDotAndDotDot | parseDirectoryContentMode(visibility))};
@@ -1354,10 +1354,10 @@ void AppController::getDirectoryContentAction()
     setResult(ret);
 }
 
-void AppController::getFreeSpaceAtPathAction()
+void AppController::getFreeSpaceAtPathAction(const StringMap &params)
 {
-    requireParams({u"path"_s});
-    const Path path {params().value(u"path"_s)};
+    requireParams(params, {u"path"_s});
+    const Path path {params.value(u"path"_s)};
     const qint64 freeSpace = Utils::Fs::freeDiskSpaceOnPath(path);
     setResult(QString::number(freeSpace));
 }
@@ -1380,10 +1380,10 @@ void AppController::cookiesAction()
     setResult(ret);
 }
 
-void AppController::setCookiesAction()
+void AppController::setCookiesAction(const StringMap &params)
 {
-    requireParams({u"cookies"_s});
-    const QString cookiesParam {params()[u"cookies"_s].trimmed()};
+    requireParams(params, {u"cookies"_s});
+    const QString cookiesParam {params[u"cookies"_s].trimmed()};
 
     QJsonParseError jsonError;
     const auto cookiesJsonDocument = QJsonDocument::fromJson(cookiesParam.toUtf8(), &jsonError);
@@ -1457,11 +1457,11 @@ void AppController::networkInterfaceListAction()
     setResult(ifaceList);
 }
 
-void AppController::networkInterfaceAddressListAction()
+void AppController::networkInterfaceAddressListAction(const StringMap &params)
 {
-    requireParams({u"iface"_s});
+    requireParams(params, {u"iface"_s});
 
-    const QString ifaceName = params().value(u"iface"_s);
+    const QString ifaceName = params.value(u"iface"_s);
     QJsonArray addressList;
 
     const auto appendAddress = [&addressList](const QHostAddress &addr)

@@ -1,5 +1,6 @@
 /*
  * Bittorrent Client using Qt and libtorrent.
+ * Copyright (C) 2026  Vladimir Golovnev <glassez@yandex.ru>
  * Copyright (C) 2025  Thomas Piccirello <thomas@piccirello.com>
  *
  * This program is free software; you can redistribute it and/or
@@ -41,8 +42,8 @@ public:
     ClientDataController(ClientDataStorage *clientDataStorage, IApplication *app, QObject *parent = nullptr);
 
 private slots:
-    void loadAction();
-    void storeAction();
+    void loadAction(const StringMap &params);
+    void storeAction(const StringMap &params);
 
 private:
     ClientDataStorage *m_clientDataStorage = nullptr;

@@ -1,6 +1,6 @@
 /*
  * Bittorrent Client using Qt and libtorrent.
- * Copyright (C) 2024  Vladimir Golovnev <glassez@yandex.ru>
+ * Copyright (C) 2024-2026  Vladimir Golovnev <glassez@yandex.ru>
  * Copyright (C) 2018  Thomas Piccirello <thomas@piccirello.com>
  *
  * This program is free software; you can redistribute it and/or
@@ -97,16 +97,16 @@ SearchController::SearchController(SearchJobManager *searchJobManager, IApplicat
 {
 }
 
-void SearchController::startAction()
+void SearchController::startAction(const StringMap &params)
 {
-    requireParams({u"pattern"_s, u"category"_s, u"plugins"_s});
+    requireParams(params, {u"pattern"_s, u"category"_s, u"plugins"_s});
 
     if (!Utils::ForeignApps::pythonInfo().isValid())
         throw APIError(APIErrorType::Conflict, tr("Python must be installed to use the Search Engine."));
 
-    const QString pattern = params()[u"pattern"_s].trimmed();
-    const QString category = params()[u"category"_s].trimmed();
-    const QStringList plugins = params()[u"plugins"_s].split(u'|');
+    const QString pattern = params[u"pattern"_s].trimmed();
+    const QString category = params[u"category"_s].trimmed();
+    const QStringList plugins = params[u"plugins"_s].split(u'|');
 
     QStringList pluginsToUse;
     if (plugins.size() == 1)
@@ -132,11 +132,11 @@ void SearchController::startAction()
     setResult(result);
 }
 
-void SearchController::stopAction()
+void SearchController::stopAction(const StringMap &params)
 {
-    requireParams({u"id"_s});
+    requireParams(params, {u"id"_s});
 
-    const int id = params()[u"id"_s].toInt();
+    const int id = params[u"id"_s].toInt();
 
     if (!m_searchJobManager->stopSearch(id))
         throw APIError(APIErrorType::NotFound);
@@ -144,9 +144,9 @@ void SearchController::stopAction()
     setResult(QString());
 }
 
-void SearchController::statusAction()
+void SearchController::statusAction(const StringMap &params)
 {
-    const int id = params()[u"id"_s].toInt();
+    const int id = params[u"id"_s].toInt();
 
     if (id != 0)
     {
@@ -166,13 +166,13 @@ void SearchController::statusAction()
     setResult(statusArray);
 }
 
-void SearchController::resultsAction()
+void SearchController::resultsAction(const StringMap &params)
 {
-    requireParams({u"id"_s});
+    requireParams(params, {u"id"_s});
 
-    const int id = params()[u"id"_s].toInt();
-    int limit = params()[u"limit"_s].toInt();
-    int offset = params()[u"offset"_s].toInt();
+    const int id = params[u"id"_s].toInt();
+    int limit = params[u"limit"_s].toInt();
+    int offset = params[u"offset"_s].toInt();
 
     const auto jobInfo = m_searchJobManager->getJobInfo(id);
     if (!jobInfo)
@@ -198,11 +198,11 @@ void SearchController::resultsAction()
         setResult(getResults(searchResults, jobInfo->active, size));
 }
 
-void SearchController::deleteAction()
+void SearchController::deleteAction(const StringMap &params)
 {
-    requireParams({u"id"_s});
+    requireParams(params, {u"id"_s});
 
-    const int id = params()[u"id"_s].toInt();
+    const int id = params[u"id"_s].toInt();
 
     if (!m_searchJobManager->deleteSearch(id))
         throw APIError(APIErrorType::NotFound);
@@ -210,12 +210,12 @@ void SearchController::deleteAction()
     setResult(QString());
 }
 
-void SearchController::downloadTorrentAction()
+void SearchController::downloadTorrentAction(const StringMap &params)
 {
-    requireParams({u"torrentUrl"_s, u"pluginName"_s});
+    requireParams(params, {u"torrentUrl"_s, u"pluginName"_s});
 
-    const QString torrentUrl = params()[u"torrentUrl"_s];
-    const QString pluginName = params()[u"pluginName"_s];
+    const QString torrentUrl = params[u"torrentUrl"_s];
+    const QString pluginName = params[u"pluginName"_s];
 
     if (torrentUrl.startsWith(u"magnet:", Qt::CaseInsensitive))
     {
@@ -241,34 +241,34 @@ void SearchController::pluginsAction()
     setResult(getPluginsInfo(allPlugins));
 }
 
-void SearchController::installPluginAction()
+void SearchController::installPluginAction(const StringMap &params)
 {
-    requireParams({u"sources"_s});
+    requireParams(params, {u"sources"_s});
 
-    const QStringList sources = params()[u"sources"_s].split(u'|');
+    const QStringList sources = params[u"sources"_s].split(u'|');
     for (const QString &source : sources)
         SearchPluginManager::instance()->installPlugin(source);
 
     setResult(QString());
 }
 
-void SearchController::uninstallPluginAction()
+void SearchController::uninstallPluginAction(const StringMap &params)
 {
-    requireParams({u"names"_s});
+    requireParams(params, {u"names"_s});
 
-    const QStringList names = params()[u"names"_s].split(u'|');
+    const QStringList names = params[u"names"_s].split(u'|');
     for (const QString &name : names)
         SearchPluginManager::instance()->uninstallPlugin(name.trimmed());
 
     setResult(QString());
 }
 
-void SearchController::enablePluginAction()
+void SearchController::enablePluginAction(const StringMap &params)
 {
-    requireParams({u"names"_s, u"enable"_s});
+    requireParams(params, {u"names"_s, u"enable"_s});
 
-    const QStringList names = params()[u"names"_s].split(u'|');
-    const bool enable = Utils::String::parseBool(params()[u"enable"_s].trimmed()).value_or(false);
+    const QStringList names = params[u"names"_s].split(u'|');
+    const bool enable = Utils::String::parseBool(params[u"enable"_s].trimmed()).value_or(false);
 
     for (const QString &name : names)
         SearchPluginManager::instance()->enablePlugin(name.trimmed(), enable);

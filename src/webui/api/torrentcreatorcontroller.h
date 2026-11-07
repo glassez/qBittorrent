@@ -1,6 +1,6 @@
 /*
  * Bittorrent Client using Qt and libtorrent.
- * Copyright (C) 2024  Vladimir Golovnev <glassez@yandex.ru>
+ * Copyright (C) 2024-2926  Vladimir Golovnev <glassez@yandex.ru>
  * Copyright (C) 2024  Radu Carpa <radu.carpa@cern.ch>
  *
  * This program is free software; you can redistribute it and/or
@@ -45,10 +45,10 @@ public:
     TorrentCreatorController(BitTorrent::TorrentCreationManager *torrentCreationManager, IApplication *app, QObject *parent = nullptr);
 
 private slots:
-    void addTaskAction();
-    void statusAction();
-    void torrentFileAction();
-    void deleteTaskAction();
+    void addTaskAction(const StringMap &params);
+    void statusAction(const StringMap &params);
+    void torrentFileAction(const StringMap &params);
+    void deleteTaskAction(const StringMap &params);
 
 private:
     BitTorrent::TorrentCreationManager *m_torrentCreationManager = nullptr;

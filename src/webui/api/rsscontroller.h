@@ -39,21 +39,21 @@ public:
     using APIController::APIController;
 
 private slots:
-    void addFolderAction();
-    void addFeedAction();
-    void setFeedURLAction();
-    void setFeedRefreshIntervalAction();
-    void removeItemAction();
-    void moveItemAction();
-    void itemsAction();
-    void markAsReadAction();
-    void refreshItemAction();
-    void setRuleAction();
+    void addFolderAction(const StringMap &params);
+    void addFeedAction(const StringMap &params);
+    void setFeedURLAction(const StringMap &params);
+    void setFeedRefreshIntervalAction(const StringMap &params);
+    void removeItemAction(const StringMap &params);
+    void moveItemAction(const StringMap &params);
+    void itemsAction(const StringMap &params);
+    void markAsReadAction(const StringMap &params);
+    void refreshItemAction(const StringMap &params);
+    void setRuleAction(const StringMap &params);
     void exportRulesAction();
-    void importRulesAction();
-    void renameRuleAction();
-    void removeRuleAction();
-    void cloneRuleAction();
+    void importRulesAction(const StringMap &params, const DataList &data);
+    void renameRuleAction(const StringMap &params);
+    void removeRuleAction(const StringMap &params);
+    void cloneRuleAction(const StringMap &params);
     void rulesAction();
-    void matchingArticlesAction();
+    void matchingArticlesAction(const StringMap &params);
 };

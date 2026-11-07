@@ -69,9 +69,7 @@ public:
     APIResult run(const QString &action, const StringMap &params, const DataList &data = {});
 
 protected:
-    const StringMap &params() const;
-    const DataList &data() const;
-    void requireParams(const QList<QString> &requiredParams) const;
+    void requireParams(const StringMap &params, const QList<QString> &requiredParams) const;
 
     void setResult(const QString &result);
     void setResult(const QJsonArray &result);
@@ -82,7 +80,5 @@ protected:
     void setStatus(APIStatus status);
 
 private:
-    StringMap m_params;
-    DataList m_data;
     APIResult m_result;
 };

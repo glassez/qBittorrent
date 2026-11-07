@@ -1,6 +1,6 @@
 /*
  * Bittorrent Client using Qt and libtorrent.
- * Copyright (C) 2018  Vladimir Golovnev <glassez@yandex.ru>
+ * Copyright (C) 2018-2026  Vladimir Golovnev <glassez@yandex.ru>
  * Copyright (C) 2006-2012  Christophe Dumez <chris@qbittorrent.org>
  * Copyright (C) 2006-2012  Ishan Arora <ishan@qbittorrent.org>
  *
@@ -47,16 +47,16 @@ private slots:
     void processInfoAction();
     void shutdownAction();
     void preferencesAction();
-    void setPreferencesAction();
+    void setPreferencesAction(const StringMap &params);
     void defaultSavePathAction();
     void sendTestEmailAction();
-    void getDirectoryContentAction();
-    void getFreeSpaceAtPathAction();
+    void getDirectoryContentAction(const StringMap &params);
+    void getFreeSpaceAtPathAction(const StringMap &params);
     void cookiesAction();
-    void setCookiesAction();
+    void setCookiesAction(const StringMap &params);
     void rotateAPIKeyAction();
     void deleteAPIKeyAction();
 
     void networkInterfaceListAction();
-    void networkInterfaceAddressListAction();
+    void networkInterfaceAddressListAction(const StringMap &params);
 };

@@ -1,6 +1,6 @@
 /*
  * Bittorrent Client using Qt and libtorrent.
- * Copyright (C) 2018  Vladimir Golovnev <glassez@yandex.ru>
+ * Copyright (C) 2018-2026  Vladimir Golovnev <glassez@yandex.ru>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -43,7 +43,7 @@ public:
     explicit AuthController(ISessionManager *sessionManager, IApplication *app, QObject *parent = nullptr);
 
 private slots:
-    void loginAction();
+    void loginAction(const StringMap &params);
     void logoutAction();
 
 private:

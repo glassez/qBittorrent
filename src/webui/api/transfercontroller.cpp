@@ -1,6 +1,6 @@
 /*
  * Bittorrent Client using Qt and libtorrent.
- * Copyright (C) 2018  Vladimir Golovnev <glassez@yandex.ru>
+ * Copyright (C) 2018-2026  Vladimir Golovnev <glassez@yandex.ru>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -35,9 +35,10 @@
 #include "base/bittorrent/peerinfo.h"
 #include "base/bittorrent/session.h"
 #include "base/bittorrent/sessionstatus.h"
-#include "base/global.h"
 #include "base/utils/string.h"
 #include "apierror.h"
+
+using namespace Qt::StringLiterals;
 
 const QString KEY_TRANSFER_DLSPEED = u"dl_info_speed"_s;
 const QString KEY_TRANSFER_DLDATA = u"dl_info_data"_s;
@@ -101,10 +102,10 @@ void TransferController::downloadLimitAction()
     setResult(QString::number(BitTorrent::Session::instance()->downloadSpeedLimit()));
 }
 
-void TransferController::setUploadLimitAction()
+void TransferController::setUploadLimitAction(const StringMap &params)
 {
-    requireParams({u"limit"_s});
-    qlonglong limit = params()[u"limit"_s].toLongLong();
+    requireParams(params, {u"limit"_s});
+    qlonglong limit = params[u"limit"_s].toLongLong();
     if (limit == 0) limit = -1;
 
     BitTorrent::Session::instance()->setUploadSpeedLimit(limit);
@@ -112,10 +113,10 @@ void TransferController::setUploadLimitAction()
     setResult(QString());
 }
 
-void TransferController::setDownloadLimitAction()
+void TransferController::setDownloadLimitAction(const StringMap &params)
 {
-    requireParams({u"limit"_s});
-    qlonglong limit = params()[u"limit"_s].toLongLong();
+    requireParams(params, {u"limit"_s});
+    qlonglong limit = params[u"limit"_s].toLongLong();
     if (limit == 0) limit = -1;
 
     BitTorrent::Session::instance()->setDownloadSpeedLimit(limit);
@@ -137,16 +138,16 @@ void TransferController::getSpeedLimitsAction()
     setResult(dict);
 }
 
-void TransferController::setSpeedLimitsAction()
+void TransferController::setSpeedLimitsAction(const StringMap &params)
 {
-    requireParams({KEY_TRANSFER_UP_LIMIT, KEY_TRANSFER_DL_LIMIT, KEY_TRANSFER_ALT_UP_LIMIT, KEY_TRANSFER_ALT_DL_LIMIT});
+    requireParams(params, {KEY_TRANSFER_UP_LIMIT, KEY_TRANSFER_DL_LIMIT, KEY_TRANSFER_ALT_UP_LIMIT, KEY_TRANSFER_ALT_DL_LIMIT});
 
     BitTorrent::Session *const session = BitTorrent::Session::instance();
 
-    session->setGlobalUploadSpeedLimit(params().value(KEY_TRANSFER_UP_LIMIT).toInt());
-    session->setGlobalDownloadSpeedLimit(params().value(KEY_TRANSFER_DL_LIMIT).toInt());
-    session->setAltGlobalUploadSpeedLimit(params().value(KEY_TRANSFER_ALT_UP_LIMIT).toInt());
-    session->setAltGlobalDownloadSpeedLimit(params().value(KEY_TRANSFER_ALT_DL_LIMIT).toInt());
+    session->setGlobalUploadSpeedLimit(params.value(KEY_TRANSFER_UP_LIMIT).toInt());
+    session->setGlobalDownloadSpeedLimit(params.value(KEY_TRANSFER_DL_LIMIT).toInt());
+    session->setAltGlobalUploadSpeedLimit(params.value(KEY_TRANSFER_ALT_UP_LIMIT).toInt());
+    session->setAltGlobalDownloadSpeedLimit(params.value(KEY_TRANSFER_ALT_DL_LIMIT).toInt());
 }
 
 void TransferController::toggleSpeedLimitsModeAction()
@@ -162,11 +163,11 @@ void TransferController::speedLimitsModeAction()
     setResult(QString::number(BitTorrent::Session::instance()->isAltGlobalSpeedLimitEnabled()));
 }
 
-void TransferController::setSpeedLimitsModeAction()
+void TransferController::setSpeedLimitsModeAction(const StringMap &params)
 {
-    requireParams({u"mode"_s});
+    requireParams(params, {u"mode"_s});
 
-    const std::optional<int> mode = Utils::String::parseInt(params().value(u"mode"_s));
+    const std::optional<int> mode = Utils::String::parseInt(params.value(u"mode"_s));
     if (!mode)
         throw APIError(APIErrorType::BadParams, tr("'mode': invalid argument"));
 
@@ -176,11 +177,11 @@ void TransferController::setSpeedLimitsModeAction()
     setResult(QString());
 }
 
-void TransferController::banPeersAction()
+void TransferController::banPeersAction(const StringMap &params)
 {
-    requireParams({u"peers"_s});
+    requireParams(params, {u"peers"_s});
 
-    const QStringList peers = params()[u"peers"_s].split(u'|');
+    const QStringList peers = params[u"peers"_s].split(u'|');
     for (const QString &peer : peers)
     {
         const BitTorrent::PeerAddress addr = BitTorrent::PeerAddress::parse(peer.trimmed());
