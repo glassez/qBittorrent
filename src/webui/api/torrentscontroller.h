@@ -86,7 +86,7 @@ private slots:
     APIResult createTagsAction(const APIParams &params);
     APIResult deleteTagsAction(const APIParams &params);
     APIResult tagsAction();
-    APIResult addAction(const APIParams &params, const DataList &data);
+    APIResult addAction(const APIParams &params);
     APIResult deleteAction(const APIParams &params);
     APIResult addTrackersAction(const APIParams &params);
     APIResult editTrackerAction(const APIParams &params);
@@ -117,7 +117,7 @@ private slots:
     APIResult setSSLParametersAction(const APIParams &params);
     APIResult fetchMetadataAction(const APIParams &params);
     APIResult cancelFetchMetadataAction(const APIParams &params);
-    APIResult parseMetadataAction(const APIParams &params, const DataList &data);
+    APIResult parseMetadataAction(const APIParams &params);
     APIResult saveMetadataAction(const APIParams &params);
     APIResult downloadFileAction(const APIParams &params);
 

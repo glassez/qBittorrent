@@ -197,14 +197,14 @@ APIResult RSSController::exportRulesAction()
         , u"rss-downloader-rules.json"_s);
 }
 
-APIResult RSSController::importRulesAction(const APIParams &, const DataList &data)
+APIResult RSSController::importRulesAction(const APIParams &params)
 {
-    if (data.size() != 1)
+    if (params.data.size() != 1)
         throw APIError(APIErrorType::BadParams, tr("Exactly one rules file is required"));
 
     try
     {
-        RSS::AutoDownloader::instance()->importRules(data.first().data
+        RSS::AutoDownloader::instance()->importRules(params.data.first().data
             , RSS::AutoDownloader::RulesFileFormat::JSON);
     }
     catch (const RSS::ParsingError &error)

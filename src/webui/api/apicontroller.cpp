@@ -43,7 +43,7 @@ APIController::APIController(IApplication *app, QObject *parent)
 {
 }
 
-APIResult APIController::run(const QString &action, const APIParams &params, const DataList &data)
+APIResult APIController::run(const QString &action, const APIParams &params)
 {
     const QByteArray methodName = action.toLatin1() + "Action";
     const QMetaObject *thisMetaObject = metaObject();
@@ -61,9 +61,6 @@ APIResult APIController::run(const QString &action, const APIParams &params, con
                 break;
             case 1:
                 invoked = metaMethod.invoke(this, qReturnArg(result), params);
-                break;
-            case 2:
-                invoked = metaMethod.invoke(this, qReturnArg(result), params, data);
                 break;
             }
 

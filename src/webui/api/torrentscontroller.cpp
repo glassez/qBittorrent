@@ -1134,7 +1134,7 @@ APIResult TorrentsController::pieceAvailabilityAction(const APIParams &params)
     return makeAPIResult(pieceAvailability);
 }
 
-APIResult TorrentsController::addAction(const APIParams &params, const DataList &data)
+APIResult TorrentsController::addAction(const APIParams &params)
 {
     const QStringList urls = params[u"urls"_s].split(u'\n', Qt::SkipEmptyParts);
 
@@ -1169,7 +1169,7 @@ APIResult TorrentsController::addAction(const APIParams &params, const DataList 
             ? Utils::String::toEnum(contentLayoutParam, BitTorrent::TorrentContentLayout::Original)
             : std::optional<BitTorrent::TorrentContentLayout> {});
 
-    const DataList &torrents = data;
+    const QList<Http::UploadedFile> &torrents = params.data;
 
     QList<BitTorrent::DownloadPriority> filePriorities;
     const QStringList filePrioritiesParam = params[u"filePriorities"_s].split(u',', Qt::SkipEmptyParts);
@@ -2401,9 +2401,9 @@ APIResult TorrentsController::cancelFetchMetadataAction(const APIParams &params)
     throw APIError(APIErrorType::NotFound);
 }
 
-APIResult TorrentsController::parseMetadataAction(const APIParams &, const DataList &data)
+APIResult TorrentsController::parseMetadataAction(const APIParams &params)
 {
-    const DataList &uploadedTorrents = data;
+    const QList<Http::UploadedFile> &uploadedTorrents = params.data;
     // must provide some value to parse
     if (uploadedTorrents.isEmpty())
         throw APIError(APIErrorType::BadParams, tr("Must specify torrent file(s)"));
