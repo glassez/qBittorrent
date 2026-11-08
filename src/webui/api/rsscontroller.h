@@ -50,7 +50,7 @@ private slots:
     APIResult refreshItemAction(const APIParams &params);
     APIResult setRuleAction(const APIParams &params);
     APIResult exportRulesAction();
-    APIResult importRulesAction(const APIParams &params, const DataList &data);
+    APIResult importRulesAction(const APIParams &params);
     APIResult renameRuleAction(const APIParams &params);
     APIResult removeRuleAction(const APIParams &params);
     APIResult cloneRuleAction(const APIParams &params);

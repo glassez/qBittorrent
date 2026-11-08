@@ -28,16 +28,11 @@
 
 #pragma once
 
-#include <QtContainerFwd>
 #include <QObject>
-#include <QString>
 
 #include "base/applicationcomponent.h"
-#include "base/http/request.h"
+#include "apiparams.h"
 #include "apiresult.h"
-
-using DataList = QList<Http::UploadedFile>;
-using APIParams = QHash<QString, QString>;
 
 class APIController : public ApplicationComponent<QObject>
 {
@@ -47,7 +42,7 @@ class APIController : public ApplicationComponent<QObject>
 public:
     explicit APIController(IApplication *app, QObject *parent = nullptr);
 
-    APIResult run(const QString &action, const APIParams &params, const DataList &data = {});
+    APIResult run(const QString &action, const APIParams &params);
 
 protected:
     void requireParams(const APIParams &params, const QList<QString> &requiredParams) const;
