@@ -397,8 +397,6 @@ SearchWidget::SearchWidget(IGUIApplication *app, QWidget *parent)
 #endif
     connect(m_ui->tabWidget, &QTabWidget::tabCloseRequested, this, &SearchWidget::closeTab);
     connect(m_ui->tabWidget, &QTabWidget::currentChanged, this, &SearchWidget::currentTabChanged);
-    connect(m_ui->tabWidget, &QTabWidget::currentChanged, this, &SearchWidget::saveSession);
-    connect(m_ui->tabWidget->tabBar(), &QTabBar::tabMoved, this, &SearchWidget::saveSession);
 
     connect(m_ui->tabWidget, &QTabWidget::tabBarDoubleClicked, this, [this](const int tabIndex)
     {
@@ -464,6 +462,9 @@ SearchWidget::SearchWidget(IGUIApplication *app, QWidget *parent)
 
     loadHistory();
     restoreSession();
+
+    connect(m_ui->tabWidget, &QTabWidget::currentChanged, this, &SearchWidget::saveSession);
+    connect(m_ui->tabWidget->tabBar(), &QTabBar::tabMoved, this, &SearchWidget::saveSession);
 }
 
 bool SearchWidget::eventFilter(QObject *object, QEvent *event)

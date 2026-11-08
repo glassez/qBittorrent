@@ -31,6 +31,7 @@
 #include <variant>
 
 #include <QByteArray>
+#include <QFuture>
 #include <QString>
 
 #include "base/3rdparty/expected.hpp"
@@ -55,7 +56,7 @@ struct StreamFileAPIResult
     friend bool operator==(const StreamFileAPIResult &lhs, const StreamFileAPIResult &rhs) = default;
 };
 
-using APIResult = nonstd::expected<std::variant<RegularAPIResult, StreamFileAPIResult>, APIError>;
+using APIResult = nonstd::expected<std::variant<RegularAPIResult, QFuture<RegularAPIResult>, StreamFileAPIResult>, APIError>;
 
 RegularAPIResult makeAPIResult(const QString &result, APIStatus status = APIStatus::Ok);
 RegularAPIResult makeAPIResult(const QJsonArray &result, APIStatus status = APIStatus::Ok);
