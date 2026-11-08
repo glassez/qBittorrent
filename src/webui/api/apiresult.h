@@ -30,6 +30,7 @@
 
 #include <variant>
 
+#include <QFuture>
 #include <QString>
 #include <QVariant>
 
@@ -49,7 +50,7 @@ struct StreamFileAPIResult
     Path filePath;
 };
 
-using APIResult = std::variant<RegularAPIResult, StreamFileAPIResult>;
+using APIResult = std::variant<RegularAPIResult, QFuture<RegularAPIResult>, StreamFileAPIResult>;
 
 RegularAPIResult makeAPIResult(const QString &result, APIStatus status = APIStatus::Ok);
 RegularAPIResult makeAPIResult(const QJsonArray &result, APIStatus status = APIStatus::Ok);

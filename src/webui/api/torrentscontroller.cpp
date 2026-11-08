@@ -39,6 +39,7 @@
 #include <QJsonArray>
 #include <QJsonObject>
 #include <QList>
+#include <QPointer>
 #include <QRegularExpression>
 #include <QUrl>
 
@@ -261,78 +262,83 @@ namespace
         }
     }
 
-    QJsonArray getStickyTrackers(const BitTorrent::Torrent *const torrent)
+    QFuture<QJsonArray> getStickyTrackers(const BitTorrent::Torrent *const torrent)
     {
-        int seedsDHT = 0, seedsPeX = 0, seedsLSD = 0, leechesDHT = 0, leechesPeX = 0, leechesLSD = 0;
-        const QList<BitTorrent::PeerInfo> peersList = torrent->fetchPeerInfo().takeResult();
-        for (const BitTorrent::PeerInfo &peer : peersList)
+        return torrent->fetchPeerInfo().then([torrent = QPointer(torrent)](const QList<BitTorrent::PeerInfo> &peersList) -> QJsonArray
         {
-            if (peer.isConnecting())
-                continue;
+            if (!torrent)
+                throw APIError(APIErrorType::NotFound);
 
-            if (peer.isSeed())
+            int seedsDHT = 0, seedsPeX = 0, seedsLSD = 0, leechesDHT = 0, leechesPeX = 0, leechesLSD = 0;
+            for (const BitTorrent::PeerInfo &peer : peersList)
             {
-                if (peer.fromDHT())
-                    ++seedsDHT;
-                if (peer.fromPeX())
-                    ++seedsPeX;
-                if (peer.fromLSD())
-                    ++seedsLSD;
+                if (peer.isConnecting())
+                    continue;
+
+                if (peer.isSeed())
+                {
+                    if (peer.fromDHT())
+                        ++seedsDHT;
+                    if (peer.fromPeX())
+                        ++seedsPeX;
+                    if (peer.fromLSD())
+                        ++seedsLSD;
+                }
+                else
+                {
+                    if (peer.fromDHT())
+                        ++leechesDHT;
+                    if (peer.fromPeX())
+                        ++leechesPeX;
+                    if (peer.fromLSD())
+                        ++leechesLSD;
+                }
             }
-            else
+
+            const int working = static_cast<int>(BitTorrent::TrackerEndpointState::Working);
+            const int disabled = 0;
+
+            const QString privateMsg {QCoreApplication::translate("TrackerListWidget", "This torrent is private")};
+            const bool isTorrentPrivate = torrent->isPrivate();
+
+            const QJsonObject dht
             {
-                if (peer.fromDHT())
-                    ++leechesDHT;
-                if (peer.fromPeX())
-                    ++leechesPeX;
-                if (peer.fromLSD())
-                    ++leechesLSD;
-            }
-        }
+                {KEY_TRACKER_URL, u"** [DHT] **"_s},
+                {KEY_TRACKER_TIER, -1},
+                {KEY_TRACKER_MSG, (isTorrentPrivate ? privateMsg : u""_s)},
+                {KEY_TRACKER_STATUS, ((BitTorrent::Session::instance()->isDHTEnabled() && !isTorrentPrivate) ? working : disabled)},
+                {KEY_TRACKER_PEERS_COUNT, 0},
+                {KEY_TRACKER_DOWNLOADED_COUNT, 0},
+                {KEY_TRACKER_SEEDS_COUNT, seedsDHT},
+                {KEY_TRACKER_LEECHES_COUNT, leechesDHT}
+            };
 
-        const int working = static_cast<int>(BitTorrent::TrackerEndpointState::Working);
-        const int disabled = 0;
+            const QJsonObject pex
+            {
+                {KEY_TRACKER_URL, u"** [PeX] **"_s},
+                {KEY_TRACKER_TIER, -1},
+                {KEY_TRACKER_MSG, (isTorrentPrivate ? privateMsg : u""_s)},
+                {KEY_TRACKER_STATUS, ((BitTorrent::Session::instance()->isPeXEnabled() && !isTorrentPrivate) ? working : disabled)},
+                {KEY_TRACKER_PEERS_COUNT, 0},
+                {KEY_TRACKER_DOWNLOADED_COUNT, 0},
+                {KEY_TRACKER_SEEDS_COUNT, seedsPeX},
+                {KEY_TRACKER_LEECHES_COUNT, leechesPeX}
+            };
 
-        const QString privateMsg {QCoreApplication::translate("TrackerListWidget", "This torrent is private")};
-        const bool isTorrentPrivate = torrent->isPrivate();
+            const QJsonObject lsd
+            {
+                {KEY_TRACKER_URL, u"** [LSD] **"_s},
+                {KEY_TRACKER_TIER, -1},
+                {KEY_TRACKER_MSG, (isTorrentPrivate ? privateMsg : u""_s)},
+                {KEY_TRACKER_STATUS, ((BitTorrent::Session::instance()->isLSDEnabled() && !isTorrentPrivate) ? working : disabled)},
+                {KEY_TRACKER_PEERS_COUNT, 0},
+                {KEY_TRACKER_DOWNLOADED_COUNT, 0},
+                {KEY_TRACKER_SEEDS_COUNT, seedsLSD},
+                {KEY_TRACKER_LEECHES_COUNT, leechesLSD}
+            };
 
-        const QJsonObject dht
-        {
-            {KEY_TRACKER_URL, u"** [DHT] **"_s},
-            {KEY_TRACKER_TIER, -1},
-            {KEY_TRACKER_MSG, (isTorrentPrivate ? privateMsg : u""_s)},
-            {KEY_TRACKER_STATUS, ((BitTorrent::Session::instance()->isDHTEnabled() && !isTorrentPrivate) ? working : disabled)},
-            {KEY_TRACKER_PEERS_COUNT, 0},
-            {KEY_TRACKER_DOWNLOADED_COUNT, 0},
-            {KEY_TRACKER_SEEDS_COUNT, seedsDHT},
-            {KEY_TRACKER_LEECHES_COUNT, leechesDHT}
-        };
-
-        const QJsonObject pex
-        {
-            {KEY_TRACKER_URL, u"** [PeX] **"_s},
-            {KEY_TRACKER_TIER, -1},
-            {KEY_TRACKER_MSG, (isTorrentPrivate ? privateMsg : u""_s)},
-            {KEY_TRACKER_STATUS, ((BitTorrent::Session::instance()->isPeXEnabled() && !isTorrentPrivate) ? working : disabled)},
-            {KEY_TRACKER_PEERS_COUNT, 0},
-            {KEY_TRACKER_DOWNLOADED_COUNT, 0},
-            {KEY_TRACKER_SEEDS_COUNT, seedsPeX},
-            {KEY_TRACKER_LEECHES_COUNT, leechesPeX}
-        };
-
-        const QJsonObject lsd
-        {
-            {KEY_TRACKER_URL, u"** [LSD] **"_s},
-            {KEY_TRACKER_TIER, -1},
-            {KEY_TRACKER_MSG, (isTorrentPrivate ? privateMsg : u""_s)},
-            {KEY_TRACKER_STATUS, ((BitTorrent::Session::instance()->isLSDEnabled() && !isTorrentPrivate) ? working : disabled)},
-            {KEY_TRACKER_PEERS_COUNT, 0},
-            {KEY_TRACKER_DOWNLOADED_COUNT, 0},
-            {KEY_TRACKER_SEEDS_COUNT, seedsLSD},
-            {KEY_TRACKER_LEECHES_COUNT, leechesLSD}
-        };
-
-        return {dht, pex, lsd};
+            return {dht, pex, lsd};
+        });
     }
 
     QJsonArray getTrackers(const BitTorrent::Torrent *const torrent)
@@ -389,45 +395,52 @@ namespace
         return trackerList;
     }
 
-    QJsonArray getFiles(const BitTorrent::Torrent *const torrent, QList<int> fileIndexes = {})
+    QFuture<QJsonArray> getFiles(const BitTorrent::Torrent *const torrent, QList<int> fileIndexes = {})
     {
         Q_ASSERT(torrent->hasMetadata());
         if (!torrent->hasMetadata()) [[unlikely]]
-            return {};
+            return QtFuture::makeReadyValueFuture<QJsonArray>({});
 
-        if (fileIndexes.isEmpty())
+        return torrent->fetchAvailableFileFractions().then(
+                [torrent = QPointer(torrent), fileIndexes = std::move(fileIndexes)]
+                        (const QList<qreal> &fileAvailability) mutable -> QJsonArray
         {
-            const int filesCount = torrent->filesCount();
-            fileIndexes.reserve(filesCount);
-            for (int i = 0; i < filesCount; ++i)
-                fileIndexes.append(i);
-        }
+            if (!torrent)
+                throw APIError(APIErrorType::NotFound);
 
-        QJsonArray fileList;
-        const QList<BitTorrent::DownloadPriority> priorities = torrent->filePriorities();
-        const QList<qreal> fp = torrent->filesProgress();
-        const QList<qreal> fileAvailability = torrent->fetchAvailableFileFractions().takeResult();
-        const BitTorrent::TorrentInfo info = torrent->info();
-        for (const int index : asConst(fileIndexes))
-        {
-            const BitTorrent::TorrentInfo::PieceRange idx = info.filePieces(index);
-
-            const QJsonObject fileDict =
+            if (fileIndexes.isEmpty())
             {
-                {KEY_FILE_INDEX, index},
-                {KEY_FILE_PROGRESS, fp[index]},
-                {KEY_FILE_PRIORITY, static_cast<int>(priorities[index])},
-                {KEY_FILE_SIZE, torrent->fileSize(index)},
-                {KEY_FILE_AVAILABILITY, fileAvailability[index]},
-                // need to provide paths using a platform-independent separator format
-                {KEY_FILE_NAME, torrent->filePath(index).data()},
-                {KEY_FILE_PIECE_RANGE, QJsonArray {idx.first(), idx.last()}}
-            };
+                const int filesCount = torrent->filesCount();
+                fileIndexes.reserve(filesCount);
+                for (int i = 0; i < filesCount; ++i)
+                    fileIndexes.append(i);
+            }
 
-            fileList.append(fileDict);
-        }
+            QJsonArray fileList;
+            const QList<BitTorrent::DownloadPriority> priorities = torrent->filePriorities();
+            const QList<qreal> fp = torrent->filesProgress();
+            const BitTorrent::TorrentInfo info = torrent->info();
+            for (const int index : asConst(fileIndexes))
+            {
+                const BitTorrent::TorrentInfo::PieceRange idx = info.filePieces(index);
 
-        return fileList;
+                const QJsonObject fileDict =
+                {
+                    {KEY_FILE_INDEX, index},
+                    {KEY_FILE_PROGRESS, fp[index]},
+                    {KEY_FILE_PRIORITY, static_cast<int>(priorities[index])},
+                    {KEY_FILE_SIZE, torrent->fileSize(index)},
+                    {KEY_FILE_AVAILABILITY, fileAvailability[index]},
+                    // need to provide paths using a platform-independent separator format
+                    {KEY_FILE_NAME, torrent->filePath(index).data()},
+                    {KEY_FILE_PIECE_RANGE, QJsonArray {idx.first(), idx.last()}}
+                };
+
+                fileList.append(fileDict);
+            }
+
+            return fileList;
+        });
     }
 
     QList<BitTorrent::TorrentID> toTorrentIDs(const QStringList &idStrings)
@@ -616,6 +629,31 @@ namespace
 
         return TorrentFilter::All;
     }
+
+    bool lessThan(const QVariant &left, const QVariant &right)
+    {
+        Q_ASSERT(left.userType() == right.userType());
+
+        switch (left.userType())
+        {
+        case QMetaType::Bool:
+            return left.value<bool>() < right.value<bool>();
+        case QMetaType::Double:
+            return left.value<double>() < right.value<double>();
+        case QMetaType::Float:
+            return left.value<float>() < right.value<float>();
+        case QMetaType::Int:
+            return left.value<int>() < right.value<int>();
+        case QMetaType::LongLong:
+            return left.value<qlonglong>() < right.value<qlonglong>();
+        case QMetaType::QString:
+            return left.value<QString>() < right.value<QString>();
+        default:
+            qWarning("Unhandled QVariant comparison, type: %d, name: %s"
+                    , left.userType(), left.metaType().name());
+            return false;
+        }
+    };
 }
 
 TorrentsController::TorrentsController(IApplication *app, QObject *parent)
@@ -687,76 +725,70 @@ APIResult TorrentsController::infoAction(const APIParams &params)
 
     const TorrentFilter torrentFilter {parseTorrentStatus(filter), idSet, category, tag, isPrivate};
     QVariantList torrentList;
+    QList<QFuture<QVariantMap>> getFilesFutures;
     for (const BitTorrent::Torrent *torrent : asConst(BitTorrent::Session::instance()->torrents()))
     {
         if (!torrentFilter.match(torrent))
             continue;
 
         QVariantMap serializedTorrent = serialize(*torrent);
-
-        if (includeFiles && torrent->hasMetadata())
-            serializedTorrent.insert(KEY_PROP_FILES, getFiles(torrent));
         if (includeTrackers)
             serializedTorrent.insert(KEY_PROP_TRACKERS, getTrackers(torrent));
 
-        torrentList.append(serializedTorrent);
+        if (includeFiles && torrent->hasMetadata())
+        {
+            getFilesFutures.append(getFiles(torrent).then(
+                    [serializedTorrent](const QJsonArray &files) mutable -> QVariantMap
+            {
+                serializedTorrent.insert(KEY_PROP_FILES, files);
+                return serializedTorrent;
+            }));
+        }
+        else
+        {
+            getFilesFutures.append(QtFuture::makeReadyValueFuture(serializedTorrent));
+        }
     }
 
-    if (torrentList.isEmpty())
+    if (getFilesFutures.isEmpty())
         return makeAPIResult(QJsonArray());
 
-    if (!sortedColumn.isEmpty())
+    return QtFuture::whenAll(getFilesFutures.begin(), getFilesFutures.end()).then(this
+            , [=, this](const QList<QFuture<QVariantMap>> &futures) mutable -> RegularAPIResult
     {
-        if (!torrentList[0].toMap().contains(sortedColumn))
-            throw APIError(APIErrorType::BadParams, tr("'sort' parameter is invalid"));
-
-        const auto lessThan = [](const QVariant &left, const QVariant &right) -> bool
+        for (const QFuture<QVariantMap> &future : futures)
         {
-            Q_ASSERT(left.userType() == right.userType());
+            const QVariantMap &serializedTorrent = future.result();
+            torrentList.append(serializedTorrent);
+        }
 
-            switch (left.userType())
+        if (!sortedColumn.isEmpty())
+        {
+            if (!torrentList[0].toMap().contains(sortedColumn))
+                throw APIError(APIErrorType::BadParams, tr("'sort' parameter is invalid"));
+
+            std::ranges::sort(torrentList
+                , [reverse, &sortedColumn](const QVariant &torrent1, const QVariant &torrent2)
             {
-            case QMetaType::Bool:
-                return left.value<bool>() < right.value<bool>();
-            case QMetaType::Double:
-                return left.value<double>() < right.value<double>();
-            case QMetaType::Float:
-                return left.value<float>() < right.value<float>();
-            case QMetaType::Int:
-                return left.value<int>() < right.value<int>();
-            case QMetaType::LongLong:
-                return left.value<qlonglong>() < right.value<qlonglong>();
-            case QMetaType::QString:
-                return left.value<QString>() < right.value<QString>();
-            default:
-                qWarning("Unhandled QVariant comparison, type: %d, name: %s"
-                        , left.userType(), left.metaType().name());
-                break;
-            }
-            return false;
-        };
+                const QVariant value1 {torrent1.toMap().value(sortedColumn)};
+                const QVariant value2 {torrent2.toMap().value(sortedColumn)};
+                return reverse ? lessThan(value2, value1) : lessThan(value1, value2);
+            });
+        }
 
-        std::ranges::sort(torrentList
-            , [reverse, &sortedColumn, &lessThan](const QVariant &torrent1, const QVariant &torrent2)
-        {
-            const QVariant value1 {torrent1.toMap().value(sortedColumn)};
-            const QVariant value2 {torrent2.toMap().value(sortedColumn)};
-            return reverse ? lessThan(value2, value1) : lessThan(value1, value2);
-        });
-    }
+        const qsizetype size = torrentList.size();
+        // normalize offset
+        if (offset < 0)
+            offset = size + offset;
+        // normalize limit
+        if (limit <= 0)
+            limit = -1; // unlimited
 
-    const qsizetype size = torrentList.size();
-    // normalize offset
-    if (offset < 0)
-        offset = size + offset;
-    // normalize limit
-    if (limit <= 0)
-        limit = -1; // unlimited
+        if ((limit > 0) || (offset > 0))
+            torrentList = torrentList.mid(offset, limit);
 
-    if ((limit > 0) || (offset > 0))
-        torrentList = torrentList.mid(offset, limit);
-
-    return makeAPIResult(QJsonArray::fromVariantList(torrentList));
+        return makeAPIResult(QJsonArray::fromVariantList(torrentList));
+    });
 }
 
 // Returns the properties for a torrent in JSON format.
@@ -894,13 +926,17 @@ APIResult TorrentsController::trackersAction(const APIParams &params)
     if (!torrent)
         throw APIError(APIErrorType::NotFound);
 
-    QJsonArray trackersList = getStickyTrackers(torrent);
+    return getStickyTrackers(torrent).then(this, [torrent = QPointer(torrent)](QJsonArray trackersList) -> RegularAPIResult
+    {
+        if (!torrent)
+            throw APIError(APIErrorType::NotFound);
 
-    // merge QJsonArray
-    for (const auto &tracker : asConst(getTrackers(torrent)))
-        trackersList.append(tracker);
+        // merge QJsonArray
+        for (const auto &tracker : asConst(getTrackers(torrent)))
+            trackersList.append(tracker);
 
-    return makeAPIResult(trackersList);
+        return makeAPIResult(trackersList);
+    });
 }
 
 // Returns the web seeds for a torrent in JSON format.
@@ -1053,15 +1089,18 @@ APIResult TorrentsController::filesAction(const APIParams &params)
         }
     }
 
-    QJsonArray fileList = getFiles(torrent, fileIndexes);
-    if (!fileList.isEmpty())
+    return getFiles(torrent, fileIndexes).then(this
+            , [torrent = QPointer(torrent)](QJsonArray fileList) mutable -> RegularAPIResult
     {
-        QJsonObject firstFile = fileList[0].toObject();
-        firstFile[KEY_FILE_IS_SEED] = torrent->isFinished();
-        fileList[0] = firstFile;
-    }
+        if (!fileList.isEmpty())
+        {
+            QJsonObject firstFile = fileList[0].toObject();
+            firstFile[KEY_FILE_IS_SEED] = torrent->isFinished();
+            fileList[0] = firstFile;
+        }
 
-    return makeAPIResult(fileList);
+        return makeAPIResult(fileList);
+    });
 }
 
 // Returns an array of hashes (of each pieces respectively) for a torrent in JSON format.
@@ -1100,19 +1139,25 @@ APIResult TorrentsController::pieceStatesAction(const APIParams &params)
     if (!torrent)
         throw APIError(APIErrorType::NotFound);
 
-    QJsonArray pieceStates;
-    const QBitArray states = torrent->pieces();
-    for (qsizetype i = 0; i < states.size(); ++i)
-        pieceStates.append(static_cast<int>(states[i]) * 2);
-
-    const QBitArray dlstates = torrent->fetchDownloadingPieces().takeResult();
-    for (qsizetype i = 0; i < states.size(); ++i)
+    return torrent->fetchDownloadingPieces().then(this
+            , [torrent = QPointer(torrent)](const QBitArray &dlstates) -> RegularAPIResult
     {
-        if (dlstates[i])
-            pieceStates[i] = 1;
-    }
+        if (!torrent)
+            throw APIError(APIErrorType::NotFound);
 
-    return makeAPIResult(pieceStates);
+        QJsonArray pieceStates;
+        const QBitArray states = torrent->pieces();
+        for (qsizetype i = 0; i < states.size(); ++i)
+            pieceStates.append(static_cast<int>(states[i]) * 2);
+
+        for (qsizetype i = 0; i < states.size(); ++i)
+        {
+            if (dlstates[i])
+                pieceStates[i] = 1;
+        }
+
+        return makeAPIResult(pieceStates);
+    });
 }
 
 // Returns an array of availability counts for each piece of a torrent in JSON format.
@@ -1126,12 +1171,18 @@ APIResult TorrentsController::pieceAvailabilityAction(const APIParams &params)
     if (!torrent)
         throw APIError(APIErrorType::NotFound);
 
-    const QList<int> avail = torrent->fetchPieceAvailability().takeResult();
-    QJsonArray pieceAvailability;
-    for (const int count : avail)
-        pieceAvailability.append(count);
+    return torrent->fetchPieceAvailability().then(this
+            , [torrent = QPointer(torrent)](const QList<int> &avail) -> RegularAPIResult
+    {
+        if (!torrent)
+            throw APIError(APIErrorType::NotFound);
 
-    return makeAPIResult(pieceAvailability);
+        QJsonArray pieceAvailability;
+        for (const int count : avail)
+            pieceAvailability.append(count);
+
+        return makeAPIResult(pieceAvailability);
+    });
 }
 
 APIResult TorrentsController::addAction(const APIParams &params)
