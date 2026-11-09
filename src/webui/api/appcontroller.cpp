@@ -545,7 +545,7 @@ APIResult AppController::preferencesAction()
 
 APIResult AppController::setPreferencesAction(const APIParams &params)
 {
-    requireParams(params, {u"json"_s});
+    checkRequiredParams(params, {u"json"_s});
 
     auto *pref = Preferences::instance();
     auto *session = BitTorrent::Session::instance();
@@ -1297,7 +1297,7 @@ APIResult AppController::sendTestEmailAction()
 
 APIResult AppController::getDirectoryContentAction(const APIParams &params)
 {
-    requireParams(params, {u"dirPath"_s});
+    checkRequiredParams(params, {u"dirPath"_s});
 
     const QString dirPath = params.value(u"dirPath"_s);
     if (dirPath.isEmpty() || dirPath.startsWith(u':'))
@@ -1361,7 +1361,7 @@ APIResult AppController::getDirectoryContentAction(const APIParams &params)
 
 APIResult AppController::getFreeSpaceAtPathAction(const APIParams &params)
 {
-    requireParams(params, {u"path"_s});
+    checkRequiredParams(params, {u"path"_s});
     const Path path {params.value(u"path"_s)};
     const qint64 freeSpace = Utils::Fs::freeDiskSpaceOnPath(path);
     return makeAPIResult(QString::number(freeSpace));
@@ -1387,7 +1387,7 @@ APIResult AppController::cookiesAction()
 
 APIResult AppController::setCookiesAction(const APIParams &params)
 {
-    requireParams(params, {u"cookies"_s});
+    checkRequiredParams(params, {u"cookies"_s});
     const QString cookiesParam {params[u"cookies"_s].trimmed()};
 
     QJsonParseError jsonError;
@@ -1466,7 +1466,7 @@ APIResult AppController::networkInterfaceListAction()
 
 APIResult AppController::networkInterfaceAddressListAction(const APIParams &params)
 {
-    requireParams(params, {u"iface"_s});
+    checkRequiredParams(params, {u"iface"_s});
 
     const QString ifaceName = params.value(u"iface"_s);
     QJsonArray addressList;

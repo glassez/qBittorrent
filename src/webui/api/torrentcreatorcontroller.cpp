@@ -125,12 +125,16 @@ TorrentCreatorController::TorrentCreatorController(BitTorrent::TorrentCreationMa
     : APIController(app, parent)
     , m_torrentCreationManager {torrentCreationManager}
 {
+    initializeRequiredParams(
+    {
+        {u"addTask"_s, {KEY_SOURCE_PATH}},
+        {u"torrentFile"_s, {KEY_TASK_ID}},
+        {u"deleteTask"_s, {KEY_TASK_ID}},
+    });
 }
 
 APIResult TorrentCreatorController::addTaskAction(const APIParams &params)
 {
-    requireParams(params, {KEY_SOURCE_PATH});
-
     const BitTorrent::TorrentCreatorParams createTorrentParams
     {
         .ignoreDotfiles = parseBool(params[KEY_IGNORE_DOTFILES]).value_or(true),
@@ -234,7 +238,6 @@ APIResult TorrentCreatorController::statusAction(const APIParams &params)
 
 APIResult TorrentCreatorController::torrentFileAction(const APIParams &params)
 {
-    requireParams(params, {KEY_TASK_ID});
     const QString id = params[KEY_TASK_ID];
 
     const auto task = m_torrentCreationManager->getTask(id);
@@ -261,7 +264,6 @@ APIResult TorrentCreatorController::torrentFileAction(const APIParams &params)
 
 APIResult TorrentCreatorController::deleteTaskAction(const APIParams &params)
 {
-    requireParams(params, {KEY_TASK_ID});
     const QString id = params[KEY_TASK_ID];
 
     if (!m_torrentCreationManager->deleteTask(id))

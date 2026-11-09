@@ -28,9 +28,14 @@
 
 #pragma once
 
+#include <QHash>
 #include <QObject>
+#include <QString>
+#include <QStringList>
 
+#include "base/3rdparty/expected.hpp"
 #include "base/applicationcomponent.h"
+#include "apierror.h"
 #include "apiparams.h"
 #include "apiresult.h"
 
@@ -42,8 +47,13 @@ class APIController : public ApplicationComponent<QObject>
 public:
     explicit APIController(IApplication *app, QObject *parent = nullptr);
 
-    APIResult run(const QString &action, const APIParams &params);
+    nonstd::expected<APIResult, APIError> run(const QString &action, const APIParams &params);
 
 protected:
-    void requireParams(const APIParams &params, const QList<QString> &requiredParams) const;
+    void initializeRequiredParams(QHash<QString, QStringList> requiredParams);
+
+private:
+    nonstd::expected<void, QStringList> checkRequiredParams(const QString &action, const APIParams &params);
+
+    QHash<QString, QStringList> m_requiredParams;
 };

@@ -44,6 +44,10 @@ ClientDataController::ClientDataController(ClientDataStorage *clientDataStorage,
     : APIController(app, parent)
     , m_clientDataStorage {clientDataStorage}
 {
+    initializeRequiredParams(
+    {
+        {u"store"_s, {u"data"_s}}
+    });
 }
 
 APIResult ClientDataController::loadAction(const APIParams &params)
@@ -73,7 +77,6 @@ APIResult ClientDataController::loadAction(const APIParams &params)
 
 APIResult ClientDataController::storeAction(const APIParams &params)
 {
-    requireParams(params, {u"data"_s});
     QJsonParseError jsonError;
     const auto dataJsonDocument = QJsonDocument::fromJson(params[u"data"_s].toUtf8(), &jsonError);
     if (jsonError.error != QJsonParseError::NoError)

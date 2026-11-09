@@ -95,12 +95,21 @@ SearchController::SearchController(SearchJobManager *searchJobManager, IApplicat
     : APIController(app, parent)
     , m_searchJobManager {searchJobManager}
 {
+    initializeRequiredParams(
+    {
+        {u"start"_s, {u"pattern"_s, u"category"_s, u"plugins"_s}},
+        {u"stop"_s, {u"id"_s}},
+        {u"results"_s, {u"id"_s}},
+        {u"delete"_s, {u"id"_s}},
+        {u"downloadTorrent"_s, {u"torrentUrl"_s, u"pluginName"_s}},
+        {u"installPlugin"_s, {u"sources"_s}},
+        {u"uninstallPlugin"_s, {u"names"_s}},
+        {u"enablePlugin"_s, {u"names"_s, u"enable"_s}},
+    });
 }
 
 APIResult SearchController::startAction(const APIParams &params)
 {
-    requireParams(params, {u"pattern"_s, u"category"_s, u"plugins"_s});
-
     if (!Utils::ForeignApps::pythonInfo().isValid())
         throw APIError(APIErrorType::Conflict, tr("Python must be installed to use the Search Engine."));
 
@@ -134,8 +143,6 @@ APIResult SearchController::startAction(const APIParams &params)
 
 APIResult SearchController::stopAction(const APIParams &params)
 {
-    requireParams(params, {u"id"_s});
-
     const int id = params[u"id"_s].toInt();
 
     if (!m_searchJobManager->stopSearch(id))
@@ -167,8 +174,6 @@ APIResult SearchController::statusAction(const APIParams &params)
 
 APIResult SearchController::resultsAction(const APIParams &params)
 {
-    requireParams(params, {u"id"_s});
-
     const int id = params[u"id"_s].toInt();
     int limit = params[u"limit"_s].toInt();
     int offset = params[u"offset"_s].toInt();
@@ -199,8 +204,6 @@ APIResult SearchController::resultsAction(const APIParams &params)
 
 APIResult SearchController::deleteAction(const APIParams &params)
 {
-    requireParams(params, {u"id"_s});
-
     const int id = params[u"id"_s].toInt();
 
     if (!m_searchJobManager->deleteSearch(id))
@@ -211,8 +214,6 @@ APIResult SearchController::deleteAction(const APIParams &params)
 
 APIResult SearchController::downloadTorrentAction(const APIParams &params)
 {
-    requireParams(params, {u"torrentUrl"_s, u"pluginName"_s});
-
     const QString torrentUrl = params[u"torrentUrl"_s];
     const QString pluginName = params[u"pluginName"_s];
 
@@ -242,8 +243,6 @@ APIResult SearchController::pluginsAction()
 
 APIResult SearchController::installPluginAction(const APIParams &params)
 {
-    requireParams(params, {u"sources"_s});
-
     const QStringList sources = params[u"sources"_s].split(u'|');
     for (const QString &source : sources)
         SearchPluginManager::instance()->installPlugin(source);
@@ -253,8 +252,6 @@ APIResult SearchController::installPluginAction(const APIParams &params)
 
 APIResult SearchController::uninstallPluginAction(const APIParams &params)
 {
-    requireParams(params, {u"names"_s});
-
     const QStringList names = params[u"names"_s].split(u'|');
     for (const QString &name : names)
         SearchPluginManager::instance()->uninstallPlugin(name.trimmed());
@@ -264,8 +261,6 @@ APIResult SearchController::uninstallPluginAction(const APIParams &params)
 
 APIResult SearchController::enablePluginAction(const APIParams &params)
 {
-    requireParams(params, {u"names"_s, u"enable"_s});
-
     const QStringList names = params[u"names"_s].split(u'|');
     const bool enable = Utils::String::parseBool(params[u"enable"_s].trimmed()).value_or(false);
 

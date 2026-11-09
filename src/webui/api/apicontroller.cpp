@@ -28,13 +28,8 @@
 
 #include "apicontroller.h"
 
-#include <QHash>
-#include <QList>
 #include <QMetaMethod>
 #include <QMetaObject>
-#include <QScopeGuard>
-
-#include "apierror.h"
 
 using namespace Qt::Literals::StringLiterals;
 
@@ -43,7 +38,7 @@ APIController::APIController(IApplication *app, QObject *parent)
 {
 }
 
-APIResult APIController::run(const QString &action, const APIParams &params)
+nonstd::expected<APIResult, APIError> APIController::run(const QString &action, const APIParams &params)
 {
     const QByteArray methodName = action.toLatin1() + "Action";
     const QMetaObject *thisMetaObject = metaObject();
@@ -52,6 +47,12 @@ APIResult APIController::run(const QString &action, const APIParams &params)
         QMetaMethod metaMethod = thisMetaObject->method(indexOfMethod);
         if (metaMethod.name() == methodName)
         {
+            if (const auto checkResult = checkRequiredParams(action, params); !checkResult)
+            {
+                return nonstd::make_unexpected(APIError(APIErrorType::BadParams
+                        , tr("Missing required parameters: %1").arg(checkResult.error().join(u", "))));
+            }
+
             APIResult result;
             bool invoked = false;
             switch (metaMethod.parameterCount())
@@ -69,11 +70,19 @@ APIResult APIController::run(const QString &action, const APIParams &params)
         }
     }
 
-    throw APIError(APIErrorType::NotFound, tr("Endpoint does not exist"));
+    return nonstd::make_unexpected(APIError(APIErrorType::NotFound, tr("Endpoint does not exist")));
 }
 
-void APIController::requireParams(const APIParams &params, const QList<QString> &requiredParams) const
+void APIController::initializeRequiredParams(QHash<QString, QStringList> requiredParams)
 {
+    Q_ASSERT(m_requiredParams.isEmpty());
+    m_requiredParams = std::move(requiredParams);
+}
+
+nonstd::expected<void, QStringList> APIController::checkRequiredParams(const QString &action, const APIParams &params)
+{
+    const QStringList requiredParams = m_requiredParams.value(action);
+
     QStringList missingParams;
     missingParams.reserve(requiredParams.size());
 
@@ -84,5 +93,7 @@ void APIController::requireParams(const APIParams &params, const QList<QString> 
     }
 
     if (!missingParams.isEmpty())
-        throw APIError(APIErrorType::BadParams, tr("Missing required parameters: %1").arg(missingParams.join(u", ")));
+        return nonstd::make_unexpected(missingParams);
+
+    return {};
 }

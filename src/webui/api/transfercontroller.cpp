@@ -104,7 +104,7 @@ APIResult TransferController::downloadLimitAction()
 
 APIResult TransferController::setUploadLimitAction(const APIParams &params)
 {
-    requireParams(params, {u"limit"_s});
+    checkRequiredParams(params, {u"limit"_s});
     qlonglong limit = params[u"limit"_s].toLongLong();
     if (limit == 0) limit = -1;
 
@@ -115,7 +115,7 @@ APIResult TransferController::setUploadLimitAction(const APIParams &params)
 
 APIResult TransferController::setDownloadLimitAction(const APIParams &params)
 {
-    requireParams(params, {u"limit"_s});
+    checkRequiredParams(params, {u"limit"_s});
     qlonglong limit = params[u"limit"_s].toLongLong();
     if (limit == 0) limit = -1;
 
@@ -140,7 +140,7 @@ APIResult TransferController::getSpeedLimitsAction()
 
 APIResult TransferController::setSpeedLimitsAction(const APIParams &params)
 {
-    requireParams(params, {KEY_TRANSFER_UP_LIMIT, KEY_TRANSFER_DL_LIMIT, KEY_TRANSFER_ALT_UP_LIMIT, KEY_TRANSFER_ALT_DL_LIMIT});
+    checkRequiredParams(params, {KEY_TRANSFER_UP_LIMIT, KEY_TRANSFER_DL_LIMIT, KEY_TRANSFER_ALT_UP_LIMIT, KEY_TRANSFER_ALT_DL_LIMIT});
 
     BitTorrent::Session *const session = BitTorrent::Session::instance();
 
@@ -167,7 +167,7 @@ APIResult TransferController::speedLimitsModeAction()
 
 APIResult TransferController::setSpeedLimitsModeAction(const APIParams &params)
 {
-    requireParams(params, {u"mode"_s});
+    checkRequiredParams(params, {u"mode"_s});
 
     const std::optional<int> mode = Utils::String::parseInt(params.value(u"mode"_s));
     if (!mode)
@@ -181,7 +181,7 @@ APIResult TransferController::setSpeedLimitsModeAction(const APIParams &params)
 
 APIResult TransferController::banPeersAction(const APIParams &params)
 {
-    requireParams(params, {u"peers"_s});
+    checkRequiredParams(params, {u"peers"_s});
 
     const QStringList peers = params[u"peers"_s].split(u'|');
     for (const QString &peer : peers)

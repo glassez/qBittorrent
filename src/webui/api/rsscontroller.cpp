@@ -45,10 +45,29 @@
 
 using Utils::String::parseBool;
 
+RSSController::RSSController(IApplication *app, QObject *parent)
+    : APIController(app, parent)
+{
+    initializeRequiredParams(
+    {
+        {u"addFolder"_s, {u"path"_s}},
+        {u"addFeed"_s, {u"url"_s, u"path"_s}},
+        {u"setFeedURL"_s, {u"url"_s, u"path"_s}},
+        {u"setFeedRefreshInterval"_s, {u"path"_s, u"refreshInterval"_s}},
+        {u"removeItem"_s, {u"path"_s}},
+        {u"moveItem"_s, {u"itemPath"_s, u"destPath"_s}},
+        {u"markAsRead"_s, {u"itemPath"_s}},
+        {u"refreshItem"_s, {u"itemPath"_s}},
+        {u"setRule"_s, {u"ruleName"_s, u"ruleDef"_s}},
+        {u"renameRule"_s, {u"ruleName"_s, u"newRuleName"_s}},
+        {u"cloneRule"_s, {u"sourceName"_s, u"cloneName"_s}},
+        {u"removeRule"_s, {u"ruleName"_s}},
+        {u"matchingArticles"_s, {u"ruleName"_s}},
+    });
+}
+
 APIResult RSSController::addFolderAction(const APIParams &params)
 {
-    requireParams(params, {u"path"_s});
-
     const QString path = params[u"path"_s];
     const nonstd::expected<RSS::Folder *, QString> result = RSS::Session::instance()->addFolder(path);
     if (!result)
@@ -59,8 +78,6 @@ APIResult RSSController::addFolderAction(const APIParams &params)
 
 APIResult RSSController::addFeedAction(const APIParams &params)
 {
-    requireParams(params, {u"url"_s, u"path"_s});
-
     const QString url = params[u"url"_s];
     const QString path = params[u"path"_s];
     const auto refreshInterval = std::max<qint64>(params[u"refreshInterval"_s].toLongLong(), 0);
@@ -73,8 +90,6 @@ APIResult RSSController::addFeedAction(const APIParams &params)
 
 APIResult RSSController::setFeedURLAction(const APIParams &params)
 {
-    requireParams(params, {u"path"_s, u"url"_s});
-
     const QString path = params[u"path"_s];
     const QString url = params[u"url"_s];
     const nonstd::expected<void, QString> result = RSS::Session::instance()->setFeedURL(path, url);
@@ -86,8 +101,6 @@ APIResult RSSController::setFeedURLAction(const APIParams &params)
 
 APIResult RSSController::setFeedRefreshIntervalAction(const APIParams &params)
 {
-    requireParams(params, {u"path"_s, u"refreshInterval"_s});
-
     bool ok = false;
     const auto refreshInterval = params[u"refreshInterval"_s].toLongLong(&ok);
     if (!ok || (refreshInterval < 0))
@@ -105,8 +118,6 @@ APIResult RSSController::setFeedRefreshIntervalAction(const APIParams &params)
 
 APIResult RSSController::removeItemAction(const APIParams &params)
 {
-    requireParams(params, {u"path"_s});
-
     const QString path = params[u"path"_s];
     const nonstd::expected<void, QString> result = RSS::Session::instance()->removeItem(path);
     if (!result)
@@ -117,8 +128,6 @@ APIResult RSSController::removeItemAction(const APIParams &params)
 
 APIResult RSSController::moveItemAction(const APIParams &params)
 {
-    requireParams(params, {u"itemPath"_s, u"destPath"_s});
-
     const QString itemPath = params[u"itemPath"_s];
     const QString destPath = params[u"destPath"_s];
     const nonstd::expected<void, QString> result = RSS::Session::instance()->moveItem(itemPath, destPath);
@@ -138,8 +147,6 @@ APIResult RSSController::itemsAction(const APIParams &params)
 
 APIResult RSSController::markAsReadAction(const APIParams &params)
 {
-    requireParams(params, {u"itemPath"_s});
-
     const QString itemPath {params[u"itemPath"_s]};
     const QString articleId {params[u"articleId"_s]};
 
@@ -167,8 +174,6 @@ APIResult RSSController::markAsReadAction(const APIParams &params)
 
 APIResult RSSController::refreshItemAction(const APIParams &params)
 {
-    requireParams(params, {u"itemPath"_s});
-
     const QString itemPath {params[u"itemPath"_s]};
     RSS::Item *item = RSS::Session::instance()->itemByPath(itemPath);
     if (item)
@@ -179,8 +184,6 @@ APIResult RSSController::refreshItemAction(const APIParams &params)
 
 APIResult RSSController::setRuleAction(const APIParams &params)
 {
-    requireParams(params, {u"ruleName"_s, u"ruleDef"_s});
-
     const QString ruleName {params[u"ruleName"_s]};
     const QByteArray ruleDef {params[u"ruleDef"_s].toUtf8()};
 
@@ -217,8 +220,6 @@ APIResult RSSController::importRulesAction(const APIParams &params)
 
 APIResult RSSController::renameRuleAction(const APIParams &params)
 {
-    requireParams(params, {u"ruleName"_s, u"newRuleName"_s});
-
     const QString ruleName {params[u"ruleName"_s]};
     const QString newRuleName {params[u"newRuleName"_s]};
 
@@ -229,8 +230,6 @@ APIResult RSSController::renameRuleAction(const APIParams &params)
 
 APIResult RSSController::cloneRuleAction(const APIParams &params)
 {
-    requireParams(params, {u"sourceName"_s, u"cloneName"_s});
-
     const QString sourceName {params[u"sourceName"_s]};
     const QString cloneName {params[u"cloneName"_s]};
 
@@ -241,8 +240,6 @@ APIResult RSSController::cloneRuleAction(const APIParams &params)
 
 APIResult RSSController::removeRuleAction(const APIParams &params)
 {
-    requireParams(params, {u"ruleName"_s});
-
     const QString ruleName {params[u"ruleName"_s]};
     RSS::AutoDownloader::instance()->removeRule(ruleName);
 
@@ -261,8 +258,6 @@ APIResult RSSController::rulesAction()
 
 APIResult RSSController::matchingArticlesAction(const APIParams &params)
 {
-    requireParams(params, {u"ruleName"_s});
-
     const QString ruleName {params[u"ruleName"_s]};
     const RSS::AutoDownloadRule rule = RSS::AutoDownloader::instance()->ruleByName(ruleName);
 

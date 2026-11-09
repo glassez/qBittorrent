@@ -1,6 +1,6 @@
 /*
  * Bittorrent Client using Qt and libtorrent.
- * Copyright (C) 2018  Vladimir Golovnev <glassez@yandex.ru>
+ * Copyright (C) 2018-2026  Vladimir Golovnev <glassez@yandex.ru>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -29,12 +29,17 @@
 #include "apierror.h"
 
 APIError::APIError(APIErrorType type, const QString &message)
-    : RuntimeError {message}
-    , m_type {type}
+    : m_type {type}
+    , m_message {message}
 {
 }
 
-APIErrorType APIError::type() const
+APIErrorType APIError::type() const noexcept
 {
     return m_type;
+}
+
+QString APIError::message() const noexcept
+{
+    return m_message;
 }
