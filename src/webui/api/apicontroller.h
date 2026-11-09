@@ -28,8 +28,12 @@
 
 #pragma once
 
+#include <QHash>
 #include <QObject>
+#include <QString>
+#include <QStringList>
 
+#include "base/3rdparty/expected.hpp"
 #include "base/applicationcomponent.h"
 #include "apiparams.h"
 #include "apiresult.h"
@@ -45,5 +49,10 @@ public:
     APIResult run(const QString &action, const APIParams &params);
 
 protected:
-    void requireParams(const APIParams &params, const QList<QString> &requiredParams) const;
+    void initializeRequiredParams(QHash<QString, QStringList> requiredParams);
+
+private:
+    nonstd::expected<void, QStringList> checkRequiredParams(const QString &action, const APIParams &params);
+
+    QHash<QString, QStringList> m_requiredParams;
 };

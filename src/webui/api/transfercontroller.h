@@ -36,7 +36,7 @@ class TransferController : public APIController
     Q_DISABLE_COPY_MOVE(TransferController)
 
 public:
-    using APIController::APIController;
+    explicit TransferController(IApplication *app, QObject *parent = nullptr);
 
 private slots:
     APIResult infoAction();

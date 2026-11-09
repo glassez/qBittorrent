@@ -29,6 +29,7 @@
 #pragma once
 
 #include <QHash>
+#include <QList>
 #include <QString>
 
 #include "base/http/request.h"

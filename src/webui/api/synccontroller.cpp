@@ -808,7 +808,7 @@ APIResult SyncController::torrentPeersAction(const APIParams &params)
     const auto id = BitTorrent::TorrentID::fromString(params[u"hash"_s]);
     const BitTorrent::Torrent *torrent = BitTorrent::Session::instance()->getTorrent(id);
     if (!torrent)
-        throw APIError(APIErrorType::NotFound);
+        return nonstd::unexpected(APIError(APIErrorType::NotFound));
 
     QVariantMap data;
     QVariantHash peers;

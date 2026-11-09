@@ -36,7 +36,7 @@ class RSSController final : public APIController
     Q_DISABLE_COPY_MOVE(RSSController)
 
 public:
-    using APIController::APIController;
+    explicit RSSController(IApplication *app, QObject *parent = nullptr);
 
 private slots:
     APIResult addFolderAction(const APIParams &params);

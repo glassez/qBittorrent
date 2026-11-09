@@ -1,6 +1,6 @@
 /*
  * Bittorrent Client using Qt and libtorrent.
- * Copyright (C) 2018  Vladimir Golovnev <glassez@yandex.ru>
+ * Copyright (C) 2018-2026  Vladimir Golovnev <glassez@yandex.ru>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -28,7 +28,7 @@
 
 #pragma once
 
-#include "base/exceptions.h"
+#include <QString>
 
 enum class APIErrorType
 {
@@ -40,13 +40,10 @@ enum class APIErrorType
     Unauthorized
 };
 
-class APIError : public RuntimeError
+struct APIError
 {
-public:
-    explicit APIError(APIErrorType type, const QString &message = {});
+    APIErrorType type {};
+    QString message {};
 
-    APIErrorType type() const;
-
-private:
-    APIErrorType m_type;
+    friend bool operator==(const APIError &lhs, const APIError &rhs) = default;
 };

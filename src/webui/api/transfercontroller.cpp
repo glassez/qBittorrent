@@ -68,6 +68,19 @@ const QString KEY_TRANSFER_ALT_DL_LIMIT = u"alt_dl_limit"_s;
 //   - "last_external_address_v6": external IPv6 address
 //   - "dht_nodes": DHT nodes connected to
 //   - "connection_status": Connection status
+TransferController::TransferController(IApplication *app, QObject *parent)
+    : APIController(app, parent)
+{
+    initializeRequiredParams(
+    {
+        {u"setUploadLimit"_s, {u"limit"_s}},
+        {u"setDownloadLimit"_s, {u"limit"_s}},
+        {u"setSpeedLimits"_s, {KEY_TRANSFER_UP_LIMIT, KEY_TRANSFER_DL_LIMIT, KEY_TRANSFER_ALT_UP_LIMIT, KEY_TRANSFER_ALT_DL_LIMIT}},
+        {u"setSpeedLimitsMode"_s, {u"mode"_s}},
+        {u"banPeers"_s, {u"peers"_s}},
+    });
+}
+
 APIResult TransferController::infoAction()
 {
     const auto *btSession = BitTorrent::Session::instance();
@@ -104,7 +117,6 @@ APIResult TransferController::downloadLimitAction()
 
 APIResult TransferController::setUploadLimitAction(const APIParams &params)
 {
-    requireParams(params, {u"limit"_s});
     qlonglong limit = params[u"limit"_s].toLongLong();
     if (limit == 0) limit = -1;
 
@@ -115,7 +127,6 @@ APIResult TransferController::setUploadLimitAction(const APIParams &params)
 
 APIResult TransferController::setDownloadLimitAction(const APIParams &params)
 {
-    requireParams(params, {u"limit"_s});
     qlonglong limit = params[u"limit"_s].toLongLong();
     if (limit == 0) limit = -1;
 
@@ -140,8 +151,6 @@ APIResult TransferController::getSpeedLimitsAction()
 
 APIResult TransferController::setSpeedLimitsAction(const APIParams &params)
 {
-    requireParams(params, {KEY_TRANSFER_UP_LIMIT, KEY_TRANSFER_DL_LIMIT, KEY_TRANSFER_ALT_UP_LIMIT, KEY_TRANSFER_ALT_DL_LIMIT});
-
     BitTorrent::Session *const session = BitTorrent::Session::instance();
 
     session->setGlobalUploadSpeedLimit(params.value(KEY_TRANSFER_UP_LIMIT).toInt());
@@ -167,11 +176,9 @@ APIResult TransferController::speedLimitsModeAction()
 
 APIResult TransferController::setSpeedLimitsModeAction(const APIParams &params)
 {
-    requireParams(params, {u"mode"_s});
-
     const std::optional<int> mode = Utils::String::parseInt(params.value(u"mode"_s));
     if (!mode)
-        throw APIError(APIErrorType::BadParams, tr("'mode': invalid argument"));
+        return nonstd::unexpected(APIError(APIErrorType::BadParams, tr("'mode': invalid argument")));
 
     // Any non-zero values are considered as alternative mode
     BitTorrent::Session::instance()->setAltGlobalSpeedLimitEnabled(mode != 0);
@@ -181,8 +188,6 @@ APIResult TransferController::setSpeedLimitsModeAction(const APIParams &params)
 
 APIResult TransferController::banPeersAction(const APIParams &params)
 {
-    requireParams(params, {u"peers"_s});
-
     const QStringList peers = params[u"peers"_s].split(u'|');
     for (const QString &peer : peers)
     {

@@ -33,7 +33,9 @@
 #include <QByteArray>
 #include <QString>
 
+#include "base/3rdparty/expected.hpp"
 #include "base/path.h"
+#include "apierror.h"
 #include "apistatus.h"
 
 struct RegularAPIResult
@@ -42,14 +44,18 @@ struct RegularAPIResult
     QString mimeType {};
     QString filename {};
     APIStatus status = APIStatus::Ok;
+
+    friend bool operator==(const RegularAPIResult &lhs, const RegularAPIResult &rhs) = default;
 };
 
 struct StreamFileAPIResult
 {
     Path filePath;
+
+    friend bool operator==(const StreamFileAPIResult &lhs, const StreamFileAPIResult &rhs) = default;
 };
 
-using APIResult = std::variant<RegularAPIResult, StreamFileAPIResult>;
+using APIResult = nonstd::expected<std::variant<RegularAPIResult, StreamFileAPIResult>, APIError>;
 
 RegularAPIResult makeAPIResult(const QString &result, APIStatus status = APIStatus::Ok);
 RegularAPIResult makeAPIResult(const QJsonArray &result, APIStatus status = APIStatus::Ok);

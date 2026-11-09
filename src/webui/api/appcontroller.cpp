@@ -87,6 +87,19 @@ const QString KEY_FILE_METADATA_CREATION_DATE = u"creation_date"_s;
 const QString KEY_FILE_METADATA_LAST_ACCESS_DATE = u"last_access_date"_s;
 const QString KEY_FILE_METADATA_LAST_MODIFICATION_DATE = u"last_modification_date"_s;
 
+AppController::AppController(IApplication *app, QObject *parent)
+    : APIController(app, parent)
+{
+    initializeRequiredParams(
+    {
+        {u"setPreferences"_s, {u"json"_s}},
+        {u"getDirectoryContent"_s, {u"dirPath"_s}},
+        {u"getFreeSpaceAtPath"_s, {u"path"_s}},
+        {u"setCookies"_s, {u"cookies"_s}},
+        {u"networkInterfaceAddressList"_s, {u"iface"_s}},
+    });
+}
+
 APIResult AppController::webapiVersionAction()
 {
     return makeAPIResult(API_VERSION.toString());
@@ -546,8 +559,6 @@ APIResult AppController::preferencesAction()
 
 APIResult AppController::setPreferencesAction(const APIParams &params)
 {
-    requireParams(params, {u"json"_s});
-
     auto *pref = Preferences::instance();
     auto *session = BitTorrent::Session::instance();
     const QVariantHash m = QJsonDocument::fromJson(params[u"json"_s].toUtf8()).toVariant().toHash();
@@ -956,16 +967,16 @@ APIResult AppController::setPreferencesAction(const APIParams &params)
     {
         const QString username = it.value().toString();
         if (username.length() < 3)
-            throw APIError(APIErrorType::BadParams, tr("WebUI username must be at least 3 characters long"));
+            return nonstd::unexpected(APIError(APIErrorType::BadParams, tr("WebUI username must be at least 3 characters long")));
         if (username.contains(u":"))
-            throw APIError(APIErrorType::BadParams, tr("WebUI username cannot contain a colon"));
+            return nonstd::unexpected(APIError(APIErrorType::BadParams, tr("WebUI username cannot contain a colon")));
         pref->setWebUIUsername(username);
     }
     if (hasKey(u"web_ui_password"_s))
     {
         const QString password = it.value().toString();
         if (password.length() < 6)
-            throw APIError(APIErrorType::BadParams, tr("WebUI password must be at least 6 characters long"));
+            return nonstd::unexpected(APIError(APIErrorType::BadParams, tr("WebUI password must be at least 6 characters long")));
         pref->setWebUIPassword(Utils::Password::PBKDF2::generate(it.value().toByteArray()));
     }
     if (hasKey(u"bypass_local_auth"_s))
@@ -1300,17 +1311,15 @@ APIResult AppController::sendTestEmailAction()
 
 APIResult AppController::getDirectoryContentAction(const APIParams &params)
 {
-    requireParams(params, {u"dirPath"_s});
-
     const QString dirPath = params.value(u"dirPath"_s);
     if (dirPath.isEmpty() || dirPath.startsWith(u':'))
-        throw APIError(APIErrorType::BadParams, tr("Invalid directory path"));
+        return nonstd::unexpected(APIError(APIErrorType::BadParams, tr("Invalid directory path")));
 
     const QDir dir {dirPath};
     if (!dir.isAbsolute())
-        throw APIError(APIErrorType::BadParams, tr("Invalid directory path"));
+        return nonstd::unexpected(APIError(APIErrorType::BadParams, tr("Invalid directory path")));
     if (!dir.exists())
-        throw APIError(APIErrorType::NotFound, tr("Directory does not exist"));
+        return nonstd::unexpected(APIError(APIErrorType::NotFound, tr("Directory does not exist")));
 
     const QString visibility = params.value(u"mode"_s, u"all"_s);
 
@@ -1322,13 +1331,18 @@ APIResult AppController::getDirectoryContentAction(const APIParams &params)
             return QDir::Files;
         if (visibility == u"all")
             return (QDir::Dirs | QDir::Files);
-        throw APIError(APIErrorType::BadParams, tr("Invalid mode, allowed values: %1").arg(u"all, dirs, files"_s));
+
+        return {};
     };
+
+    const QDir::Filters directoryContentMode = parseDirectoryContentMode(visibility);
+    if (!directoryContentMode)
+        return nonstd::unexpected(APIError(APIErrorType::BadParams, tr("Invalid mode, allowed values: %1").arg(u"all, dirs, files"_s)));
 
     const bool withMetadata {Utils::String::parseBool(params[u"withMetadata"_s]).value_or(false)};
 
     QJsonArray ret;
-    QDirIterator it {dirPath, (QDir::NoDotAndDotDot | parseDirectoryContentMode(visibility))};
+    QDirIterator it {dirPath, (QDir::NoDotAndDotDot | directoryContentMode)};
     while (it.hasNext())
     {
         if (withMetadata)
@@ -1364,7 +1378,6 @@ APIResult AppController::getDirectoryContentAction(const APIParams &params)
 
 APIResult AppController::getFreeSpaceAtPathAction(const APIParams &params)
 {
-    requireParams(params, {u"path"_s});
     const Path path {params.value(u"path"_s)};
     const qint64 freeSpace = Utils::Fs::freeDiskSpaceOnPath(path);
     return makeAPIResult(QString::number(freeSpace));
@@ -1390,15 +1403,14 @@ APIResult AppController::cookiesAction()
 
 APIResult AppController::setCookiesAction(const APIParams &params)
 {
-    requireParams(params, {u"cookies"_s});
     const QString cookiesParam {params[u"cookies"_s].trimmed()};
 
     QJsonParseError jsonError;
     const auto cookiesJsonDocument = QJsonDocument::fromJson(cookiesParam.toUtf8(), &jsonError);
     if (jsonError.error != QJsonParseError::NoError)
-        throw APIError(APIErrorType::BadParams, jsonError.errorString());
+        return nonstd::unexpected(APIError(APIErrorType::BadParams, jsonError.errorString()));
     if (!cookiesJsonDocument.isArray())
-        throw APIError(APIErrorType::BadParams, tr("cookies must be array"));
+        return nonstd::unexpected(APIError(APIErrorType::BadParams, tr("cookies must be array")));
 
     const QJsonArray cookiesJsonArr = cookiesJsonDocument.array();
     QList<QNetworkCookie> cookies;
@@ -1406,7 +1418,7 @@ APIResult AppController::setCookiesAction(const APIParams &params)
     for (const QJsonValue &jsonVal : cookiesJsonArr)
     {
         if (!jsonVal.isObject())
-            throw APIError(APIErrorType::BadParams);
+            return nonstd::unexpected(APIError(APIErrorType::BadParams));
 
         QNetworkCookie cookie;
         const QJsonObject jsonObj = jsonVal.toObject();
@@ -1469,8 +1481,6 @@ APIResult AppController::networkInterfaceListAction()
 
 APIResult AppController::networkInterfaceAddressListAction(const APIParams &params)
 {
-    requireParams(params, {u"iface"_s});
-
     const QString ifaceName = params.value(u"iface"_s);
     QJsonArray addressList;
 

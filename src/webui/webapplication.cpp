@@ -401,77 +401,75 @@ void WebApplication::processAPIRequest(const QString &endpoint, const Http::Head
         params = m_request.posts;
     }
 
-    try
-    {
-        const APIResult apiResult = controller->run(action, APIParams(params, request().files));
-        if (std::holds_alternative<StreamFileAPIResult>(apiResult))
-        {
-            const auto result = std::get<StreamFileAPIResult>(apiResult);
-            responseWriter.streamFile(result.filePath, commonHeaders);
-            return;
-        }
-
-        Http::Response response {.headers = commonHeaders};
-
-        if (m_cookieBasedSessionStateChange == SessionStateChange::Start)
-        {
-            setSessionCookie(response.headers);
-        }
-        else if (m_cookieBasedSessionStateChange == SessionStateChange::End)
-        {
-            QNetworkCookie cookie {m_sessionCookieName.toLatin1()};
-            cookie.setPath(u"/"_s);
-            cookie.setExpirationDate(QDateTime::currentDateTime().addDays(-1));
-            response.headers.insert(Http::HEADER_SET_COOKIE, QString::fromLatin1(cookie.toRawForm()));
-        }
-
-        const auto result = std::get<RegularAPIResult>(apiResult);
-        if (result.data.isNull())
-        {
-            response.status = {.code = 204};
-        }
-        else
-        {
-            switch (result.status)
-            {
-            case APIStatus::Async:
-                response.status = {.code = 202};
-                break;
-            case APIStatus::Ok:
-                response.status = {.code = 200};
-                break;
-            }
-
-            response.headers.insert(Http::HEADER_CONTENT_TYPE, (!result.mimeType.isEmpty() ? result.mimeType : Http::CONTENT_TYPE_TXT));
-            if (!result.filename.isEmpty())
-                response.headers.insert(Http::HEADER_CONTENT_DISPOSITION, u"attachment; filename=\"%1\""_s.arg(result.filename));
-            response.content = result.data;
-        }
-
-        responseWriter.setResponse(response);
-    }
-    catch (const APIError &error)
+    const APIResult apiResult = controller->run(action, APIParams(params, request().files));
+    if (!apiResult)
     {
         // re-throw as HTTPError
-        switch (error.type())
+        switch (apiResult.error().type)
         {
         case APIErrorType::AccessDenied:
-            throw ForbiddenHTTPError(error.message());
+            throw ForbiddenHTTPError(apiResult.error().message);
         case APIErrorType::BadData:
-            throw UnsupportedMediaTypeHTTPError(error.message());
+            throw UnsupportedMediaTypeHTTPError(apiResult.error().message);
         case APIErrorType::BadParams:
-            throw BadRequestHTTPError(error.message());
+            throw BadRequestHTTPError(apiResult.error().message);
         case APIErrorType::Conflict:
-            throw ConflictHTTPError(error.message());
+            throw ConflictHTTPError(apiResult.error().message);
         case APIErrorType::NotFound:
-            throw NotFoundHTTPError(error.message());
+            throw NotFoundHTTPError(apiResult.error().message);
         case APIErrorType::Unauthorized:
-            throw UnauthorizedHTTPError(error.message());
+            throw UnauthorizedHTTPError(apiResult.error().message);
         default:
             Q_UNREACHABLE();
             break;
         }
     }
+
+    if (std::holds_alternative<StreamFileAPIResult>(apiResult.value()))
+    {
+        const auto result = std::get<StreamFileAPIResult>(apiResult.value());
+        responseWriter.streamFile(result.filePath, commonHeaders);
+        return;
+    }
+
+    Http::Response response {.headers = commonHeaders};
+
+    if (m_cookieBasedSessionStateChange == SessionStateChange::Start)
+    {
+        setSessionCookie(response.headers);
+    }
+    else if (m_cookieBasedSessionStateChange == SessionStateChange::End)
+    {
+        QNetworkCookie cookie {m_sessionCookieName.toLatin1()};
+        cookie.setPath(u"/"_s);
+        cookie.setExpirationDate(QDateTime::currentDateTime().addDays(-1));
+        response.headers.insert(Http::HEADER_SET_COOKIE, QString::fromLatin1(cookie.toRawForm()));
+    }
+
+    const auto result = std::get<RegularAPIResult>(apiResult.value());
+    if (result.data.isNull())
+    {
+        response.status = {.code = 204};
+    }
+    else
+    {
+        switch (result.status)
+        {
+        case APIStatus::Async:
+            response.status = {.code = 202};
+            break;
+        case APIStatus::Ok:
+            response.status = {.code = 200};
+            break;
+        }
+
+        response.headers.insert(Http::HEADER_CONTENT_TYPE, (!result.mimeType.isEmpty() ? result.mimeType : Http::CONTENT_TYPE_TXT));
+        if (!result.filename.isEmpty())
+            response.headers.insert(Http::HEADER_CONTENT_DISPOSITION, u"attachment; filename=\"%1\""_s.arg(result.filename));
+        response.content = result.data;
+    }
+
+    responseWriter.setResponse(response);
 }
 
 void WebApplication::configure()

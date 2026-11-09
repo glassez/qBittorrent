@@ -44,6 +44,10 @@ ClientDataController::ClientDataController(ClientDataStorage *clientDataStorage,
     : APIController(app, parent)
     , m_clientDataStorage {clientDataStorage}
 {
+    initializeRequiredParams(
+    {
+        {u"store"_s, {u"data"_s}}
+    });
 }
 
 APIResult ClientDataController::loadAction(const APIParams &params)
@@ -55,15 +59,16 @@ APIResult ClientDataController::loadAction(const APIParams &params)
     QJsonParseError jsonError;
     const auto keysJsonDocument = QJsonDocument::fromJson(keysParam.toUtf8(), &jsonError);
     if (jsonError.error != QJsonParseError::NoError)
-        throw APIError(APIErrorType::BadParams, jsonError.errorString());
+        return nonstd::unexpected(APIError(APIErrorType::BadParams, jsonError.errorString()));
+
     if (!keysJsonDocument.isArray())
-        throw APIError(APIErrorType::BadParams, tr("`keys` must be an array"));
+        return nonstd::unexpected(APIError(APIErrorType::BadParams, tr("`keys` must be an array")));
 
     QStringList keys;
     for (const QJsonValue &keysJsonVal : asConst(keysJsonDocument.array()))
     {
         if (!keysJsonVal.isString())
-            throw APIError(APIErrorType::BadParams, tr("Items of `keys` must be strings"));
+            return nonstd::unexpected(APIError(APIErrorType::BadParams, tr("Items of `keys` must be strings")));
 
         keys << keysJsonVal.toString();
     }
@@ -73,17 +78,17 @@ APIResult ClientDataController::loadAction(const APIParams &params)
 
 APIResult ClientDataController::storeAction(const APIParams &params)
 {
-    requireParams(params, {u"data"_s});
     QJsonParseError jsonError;
     const auto dataJsonDocument = QJsonDocument::fromJson(params[u"data"_s].toUtf8(), &jsonError);
     if (jsonError.error != QJsonParseError::NoError)
-        throw APIError(APIErrorType::BadParams, jsonError.errorString());
+        return nonstd::unexpected(APIError(APIErrorType::BadParams, jsonError.errorString()));
+
     if (!dataJsonDocument.isObject())
-        throw APIError(APIErrorType::BadParams, tr("`data` must be an object"));
+        return nonstd::unexpected(APIError(APIErrorType::BadParams, tr("`data` must be an object")));
 
     const nonstd::expected<void, QString> result = m_clientDataStorage->storeData(dataJsonDocument.object());
     if (!result)
-        throw APIError(APIErrorType::Conflict, result.error());
+        return nonstd::unexpected(APIError(APIErrorType::Conflict, result.error()));
 
     return {};
 }

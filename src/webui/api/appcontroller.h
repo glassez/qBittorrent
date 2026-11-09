@@ -38,7 +38,7 @@ class AppController : public APIController
     Q_DISABLE_COPY_MOVE(AppController)
 
 public:
-    using APIController::APIController;
+    explicit AppController(IApplication *app, QObject *parent = nullptr);
 
 private slots:
     APIResult webapiVersionAction();

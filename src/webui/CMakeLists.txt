@@ -26,7 +26,6 @@ add_library(qbt_webui STATIC
 
     # sources
     api/apicontroller.cpp
-    api/apierror.cpp
     api/apiparams.cpp
     api/apiresult.cpp
     api/appcontroller.cpp

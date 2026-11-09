@@ -52,7 +52,7 @@ APIResult AuthController::loginAction(const APIParams &params)
         return {};
     }
 
-    throw APIError(APIErrorType::Unauthorized);
+    return nonstd::unexpected(APIError(APIErrorType::Unauthorized));
 }
 
 APIResult AuthController::logoutAction()

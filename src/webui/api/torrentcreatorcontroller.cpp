@@ -125,12 +125,16 @@ TorrentCreatorController::TorrentCreatorController(BitTorrent::TorrentCreationMa
     : APIController(app, parent)
     , m_torrentCreationManager {torrentCreationManager}
 {
+    initializeRequiredParams(
+    {
+        {u"addTask"_s, {KEY_SOURCE_PATH}},
+        {u"torrentFile"_s, {KEY_TASK_ID}},
+        {u"deleteTask"_s, {KEY_TASK_ID}},
+    });
 }
 
 APIResult TorrentCreatorController::addTaskAction(const APIParams &params)
 {
-    requireParams(params, {KEY_SOURCE_PATH});
-
     const BitTorrent::TorrentCreatorParams createTorrentParams
     {
         .ignoreDotfiles = parseBool(params[KEY_IGNORE_DOTFILES]).value_or(true),
@@ -154,7 +158,7 @@ APIResult TorrentCreatorController::addTaskAction(const APIParams &params)
 
     const auto task = m_torrentCreationManager->createTask(createTorrentParams, startSeeding);
     if (!task)
-        throw APIError(APIErrorType::Conflict, tr("Too many active tasks"));
+        return nonstd::unexpected(APIError(APIErrorType::Conflict, tr("Too many active tasks")));
 
     return makeAPIResult(QJsonObject {{KEY_TASK_ID, task->id()}});
 }
@@ -165,7 +169,7 @@ APIResult TorrentCreatorController::statusAction(const APIParams &params)
 
     const auto singleTask = m_torrentCreationManager->getTask(id);
     if (!id.isEmpty() && !singleTask)
-        throw APIError(APIErrorType::NotFound);
+        return nonstd::unexpected(APIError(APIErrorType::NotFound));
 
     const QList<std::shared_ptr<BitTorrent::TorrentCreationTask>> tasks = id.isEmpty()
             ? m_torrentCreationManager->tasks()
@@ -234,22 +238,21 @@ APIResult TorrentCreatorController::statusAction(const APIParams &params)
 
 APIResult TorrentCreatorController::torrentFileAction(const APIParams &params)
 {
-    requireParams(params, {KEY_TASK_ID});
     const QString id = params[KEY_TASK_ID];
 
     const auto task = m_torrentCreationManager->getTask(id);
     if (!task)
-        throw APIError(APIErrorType::NotFound);
+        return nonstd::unexpected(APIError(APIErrorType::NotFound));
 
     if (!task->isFinished())
-        throw APIError(APIErrorType::Conflict, tr("Torrent creation is still unfinished."));
+        return nonstd::unexpected(APIError(APIErrorType::Conflict, tr("Torrent creation is still unfinished.")));
 
     if (task->isFailed())
-        throw APIError(APIErrorType::Conflict, tr("Torrent creation failed."));
+        return nonstd::unexpected(APIError(APIErrorType::Conflict, tr("Torrent creation failed.")));
 
     const auto readResult = Utils::IO::readFile(task->result().torrentFilePath, Preferences::instance()->getTorrentFileSizeLimit());
     if (!readResult)
-        throw APIError(APIErrorType::Conflict, readResult.error().message);
+        return nonstd::unexpected(APIError(APIErrorType::Conflict, readResult.error().message));
 
     QString filename = task->params().sourcePath.filename();
     if (filename.isEmpty())
@@ -261,11 +264,10 @@ APIResult TorrentCreatorController::torrentFileAction(const APIParams &params)
 
 APIResult TorrentCreatorController::deleteTaskAction(const APIParams &params)
 {
-    requireParams(params, {KEY_TASK_ID});
     const QString id = params[KEY_TASK_ID];
 
     if (!m_torrentCreationManager->deleteTask(id))
-        throw APIError(APIErrorType::NotFound);
+        return nonstd::unexpected(APIError(APIErrorType::NotFound));
 
     return makeAPIResult(QString());
 }
