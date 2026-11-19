@@ -48,6 +48,12 @@ ClientDataController::ClientDataController(ClientDataStorage *clientDataStorage,
     {
         {u"store"_s, {u"data"_s}}
     });
+
+    registerActions(
+    {
+        {u"load"_s, makeActionDescriptor(&ClientDataController::loadAction)},
+        {u"store"_s, makeActionDescriptor(&ClientDataController::storeAction, {u"data"_s})},
+    });
 }
 
 APIResult ClientDataController::loadAction(const APIParams &params)

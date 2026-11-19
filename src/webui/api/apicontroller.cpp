@@ -31,6 +31,8 @@
 #include <QMetaMethod>
 #include <QMetaObject>
 
+#include "base/utils/dict.h"
+
 using namespace Qt::Literals::StringLiterals;
 
 APIController::APIController(IApplication *app, QObject *parent)
@@ -40,6 +42,25 @@ APIController::APIController(IApplication *app, QObject *parent)
 
 APIResult APIController::run(const QString &action, const APIParams &params)
 {
+    const std::optional<ActionDescriptor> actionDescr = Utils::Dict::get(m_actions, action);
+    if (actionDescr)
+    {
+        // if (const auto checkResult = checkRequiredParams(action, params); !checkResult)
+        // {
+        //     return nonstd::unexpected(APIError(APIErrorType::BadParams
+        //             , tr("Missing required parameters: %1").arg(checkResult.error().join(u", "))));
+        // }
+
+        return std::visit([this, &params](auto &&arg) -> APIResult
+        {
+            using T = std::decay_t<decltype(arg)>;
+            if constexpr (std::is_same_v<T, ActionMethodWithParams>)
+                return std::invoke(arg, this, params);
+            else if constexpr (std::is_same_v<T, ActionMethodWithoutParams>)
+                return std::invoke(arg, this);
+        }, actionDescr->method);
+    }
+
     const QByteArray methodName = action.toLatin1() + "Action";
     const QMetaObject *thisMetaObject = metaObject();
     for (int indexOfMethod = 0; indexOfMethod < thisMetaObject->methodCount(); ++indexOfMethod)
@@ -77,6 +98,12 @@ void APIController::initializeRequiredParams(QHash<QString, QStringList> require
 {
     Q_ASSERT(m_requiredParams.isEmpty());
     m_requiredParams = std::move(requiredParams);
+}
+
+void APIController::registerActions(QHash<QString, ActionDescriptor> actions)
+{
+    Q_ASSERT(m_actions.isEmpty());
+    m_actions = std::move(actions);
 }
 
 nonstd::expected<void, QStringList> APIController::checkRequiredParams(const QString &action, const APIParams &params)

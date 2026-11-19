@@ -49,10 +49,34 @@ public:
     APIResult run(const QString &action, const APIParams &params);
 
 protected:
+    using ActionMethodWithParams = APIResult (APIController::*)(const APIParams &);
+    using ActionMethodWithoutParams = APIResult (APIController::*)();
+    using ActionMethod = std::variant<ActionMethodWithParams, ActionMethodWithoutParams>;
+
+    struct ActionDescriptor
+    {
+        ActionMethod method;
+        QStringList requiredParams;
+    };
+
+    template <typename T, typename ...Args>
+    static constexpr ActionMethod wrapAction(APIResult (T::* method)(Args...))
+    {
+        return static_cast<APIResult (APIController::*)(Args...)>(method);
+    }
+
+    template <typename T, typename ...Args>
+    ActionDescriptor makeActionDescriptor(APIResult (T::* method)(Args...), const QStringList &requiredParams = {})
+    {
+        return {.method = wrapAction(method), .requiredParams = requiredParams};
+    }
+
     void initializeRequiredParams(QHash<QString, QStringList> requiredParams);
+    void registerActions(QHash<QString, ActionDescriptor> actions);
 
 private:
     nonstd::expected<void, QStringList> checkRequiredParams(const QString &action, const APIParams &params);
 
     QHash<QString, QStringList> m_requiredParams;
+    QHash<QString, ActionDescriptor> m_actions;
 };
