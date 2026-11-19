@@ -33,7 +33,6 @@
 #include <QDebug>
 #include <QDir>
 #include <QFileInfo>
-#include <QJsonDocument>
 #include <QMetaObject>
 #include <QMimeDatabase>
 #include <QMimeType>
@@ -443,24 +442,10 @@ void WebApplication::processAPIRequest(const QString &endpoint, const Http::Head
                 break;
             }
 
-            switch (result.data.userType())
-            {
-            case QMetaType::QJsonDocument:
-                response.headers.insert(Http::HEADER_CONTENT_TYPE, Http::CONTENT_TYPE_JSON);
-                response.content = result.data.toJsonDocument().toJson(QJsonDocument::Compact);
-                break;
-            case QMetaType::QByteArray:
-                response.headers.insert(Http::HEADER_CONTENT_TYPE, (!result.mimeType.isEmpty() ? result.mimeType : Http::CONTENT_TYPE_TXT));
-                if (!result.filename.isEmpty())
-                    response.headers.insert(Http::HEADER_CONTENT_DISPOSITION, u"attachment; filename=\"%1\""_s.arg(result.filename));
-                response.content = result.data.toByteArray();
-                break;
-            case QMetaType::QString:
-            default:
-                response.headers.insert(Http::HEADER_CONTENT_TYPE, Http::CONTENT_TYPE_TXT);
-                response.content = result.data.toString().toUtf8();
-                break;
-            }
+            response.headers.insert(Http::HEADER_CONTENT_TYPE, (!result.mimeType.isEmpty() ? result.mimeType : Http::CONTENT_TYPE_TXT));
+            if (!result.filename.isEmpty())
+                response.headers.insert(Http::HEADER_CONTENT_DISPOSITION, u"attachment; filename=\"%1\""_s.arg(result.filename));
+            response.content = result.data;
         }
 
         responseWriter.setResponse(response);

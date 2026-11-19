@@ -30,15 +30,15 @@
 
 #include <variant>
 
+#include <QByteArray>
 #include <QString>
-#include <QVariant>
 
 #include "base/path.h"
 #include "apistatus.h"
 
 struct RegularAPIResult
 {
-    QVariant data {};
+    QByteArray data {};
     QString mimeType {};
     QString filename {};
     APIStatus status = APIStatus::Ok;

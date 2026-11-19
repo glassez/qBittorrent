@@ -30,19 +30,33 @@
 
 #include <QJsonDocument>
 
+#include "base/http/constants.h"
+
+namespace
+{
+    RegularAPIResult makeAPIResultFromJSON(const QJsonDocument &jsonDoc, const APIStatus status)
+    {
+        return {
+            .data = jsonDoc.toJson(QJsonDocument::Compact),
+            .mimeType = Http::CONTENT_TYPE_JSON,
+            .status = status
+        };
+    }
+}
+
 RegularAPIResult makeAPIResult(const QString &result, const APIStatus status)
 {
-    return {.data = result, .status = status};
+    return {.data = result.toUtf8(), .mimeType = Http::CONTENT_TYPE_TXT, .status = status};
 }
 
 RegularAPIResult makeAPIResult(const QJsonArray &result, const APIStatus status)
 {
-    return {.data = QJsonDocument(result), .status = status};
+    return makeAPIResultFromJSON(QJsonDocument(result), status);
 }
 
 RegularAPIResult makeAPIResult(const QJsonObject &result, const APIStatus status)
 {
-    return {.data = QJsonDocument(result), .status = status};
+    return makeAPIResultFromJSON(QJsonDocument(result), status);
 }
 
 RegularAPIResult makeAPIResult(const QByteArray &result, const QString &mimeType
