@@ -39,6 +39,7 @@
 #include "base/bittorrent/sharelimits.h"
 #include "base/bittorrent/trackerentrystatus.h"
 #include "base/path.h"
+#include "base/tag.h"
 
 namespace luabridge
 {
@@ -131,6 +132,26 @@ namespace luabridge
         [[nodiscard]] static TypeResult<Path> get(lua_State *luaState, const int index)
         {
             return Path(Stack<QString>::get(luaState, index).valueOr(QString()));
+        }
+
+        [[nodiscard]] static bool isInstance(lua_State *luaState, const int index)
+        {
+            return lua_type(luaState, index) == LUA_TSTRING;
+        }
+    };
+
+    // LuaBridge Stack specialization for `Tag`.
+    template <>
+    struct Stack<Tag>
+    {
+        [[nodiscard]] static Result push(lua_State *luaState, const Tag &tag)
+        {
+            return Stack<QString>::push(luaState, tag.toString());
+        }
+
+        [[nodiscard]] static TypeResult<Tag> get(lua_State *luaState, const int index)
+        {
+            return Tag(Stack<QString>::get(luaState, index).valueOr(QString()));
         }
 
         [[nodiscard]] static bool isInstance(lua_State *luaState, const int index)

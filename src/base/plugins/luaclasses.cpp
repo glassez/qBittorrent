@@ -39,6 +39,7 @@
 #include "base/bittorrent/torrent.h"
 #include "base/bittorrent/trackerentry.h"
 #include "base/bittorrent/trackerentrystatus.h"
+#include "base/tag.h"
 #include "luanamespace.h"
 #include "luastack.h"
 
@@ -83,7 +84,7 @@ namespace
         {
             torrent->setCategory(category);
         });
-        cls.addProperty("tags", +[](const Torrent *torrent) -> std::vector<QString>
+        cls.addProperty("tags", +[](const Torrent *torrent) -> std::vector<Tag>
         {
             const auto tags = torrent->tags();
             return {tags.cbegin(), tags.cend()};

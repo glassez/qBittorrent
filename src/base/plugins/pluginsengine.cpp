@@ -476,8 +476,8 @@ void PluginsEngine::callEventHandlers(const char *eventHandlerName, Args&&... ar
         }
         catch (const std::exception &ex)
         {
-            LogMsg(tr("Failed to call the plugin. Plugin: %1. Reason: %2")
-                    .arg(pluginEntry.id, QString::fromStdString(ex.what())), Log::WARNING);
+            LogMsg(tr("Failed to call the plugin. Plugin: %1. Function: %2. Reason: %3")
+                    .arg(pluginEntry.id, eventHandlerName, QString::fromStdString(ex.what())), Log::WARNING);
         }
     }
 }
